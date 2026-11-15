@@ -174,7 +174,7 @@ public partial class MainForm
     private Image? readImgOne, readImgTwo, readImgActual, readImgFit, readImgFitWidth, readImgFitUpscale;
     private ToolStripButton? layoutButton;
 
-    /// <summary>exe에 넣어 둔 그림(Img\OnePage.png 등)을 서식창 버튼 크기(약 22px)로 줄여 읽는다. 못 읽으면 null.</summary>
+    /// <summary>exe에 넣어 둔 그림(Img\Used\OnePage.png 등)을 서식창 버튼 크기(약 22px)로 줄여 읽는다. 못 읽으면 null.</summary>
     private Image? LoadReadImage(string resource)
     {
         try

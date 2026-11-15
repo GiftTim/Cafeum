@@ -12,7 +12,7 @@
     <Product>Caffeum</Product>
     <Company>JuneSilver</Company>
     <Version>1.1.7</Version>
-    <ApplicationIcon>Img\CaffeumTaskbar.ico</ApplicationIcon>
+    <ApplicationIcon>Img/Used/CaffeumTaskbar.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- 배포(CafeumOffice.iss, 아직 없음)는 publish 폴더의 exe 하나만 그대로 담아간다. 아래 설정을 빠뜨리고
@@ -28,19 +28,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Img/Caffeum.ico" LogicalName="Caffeum.ico" />
-    <EmbeddedResource Include="Img/CaffeumTaskbar.ico" LogicalName="CaffeumTaskbar.ico" />
-    <EmbeddedResource Include="Img/OnePage.png" LogicalName="OnePage.png" />
-    <EmbeddedResource Include="Img/TwoPage.png" LogicalName="TwoPage.png" />
-    <EmbeddedResource Include="Img/Full Screen Key.png" LogicalName="FullScreenKey.png" />
-    <EmbeddedResource Include="Img/Exit Full Screen Key.png" LogicalName="ExitFullScreenKey.png" />
-    <EmbeddedResource Include="Img/Unpin from top.png" LogicalName="UnpinFromTop.png" />
-    <EmbeddedResource Include="Img/Pin on Top.png" LogicalName="PinOnTop.png" />
-    <EmbeddedResource Include="Img/원본 크기로 보기.png" LogicalName="ViewActual.png" />
-    <EmbeddedResource Include="Img/꽉차게 보기.png" LogicalName="ViewFit.png" />
-    <EmbeddedResource Include="Img/꽉차게 보기(폭 맞춤).png" LogicalName="ViewFitWidth.png" />
-    <EmbeddedResource Include="Img/작은 그림도 꽉차게 보기.png" LogicalName="ViewFitUpscale.png" />
-    <EmbeddedResource Include="Img\refresh.png" LogicalName="refresh.png" />
+    <EmbeddedResource Include="Img/Used/Caffeum.ico" LogicalName="Caffeum.ico" />
+    <EmbeddedResource Include="Img/Used/CaffeumTaskbar.ico" LogicalName="CaffeumTaskbar.ico" />
+    <EmbeddedResource Include="Img/Used/OnePage.png" LogicalName="OnePage.png" />
+    <EmbeddedResource Include="Img/Used/TwoPage.png" LogicalName="TwoPage.png" />
+    <EmbeddedResource Include="Img/Used/원본 크기로 보기.png" LogicalName="ViewActual.png" />
+    <EmbeddedResource Include="Img/Used/꽉차게 보기.png" LogicalName="ViewFit.png" />
+    <EmbeddedResource Include="Img/Used/꽉차게 보기(폭 맞춤).png" LogicalName="ViewFitWidth.png" />
+    <EmbeddedResource Include="Img/Used/작은 그림도 꽉차게 보기.png" LogicalName="ViewFitUpscale.png" />
+    <EmbeddedResource Include="Img/Used/refresh.png" LogicalName="refresh.png" />
   </ItemGroup>
 
   <ItemGroup>

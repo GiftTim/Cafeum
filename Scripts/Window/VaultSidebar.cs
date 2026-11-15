@@ -712,7 +712,7 @@ internal enum SideIcon { Files, Search, Bookmark, NewNote, NewFolder, Sort, Coll
 internal sealed class SideIconButton : Control
 {
     private readonly SideIcon icon;
-    /// <summary>새로 고침 버튼에 그리는 Img\refresh.png(exe에 포함). 못 읽으면 null → 예전 선 아이콘.</summary>
+    /// <summary>새로 고침 버튼에 그리는 Img\Used\refresh.png(exe에 포함). 못 읽으면 null → 예전 선 아이콘.</summary>
     private static readonly Bitmap? RefreshImage = LoadRefreshImage();
     private static Bitmap? LoadRefreshImage()
     {
@@ -806,7 +806,7 @@ internal sealed class SideIconButton : Control
             case SideIcon.Refresh:
                 if (RefreshImage != null)
                 {
-                    // Img\refresh.png(검정 바탕 투명)를 선 색으로 물들여 16×16 칸 가운데에 그린다.
+                    // Img\Used\refresh.png(검정 바탕 투명)를 선 색으로 물들여 16×16 칸 가운데에 그린다.
                     var c = pen.Color;
                     var cm = new System.Drawing.Imaging.ColorMatrix(new float[][]
                     {
