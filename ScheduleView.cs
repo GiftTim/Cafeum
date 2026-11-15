@@ -41,6 +41,8 @@ internal static class ScheduleStore
     {
         public List<ScheduleCal> Calendars { get; set; } = new();
         public List<ScheduleEntry> Entries { get; set; } = new();
+        public bool HolidaysVisible { get; set; } = true;
+        public string HolidayColor { get; set; } = "";
     }
 
     private static readonly JsonSerializerOptions Opts = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -88,6 +90,13 @@ internal static class ScheduleStore
 
     public static List<ScheduleCal> Calendars => D.Calendars;
     public static List<ScheduleEntry> All => D.Entries;
+    public static Color HolidayColor
+    {
+        get { try { return string.IsNullOrEmpty(D.HolidayColor) ? Color.FromArgb(0xE5, 0x48, 0x4D) : ColorTranslator.FromHtml(D.HolidayColor); } catch { return Color.FromArgb(0xE5, 0x48, 0x4D); } }
+        set { D.HolidayColor = ColorTranslator.ToHtml(value); Save(); }
+    }
+    public static void ResetHolidayColor() { D.HolidayColor = ""; Save(); }
+    public static bool HolidaysVisible { get => D.HolidaysVisible; set { D.HolidaysVisible = value; Save(); } }
     public static ScheduleCal CalOf(string id) => D.Calendars.FirstOrDefault(c => c.Id == id) ?? D.Calendars[0];
 
     public static string Key(DateTime d) => d.ToString("yyyy-MM-dd");
@@ -149,7 +158,7 @@ internal sealed class ScheduleView : Panel
     private readonly CalList calList;
     private readonly Panel side;
     private readonly Panel topBar;
-    private readonly DayPanel dayNote = new() { Dock = DockStyle.Top, Visible = false };
+    private readonly DayPanel dayNote = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly FullScreenButton fullButton = new();
     private LibraryPalette? palette;
     private DateTime selected = DateTime.Today;
@@ -169,9 +178,9 @@ internal sealed class ScheduleView : Panel
         topBar.Controls.Add(fullButton);
         topBar.Paint += (_, e) => { using var pen = new Pen(palette?.Line ?? Color.Gainsboro); e.Graphics.DrawLine(pen, 0, topBar.Height - 1, topBar.Width, topBar.Height - 1); };
         topBar.Resize += (_, _) => PlaceFull();
+        side.Controls.Add(dayNote);
         side.Controls.Add(calList);
         side.Controls.Add(mini);
-        side.Controls.Add(dayNote);
         side.Controls.Add(topBar);
 
         Controls.Add(grid);
@@ -181,6 +190,7 @@ internal sealed class ScheduleView : Panel
         grid.DateSelected += d => Select(d);
         grid.ViewChanged += _ => ApplyView();
         dayNote.EntryClicked += (en, at) => EditEntry(en, at);
+        dayNote.TodayClicked += () => { Select(DateTime.Today); grid.GoTo(DateTime.Today); mini.Month = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1); };
         grid.WeekChanged += _ => mini.Month = grid.Selected;
         grid.CreateRequested += (d, a, b, at) => CreateEntry(d, a, b, at);
         grid.PaintRequested += (d, a, b) => { var br = grid.Brush; if (br == null) return; ScheduleStore.Add(d, br.Name, br.Id, a, a < 0 ? 0 : Math.Max(15, b - a)); if (grid.View != 0) Select(d); };
@@ -188,7 +198,7 @@ internal sealed class ScheduleView : Panel
         calList.PickFirst();
         grid.EntryClicked += (en, at) => EditEntry(en, at); // 일정을 누르면 바로 보기 · 수정 창
         mini.DateSelected += d => { Select(d); grid.GoTo(d); };
-        calList.Changed += () => { grid.Invalidate(); mini.Invalidate(); calList.Invalidate(); };
+        calList.Changed += () => { calList.Fit(); grid.Invalidate(); mini.Invalidate(); calList.Invalidate(); };
         ScheduleStore.Changed += OnStoreChanged;
         Disposed += (_, _) => ScheduleStore.Changed -= OnStoreChanged;
     }
@@ -197,7 +207,7 @@ internal sealed class ScheduleView : Panel
     private void PlaceFull() => fullButton.SetBounds(topBar.ClientSize.Width - S(12) - S(32), (topBar.ClientSize.Height - S(32)) / 2, S(32), S(32));
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); topBar.Height = S(38); side.Width = S(260); PlaceFull(); }
     protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); topBar.Height = S(38); side.Width = S(260); PlaceFull(); }
-    private void OnStoreChanged() { if (IsHandleCreated) { grid.Invalidate(); mini.Invalidate(); calList.Invalidate(); dayNote.Invalidate(); } }
+    private void OnStoreChanged() { if (IsHandleCreated) { calList.Fit(); grid.Invalidate(); mini.Invalidate(); calList.Invalidate(); dayNote.Invalidate(); } }
 
     /// <summary>월 보기에서는 작은 달력 대신 [오늘 날짜 + 오늘 찍어 둔 스케줄 목록]을, 주 보기에서는 작은 달력을 보인다. (오른쪽 아래 "내 스케줄"은 그대로)</summary>
     private void ApplyView()
@@ -205,6 +215,8 @@ internal sealed class ScheduleView : Panel
         bool month = grid.View == 0;
         mini.Visible = !month;
         dayNote.Visible = month;
+        calList.Dock = month ? DockStyle.Bottom : DockStyle.Fill;
+        calList.Fit();
         if (month) { dayNote.SetDay(selected); calList.SelectDefault(); }
     }
 
@@ -359,7 +371,7 @@ internal sealed class ScheduleView : Panel
             int bs = S(34);
 
             todayRect = Rectangle.Empty; // [오늘] 버튼은 뺐다
-            int cy = TitleH + (curView == 0 ? S(26) : S(38)) - S(18); // 날짜 숫자 줄과 같은 높이
+            int cy = TitleH + (curView == 0 ? S(26) : S(26)) - S(18); // 월 · 주 모두 요일 글자 줄 높이 // 날짜 숫자 줄과 같은 높이
             prevRect = new Rectangle(S(12), cy, S(36), S(36));      // ‹ 지난주
             nextRect = new Rectangle(Width - S(46), cy, S(36), S(36)); // › 다음주
             titleRight = Width - S(60);
@@ -592,7 +604,9 @@ internal sealed class ScheduleView : Panel
                     bool isToday = d.Date == DateTime.Today;
                     if (isToday) { using var b = new SolidBrush(red); g.FillEllipse(b, circle); }
                     else if (d.Date == selectedDay.Date) { using var pen = new Pen(pal.Accent, S(2)); g.DrawEllipse(pen, circle); }
-                    TextRenderer.DrawText(g, d.Day.ToString(), nf, circle, isToday ? Color.White : pal.Fore, mid);
+                    string? whol = ScheduleStore.HolidaysVisible ? KoreanHolidays.NameOn(d) : null;
+                    TextRenderer.DrawText(g, d.Day.ToString(), nf, circle, isToday ? Color.White : whol != null ? ScheduleStore.HolidayColor : pal.Fore, mid);
+                    if (whol != null) using (var hfw = new Font(ff, 8f)) TextRenderer.DrawText(g, whol, hfw, new Rectangle(circle.Right + S(3), circle.Y, Math.Max(10, x + colW - circle.Right - S(5)), circle.Height), ScheduleStore.HolidayColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
                 }
 
             // 종일 줄
@@ -720,7 +734,10 @@ internal sealed class ScheduleView : Panel
                     if (isToday) { using var b = new SolidBrush(red); g.FillEllipse(b, circle); }
                     else if (d.Date == selectedDay.Date) { using var pen = new Pen(pal.Accent, S(2)); g.DrawEllipse(pen, circle); }
                     Color nc = isToday ? Color.White : !inMonth ? Themes.Blend(pal.Main, pal.Fore, 0.3f) : i % 7 == 0 ? red : i % 7 == 6 ? Color.FromArgb(0x4A, 0x7F, 0xD0) : pal.Fore;
+                    string? hol = ScheduleStore.HolidaysVisible ? KoreanHolidays.NameOn(d) : null;
+                    if (hol != null && !isToday && inMonth) nc = ScheduleStore.HolidayColor;
                     TextRenderer.DrawText(g, d.Day.ToString(), nf, circle, nc, mid);
+                    if (hol != null) TextRenderer.DrawText(g, hol, itemFont, new Rectangle(circle.Right + S(4), y + S(4), Math.Max(10, colW - circle.Width - S(14)), S(24)), inMonth ? ScheduleStore.HolidayColor : Color.FromArgb(120, ScheduleStore.HolidayColor), left);
 
                     // 그날 일정: 칸에 들어갈 만큼만 칩으로, 넘치면 "+N개 더"
                     string k = ScheduleStore.Key(d);
@@ -857,6 +874,10 @@ internal sealed class ScheduleView : Panel
         /// <summary>일정을 눌렀다(보기 · 수정 창을 여는 쪽이 받는다).</summary>
         public event Action<ScheduleEntry, Point>? EntryClicked;
 
+        /// <summary>맨 위 "오늘 · N일 후" 글자를 눌렀다(오늘로 돌아간다).</summary>
+        public event Action? TodayClicked;
+        private Rectangle RelRect() { var sz = TextRenderer.MeasureText(Relative(), Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding); return new Rectangle(S(14), S(6), sz.Width + S(28), S(28)); }
+
         public DayPanel()
         {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -902,7 +923,8 @@ internal sealed class ScheduleView : Panel
         {
             base.OnMouseMove(e);
             int h = rows.FindIndex(r => r.R.Contains(e.Location));
-            if (h != hotRow) { hotRow = h; Cursor = h >= 0 ? Cursors.Hand : Cursors.Default; Invalidate(); }
+            Cursor = h >= 0 || RelRect().Contains(e.Location) ? Cursors.Hand : Cursors.Default;
+            if (h != hotRow) { hotRow = h; Invalidate(); }
         }
 
         protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hotRow = -1; Invalidate(); }
@@ -910,7 +932,8 @@ internal sealed class ScheduleView : Panel
         protected override void OnMouseClick(MouseEventArgs e)
         {
             base.OnMouseClick(e);
-            if (e.Button != MouseButtons.Left || e.Y < S(110)) return;
+            if (e.Button == MouseButtons.Left && RelRect().Contains(e.Location)) { TodayClicked?.Invoke(); return; }
+            if (e.Button != MouseButtons.Left || e.Y < S(86)) return;
             foreach (var (r, en) in rows)
                 if (r.Contains(e.Location)) { EntryClicked?.Invoke(en, PointToScreen(new Point(r.Left, r.Bottom))); return; }
         }
@@ -927,7 +950,7 @@ internal sealed class ScheduleView : Panel
             string ff = NovelStore.UiFontFamily;
             const TextFormatFlags left = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
             Color dim = Themes.Blend(pal.Side, pal.Fore, 0.55f);
-            int headH = S(110);
+            int headH = S(86);
 
             // 1) 일정 줄을 먼저 그린다(글자는 영역 밖으로도 그려질 수 있어서, 아래에서 머리 영역을 다시 덮는다)
             var list = DayList();
@@ -962,18 +985,18 @@ internal sealed class ScheduleView : Panel
             using (var cover = new SolidBrush(pal.Side)) g.FillRectangle(cover, 0, 0, Width, headH);
             var ko = System.Globalization.CultureInfo.GetCultureInfo("ko-KR");
             using (var sf = new Font(ff, 9.5f, FontStyle.Bold))
-                TextRenderer.DrawText(g, Relative(), sf, new Rectangle(S(20), S(14), Width - S(40), S(22)), dim, left);
+                TextRenderer.DrawText(g, Relative(), sf, new Rectangle(S(20), S(10), Width - S(40), S(22)), dim, left);
             string dateText = $"{day.Month}월 {day.Day}일";
             using (var bf = new Font(ff, 22f, FontStyle.Bold))
             using (var wf = new Font(ff, 11f))
             {
                 var dsz = TextRenderer.MeasureText(g, dateText, bf, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-                TextRenderer.DrawText(g, dateText, bf, new Rectangle(S(20), S(38), dsz.Width + S(4), S(40)), pal.Fore, left);
+                TextRenderer.DrawText(g, dateText, bf, new Rectangle(S(20), S(30), dsz.Width + S(4), S(40)), pal.Fore, left);
                 // 요일은 날짜 오른쪽, 아래쪽(글자 바닥)에 맞춰 작게
                 int wx = S(20) + dsz.Width + S(10);
-                TextRenderer.DrawText(g, day.ToString("dddd", ko), wf, new Rectangle(wx, S(38) + S(40) - S(26), Math.Max(10, Width - wx - S(12)), S(22)), dim, left);
+                TextRenderer.DrawText(g, day.ToString("dddd", ko), wf, new Rectangle(wx, S(30) + S(40) - S(26), Math.Max(10, Width - wx - S(12)), S(22)), dim, left);
             }
-            using (var lp = new Pen(pal.Line)) g.DrawLine(lp, S(16), S(100), Width - S(16), S(100));
+            using (var lp = new Pen(pal.Line)) g.DrawLine(lp, S(16), S(78), Width - S(16), S(78));
         }
     }
 
@@ -1138,7 +1161,33 @@ internal sealed class ScheduleView : Panel
         public void SetPalette(LibraryPalette pal) { p = pal; BackColor = pal.Side; Invalidate(); }
         private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
         private int RowH => S(34);
-        private Rectangle RowRect(int i) => new(S(8), S(46) + i * RowH, Width - S(16), RowH - S(2));
+        private int scroll;
+        private const int VisibleRows = 4; // 내 스케줄은 4줄까지 보이고, 그 이상은 휠로 넘긴다
+        private int ListH() => Math.Min(Count, VisibleRows) * RowH;
+        private int ListTop() => S(46);
+        private int ListBottom() => ListTop() + ListH();
+        private Rectangle RowRect(int i) => new(S(8), ListTop() + i * RowH - scroll, Width - S(16), RowH - S(2));
+        private int OtherTop() => ListBottom() + S(14);
+        private Rectangle HolidayRect() => new(S(8), OtherTop() + S(28), Width - S(16), RowH - S(2));
+        private int MaxScroll() => Math.Max(0, Count * RowH - ListH());
+
+        /// <summary>아래에 붙어 있을 때(월 보기): 줄 수에 맞춰 높이를 정한다.</summary>
+        public void Fit()
+        {
+            scroll = Math.Clamp(scroll, 0, MaxScroll());
+            if (Dock != DockStyle.Bottom) return;
+            int h = OtherTop() + S(28) + 2 * RowH + S(8); // 다른 캘린더는 두 줄 자리
+            if (Height != h) Height = h;
+        }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Fit(); }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+            if (e.Y >= ListBottom()) return;
+            int ns = Math.Clamp(scroll - e.Delta / 120 * RowH, 0, MaxScroll());
+            if (ns != scroll) { scroll = ns; Invalidate(); }
+        }
         private Rectangle SwatchRect(int i) { var r = RowRect(i); return new Rectangle(r.X + S(10), r.Y + (r.Height - S(22)) / 2, S(22), S(22)); }
         private int Count => ScheduleStore.Calendars.Count;
         private Rectangle PlusRect() => new(Width - S(8) - S(30), S(8), S(30), S(30)); // "내 스케줄" 줄 오른쪽 끝의 +
@@ -1146,6 +1195,9 @@ internal sealed class ScheduleView : Panel
         private int HitAt(Point pt)
         {
             if (PlusRect().Contains(pt)) return 1000;
+            if (pt.Y < S(44)) return -1;
+            if (HolidayRect().Contains(pt)) return 2000;
+            if (pt.Y >= ListBottom()) return -1;
             for (int i = 0; i < Count; i++) if (RowRect(i).Contains(pt)) return i;
             return -1;
         }
@@ -1164,6 +1216,13 @@ internal sealed class ScheduleView : Panel
             int h = HitAt(e.Location);
             if (h < 0) return;
             if (h == 1000) { AddCalendar(); return; } // 머리줄의 +
+            if (h == 2000)
+            {
+                var hr = HolidayRect();
+                if (e.Button == MouseButtons.Right || HolidayMoreRect().Contains(e.Location)) { HolidayMenu(PointToScreen(new Point(HolidayMoreRect().Left, HolidayMoreRect().Bottom))); return; }
+                if (Rectangle.Inflate(new Rectangle(hr.X + S(10), hr.Y + (hr.Height - S(22)) / 2, S(22), S(22)), S(5), S(5)).Contains(e.Location)) { ScheduleStore.HolidaysVisible = !ScheduleStore.HolidaysVisible; Changed?.Invoke(); }
+                return;
+            }
             var cal = ScheduleStore.Calendars[h];
             if (e.Button == MouseButtons.Right) { if (!cal.IsDefault) CalMenu(cal, PointToScreen(e.Location)); return; }
             if (!cal.IsDefault && MoreRect(h).Contains(e.Location)) { CalMenu(cal, PointToScreen(new Point(MoreRect(h).Left, MoreRect(h).Bottom))); return; } // ⋯
@@ -1176,6 +1235,24 @@ internal sealed class ScheduleView : Panel
                 return;
             }
             SetActive(cal); // 줄의 나머지를 누르면 그 스케줄(색)을 붓으로 고른다
+        }
+
+        private Rectangle HolidayMoreRect() { var r = HolidayRect(); return new Rectangle(r.Right - S(34), r.Y + (r.Height - S(26)) / 2, S(28), S(26)); }
+
+        /// <summary>휴일 ⋯ 메뉴: 색을 직접 골라 바꾸거나 처음 색으로 되돌린다.</summary>
+        private void HolidayMenu(Point screen)
+        {
+            var m = new ContextMenuStrip();
+            MenuGuard.Attach(m);
+            m.Items.Add("색 바꾸기...", null, (_, _) => BeginInvoke(() =>
+            {
+                using var dlg = new ColorDialog { Color = ScheduleStore.HolidayColor, FullOpen = true, AnyColor = true };
+                if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+                ScheduleStore.HolidayColor = dlg.Color; Changed?.Invoke();
+            }));
+            m.Items.Add("처음 색으로", null, (_, _) => BeginInvoke(() => { ScheduleStore.ResetHolidayColor(); Changed?.Invoke(); }));
+            m.Closed += (_, _) => BeginInvoke(() => m.Dispose());
+            m.Show(screen);
         }
 
         private Rectangle MoreRect(int i) { var r = RowRect(i); return new Rectangle(r.Right - S(34), r.Y + (r.Height - S(26)) / 2, S(28), S(26)); }
@@ -1192,7 +1269,7 @@ internal sealed class ScheduleView : Panel
         private void AddCalendar()
         {
             var free = ScheduleStore.FreeColors();
-            if (free.Count == 0) { MessageBox.Show(FindForm(), "7 colors are all used (one schedule per color). Delete or recolor a schedule first.", "Schedule", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (free.Count == 0) { MessageBox.Show(FindForm(), "All 8 colors are used (one schedule per color). Delete or recolor a schedule first.", "Schedule", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             using var dlg = new ScheduleDefDialog(p!, "", free[0], "");
             if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
             ScheduleStore.AddCal(dlg.DefName, dlg.DefColor, dlg.DefNote);
@@ -1266,6 +1343,36 @@ internal sealed class ScheduleView : Panel
                 var more = MoreRect(i);
                 DrawMore(g, more, Themes.Blend(pal.Side, pal.Fore, 0.6f), hot == i && PointToClient(Cursor.Position) is var cp && more.Contains(cp));
             }
+            // 목록 칸(4줄) 밖으로 밀려난 줄을 덮는다
+            using (var cov = new SolidBrush(pal.Side)) g.FillRectangle(cov, 0, ListBottom(), Width, Height - ListBottom());
+            // ── 다른 캘린더: 선 + 제목 + 대한민국 휴일(빨강) ──
+            var holiday = HolidayRect();
+            using (var sp = new Pen(pal.Line)) g.DrawLine(sp, S(10), OtherTop() - S(6), Width - S(10), OtherTop() - S(6));
+            using (var hf2 = new Font(ff, 9f, FontStyle.Bold))
+                TextRenderer.DrawText(g, "다른 캘린더", hf2, new Rectangle(S(18), OtherTop(), Width - S(36), S(24)), Themes.Blend(pal.Side, pal.Fore, 0.5f), TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            {
+                if (hot == 2000) { using var hb = new SolidBrush(pal.CardHover); using var hp = LibraryPalette.Rounded(holiday, S(8)); g.FillPath(hb, hp); }
+                var hsw = new Rectangle(holiday.X + S(10), holiday.Y + (holiday.Height - S(22)) / 2, S(22), S(22));
+                var red = ScheduleStore.HolidayColor;
+                using var hpath = LibraryPalette.Rounded(hsw, S(8));
+                bool on = ScheduleStore.HolidaysVisible;
+                if (on) { using var hbr = new SolidBrush(red); g.FillPath(hbr, hpath); }
+                else { using var hpen = new Pen(red, S(2)); g.DrawPath(hpen, hpath); }
+                if (on)
+                {
+                    using var ck = new Pen(Color.White, S(2) + 0.5f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
+                    g.DrawLines(ck, new[] { new PointF(hsw.X + hsw.Width * 0.25f, hsw.Y + hsw.Height * 0.52f), new PointF(hsw.X + hsw.Width * 0.44f, hsw.Y + hsw.Height * 0.70f), new PointF(hsw.X + hsw.Width * 0.76f, hsw.Y + hsw.Height * 0.32f) });
+                }
+                TextRenderer.DrawText(g, "대한민국 휴일", nf, new Rectangle(hsw.Right + S(12), holiday.Y, holiday.Width - hsw.Width - S(30), holiday.Height), on ? pal.Fore : pal.Dim,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                var hm = HolidayMoreRect();
+                DrawMore(g, hm, Themes.Blend(pal.Side, pal.Fore, 0.6f), hot == 2000 && PointToClient(Cursor.Position) is var hcp && hm.Contains(hcp));
+            }
+            // 스크롤로 위로 밀려 올라간 줄이 머리(내 스케줄 · +) 위에 겹치지 않게 머리 영역을 덮고 다시 그린다
+            using (var cover = new SolidBrush(pal.Side)) g.FillRectangle(cover, 0, 0, Width, S(44));
+            using (var sep2 = new Pen(pal.Line)) g.DrawLine(sep2, 0, 0, Width, 0);
+            using (var hf = new Font(ff, 9f, FontStyle.Bold))
+                TextRenderer.DrawText(g, "내 스케줄", hf, new Rectangle(S(18), S(12), Width - S(36), S(24)), Themes.Blend(pal.Side, pal.Fore, 0.5f), TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             var pr = PlusRect();
             if (hot == 1000) { using var hb = new SolidBrush(pal.CardHover); using var hp = LibraryPalette.Rounded(pr, S(8)); g.FillPath(hb, hp); }
             using (var pp = new Pen(hot == 1000 ? pal.Fore : Themes.Blend(pal.Side, pal.Fore, 0.6f), S(1) + 0.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
@@ -1538,7 +1645,7 @@ internal sealed class ScheduleDefDialog : Form
     }
 }
 
-/// <summary>새 스케줄에 쓸 수 있는 색 7가지(스케줄 만들기 · 수정 · 일정 창 모두 같다).</summary>
+/// <summary>새 스케줄에 쓸 수 있는 색 8가지(스케줄 만들기 · 수정 · 일정 창 모두 같다).</summary>
 internal static class SchedulePalette7
 {
     public static readonly Color[] Colors =
@@ -1550,6 +1657,7 @@ internal static class SchedulePalette7
         Color.FromArgb(0x4A, 0xA3, 0xDF), // 파랑
         Color.FromArgb(0x8E, 0x5B, 0xD6), // 보라
         Color.FromArgb(0xE8, 0x6A, 0xA6), // 분홍
+        Color.FromArgb(0x2B, 0x25, 0x70), // 남색
     };
 
     /// <summary>같은 색인가(RGB만 본다).</summary>
@@ -1557,8 +1665,8 @@ internal static class SchedulePalette7
 }
 
 /// <summary>
-/// 색 네모를 누르면 뜨는 작은 선택 창: 위에는 지금 있는 스케줄(누르면 그 스케줄로 정해진다), 아래에는 새 색 7가지(고르면 새 스케줄 색).
-/// listExisting이 false면 색 7가지만 보인다(스케줄 만들기 · 수정 창).
+/// 색 네모를 누르면 뜨는 작은 선택 창: 위에는 지금 있는 스케줄(누르면 그 스케줄로 정해진다), 아래에는 새 색 8가지(고르면 새 스케줄 색).
+/// listExisting이 false면 색 8가지만 보인다(스케줄 만들기 · 수정 창).
 /// </summary>
 internal sealed class ScheduleColorPicker : Control
 {
@@ -1641,10 +1749,10 @@ internal sealed class ScheduleColorPicker : Control
             using (var lp = new Pen(p.Line)) g.DrawLine(lp, S(10), y + S(2), Width - S(10), y + S(2));
             y += S(10);
         }
-        TextRenderer.DrawText(g, listExisting ? "새 색 (7가지)" : "색 (7가지)", hf, new Rectangle(S(14), y, Width - S(28), S(22)), dim, left);
+        TextRenderer.DrawText(g, listExisting ? "새 색 (8가지)" : "색 (8가지)", hf, new Rectangle(S(14), y, Width - S(28), S(22)), dim, left);
         y += S(30);
-        int sz = S(24), gap = (Width - S(28) - sz * 7) / 6;
-        for (int i = 0; i < 7; i++)
+        int sz = S(22), n = SchedulePalette7.Colors.Length, gap = (Width - S(28) - sz * n) / (n - 1);
+        for (int i = 0; i < n; i++)
         {
             var r = new Rectangle(S(14) + i * (sz + gap), y, sz, sz);
             dotRects.Add((r, SchedulePalette7.Colors[i]));
@@ -1675,6 +1783,98 @@ internal sealed class ScheduleColorPicker : Control
         picker.ColorChosen += _ => dd.Close();
         dd.Closed += (_, _) => owner.BeginInvoke(() => dd.Dispose());
         dd.Show(screen);
+    }
+}
+
+/// <summary>
+/// 대한민국 공휴일(법정 공휴일 + 대체공휴일)을 앱 안에서 계산한다(인터넷 없이).
+/// 양력 고정일 + 음력(설날 · 부처님오신날 · 추석, .NET의 KoreanLunisolarCalendar 1901~2050년) + 대체공휴일 규칙.
+/// 임시공휴일 · 선거일처럼 그해에 따로 정해지는 날은 알 수 없어 들어 있지 않다.
+/// </summary>
+internal static class KoreanHolidays
+{
+    private static readonly Dictionary<int, Dictionary<DateTime, string>> cache = new();
+
+    /// <summary>그날이 공휴일이면 이름(없으면 null).</summary>
+    public static string? NameOn(DateTime d)
+    {
+        var year = Year(d.Year);
+        return year.TryGetValue(d.Date, out var n) ? n : null;
+    }
+
+    private static Dictionary<DateTime, string> Year(int y)
+    {
+        lock (cache)
+        {
+            if (cache.TryGetValue(y, out var c)) return c;
+            var map = Build(y);
+            cache[y] = map;
+            return map;
+        }
+    }
+
+    private static DateTime? Lunar(int year, int month, int day)
+    {
+        try
+        {
+            var kl = new System.Globalization.KoreanLunisolarCalendar();
+            if (year < kl.MinSupportedDateTime.Year || year > kl.MaxSupportedDateTime.Year - 1) return null;
+            int leap = kl.GetLeapMonth(year);
+            int idx = leap > 0 && month >= leap ? month + 1 : month; // 윤달이 앞에 끼면 달 번호가 하나 밀린다
+            return kl.ToDateTime(year, idx, day, 0, 0, 0, 0).Date;
+        }
+        catch { return null; }
+    }
+
+    private static Dictionary<DateTime, string> Build(int y)
+    {
+        var map = new Dictionary<DateTime, string>();
+        void Add(DateTime d, string name) { if (!map.ContainsKey(d.Date)) map[d.Date] = name; }
+
+        var fixedDays = new (DateTime D, string Name)[]
+        {
+            (new DateTime(y, 1, 1), "신정"), (new DateTime(y, 3, 1), "삼일절"), (new DateTime(y, 5, 5), "어린이날"), (new DateTime(y, 6, 6), "현충일"),
+            (new DateTime(y, 8, 15), "광복절"), (new DateTime(y, 10, 3), "개천절"), (new DateTime(y, 10, 9), "한글날"), (new DateTime(y, 12, 25), "성탄절"),
+        };
+        foreach (var (d, n) in fixedDays) Add(d, n);
+
+        var groups = new List<List<DateTime>>(); // 연휴(설날 · 추석)
+        if (Lunar(y, 1, 1) is DateTime seol)
+        {
+            Add(seol.AddDays(-1), "설날 연휴"); Add(seol, "설날"); Add(seol.AddDays(1), "설날 연휴");
+            groups.Add(new() { seol.AddDays(-1), seol, seol.AddDays(1) });
+        }
+        if (Lunar(y, 8, 15) is DateTime chu)
+        {
+            Add(chu.AddDays(-1), "추석 연휴"); Add(chu, "추석"); Add(chu.AddDays(1), "추석 연휴");
+            groups.Add(new() { chu.AddDays(-1), chu, chu.AddDays(1) });
+        }
+        DateTime? buddha = Lunar(y, 4, 8);
+        if (buddha is DateTime bd) Add(bd, "부처님오신날");
+
+        // 대체공휴일: 겹치는 날 다음의 첫 평일(공휴일 · 주말이 아닌 날)
+        bool Taken(DateTime d) => map.ContainsKey(d.Date) || d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+        void Substitute(DateTime after)
+        {
+            var d = after.AddDays(1);
+            while (Taken(d)) d = d.AddDays(1);
+            Add(d, "대체휴일");
+        }
+        // 설날 · 추석 연휴: 일요일이 끼면(2014년부터)
+        if (y >= 2014)
+            foreach (var g in groups)
+                if (g.Any(x => x.DayOfWeek == DayOfWeek.Sunday)) Substitute(g.Max());
+        // 어린이날: 2014년부터 일요일(2021년부터 토요일)과 겹치면
+        var kids = new DateTime(y, 5, 5);
+        if (y >= 2014 && (kids.DayOfWeek == DayOfWeek.Sunday || (y >= 2021 && kids.DayOfWeek == DayOfWeek.Saturday))) Substitute(kids);
+        // 삼일절 · 광복절 · 개천절 · 한글날: 2021년부터 주말과 겹치면(2023년부터 부처님오신날 · 성탄절도)
+        if (y >= 2021)
+        {
+            var nat = new List<DateTime> { new DateTime(y, 3, 1), new DateTime(y, 8, 15), new DateTime(y, 10, 3), new DateTime(y, 10, 9) };
+            if (y >= 2023) { nat.Add(new DateTime(y, 12, 25)); if (buddha is DateTime b2) nat.Add(b2); }
+            foreach (var d in nat) if (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) Substitute(d);
+        }
+        return map;
     }
 }
 
