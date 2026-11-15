@@ -177,6 +177,7 @@ internal sealed class EpisodePanel : Panel
     {
         menu?.Dispose();
         var m = menu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         for (int i = 0; i < RefSortNames.Length; i++)
         {
             int col = i;
@@ -230,6 +231,7 @@ internal sealed class EpisodePanel : Panel
     {
         menu?.Dispose();
         var m = menu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         m.Items.Add("열기", null, (_, _) => OpenRequested?.Invoke(path));
         m.Items.Add("PIP 모드로 열기", null, (_, _) => PipRequested?.Invoke(path));
         m.Items.Add("탐색기에서 보기", null, (_, _) => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""));
@@ -298,6 +300,7 @@ internal sealed class EpisodePanel : Panel
         if (NovelPath is not string dir) return;
         menu?.Dispose();
         var m = menu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         m.Items.Add("이 그룹에 새 에피소드", null, (_, _) => BeginInvoke(() => AddEpisode(group)));
         m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(() =>
         {
@@ -336,6 +339,7 @@ internal sealed class EpisodePanel : Panel
         panel.Add("새 에피소드 그룹", PurpleIcons.Lines(S(40), gray), () => BeginInvoke(() => CreateGroup()));
         panel.Size = panel.MeasureAll();
         var dd = addDropDown = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
+        MenuGuard.Attach(dd);
         dd.Items.Add(new ToolStripControlHost(panel) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = panel.Size });
         panel.Chosen += () => dd.Close();
         var at = Cursor.Position;
@@ -369,6 +373,7 @@ internal sealed class EpisodePanel : Panel
     {
         menu?.Dispose();
         var m = menu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         int i = episodes.IndexOf(path);
         m.Items.Add("열기", null, (_, _) => OpenRequested?.Invoke(path));
         m.Items.Add("PIP 모드로 열기", null, (_, _) => PipRequested?.Invoke(path));
@@ -394,6 +399,7 @@ internal sealed class EpisodePanel : Panel
     {
         menu?.Dispose();
         var m = menu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         m.Items.Add("열기", null, (_, _) => WikiOpenRequested?.Invoke(path));
         m.Items.Add("PIP 모드로 열기", null, (_, _) => PipRequested?.Invoke(path));
         m.Items.Add("탐색기에서 보기", null, (_, _) => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""));
@@ -1994,6 +2000,7 @@ search.SetPalette(p);
         panel.Add("템플릿", PurpleIcons.Copy(S(40)), () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
         panel.Size = panel.MeasureAll();
         var dd = wikiMenu = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
+        MenuGuard.Attach(dd);
         dd.Items.Add(new ToolStripControlHost(panel) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = panel.Size });
         panel.Chosen += () => dd.Close();
         dd.Show(newButton, new Point(0, newButton.Height + S(6)));
@@ -2016,6 +2023,7 @@ search.SetPalette(p);
         panel.Add("새 에피소드 그룹", PurpleIcons.Lines(S(40), gray), () => BeginInvoke(() => source.CreateGroup()));
         panel.Size = panel.MeasureAll();
         var dd = newMenu = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
+        MenuGuard.Attach(dd);
         dd.Items.Add(new ToolStripControlHost(panel) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = panel.Size });
         panel.Chosen += () => dd.Close();
         dd.Show(newButton, new Point(0, newButton.Height + S(6))); // 버튼 왼쪽 끝에 맞춰 오른쪽으로 펼친다
@@ -2249,6 +2257,7 @@ internal sealed class TagStrip : Control
             if (rect.Contains(e.Location))
             {
                 var m = new ContextMenuStrip();
+                MenuGuard.Attach(m);
                 m.Items.Add($"'{tag}' 태그 지우기", null, (_, _) => RemoveRequested?.Invoke(tag));
                 m.Show(this, e.Location);
                 return;

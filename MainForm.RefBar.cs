@@ -99,6 +99,7 @@ public partial class MainForm
     {
         if (marginHost == null || refPaper == null || readBar == null) return;
         marginDrop ??= new ToolStripDropDown { AutoClose = true, Font = Font };
+        MenuGuard.Attach(marginDrop);
         if (!marginDrop.Items.Contains(marginHost)) marginDrop.Items.Add(marginHost);
         SyncMarginBoxes();
         var at = readBar.PointToScreen(new Point(refPaper.Bounds.Left, readBar.Height));
@@ -228,6 +229,7 @@ public partial class MainForm
     {
         if (shownKind != ContentKind.Image) return;
         var m = new ContextMenuStrip { Font = orderMenu.Font };
+        MenuGuard.Attach(m);
         foreach (var o in imageOrderMenuItems)
         {
             var src = o;

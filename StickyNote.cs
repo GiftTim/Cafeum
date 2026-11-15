@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -707,6 +707,7 @@ internal sealed class StickyNoteWindow : Form
     private void ShowPalette(Point screen)
     {
         var m = new ContextMenuStrip { Font = Font, ShowImageMargin = false };
+        MenuGuard.Attach(m);
         var row = new StickyColorRow(Note.Color) { BackColor = m.BackColor };
         row.Size = row.Preferred;
         row.Picked += i => { m.Close(); SetColor(i); };
@@ -718,6 +719,7 @@ internal sealed class StickyNoteWindow : Form
     private void ShowMore(Point screen)
     {
         var m = new ContextMenuStrip { Font = Font, ShowImageMargin = false };
+        MenuGuard.Attach(m);
         m.Items.Add("메모 목록", null, (_, _) => StickyNotes.ShowList(dir));
         m.Items.Add(new ToolStripMenuItem("메모 삭제", null, (_, _) => Delete()) { ShortcutKeyDisplayString = "Ctrl+D" });
         m.Closed += (_, _) => BeginInvoke(m.Dispose);
@@ -1140,6 +1142,7 @@ internal sealed class StickyListPanel : Panel
         panel.Add("새 메모 그룹", PurpleIcons.Lines(S(40), gray), () => BeginInvoke(() => { collapsed.Remove(MemoStore.CreateGroup(d)); }));
         panel.Size = panel.MeasureAll();
         var dd = addDropDown = new ToolStripDropDown { Padding = Padding.Empty, BackColor = back, AutoSize = true };
+        MenuGuard.Attach(dd);
         dd.Items.Add(new ToolStripControlHost(panel) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = panel.Size });
         panel.Chosen += () => dd.Close();
         dd.Show(addButton.PointToScreen(new Point(addButton.Width - panel.Width, addButton.Height + S(4)))); // 버튼 바로 밑, 오른쪽 끝을 맞춰서
@@ -1305,6 +1308,7 @@ internal sealed class StickyListPanel : Panel
         if (dir == null) return;
         string d = dir, group = head.GroupName;
         var m = new ContextMenuStrip { Font = Font, ShowImageMargin = false };
+        MenuGuard.Attach(m);
         m.Items.Add("이 그룹에 새 메모", null, (_, _) => BeginInvoke(() => { collapsed.Remove(group); StickyNotes.NewNote(d, null, group); }));
         m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(() =>
         {
@@ -1330,6 +1334,7 @@ internal sealed class StickyListPanel : Panel
         if (dir == null) return;
         string d = dir;
         var m = new ContextMenuStrip { Font = Font, ShowImageMargin = false };
+        MenuGuard.Attach(m);
         m.Items.Add("메모 열기", null, (_, _) => StickyNotes.Open(d, card.Note, null));
         // 그룹으로 옮기기(에피소드처럼): 있는 그룹들 · 새 그룹 만들어 넣기 / 그룹에서 빼기
         string? now = card.Tag as string;

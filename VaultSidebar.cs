@@ -128,6 +128,7 @@ internal sealed class VaultSidebar : Panel
         };
 
         treeMenu = new ContextMenuStrip();
+        MenuGuard.Attach(treeMenu);
         miNewNote = new ToolStripMenuItem("새 문서", null, (_, _) => CreateNew(false));
         miNewFolder = new ToolStripMenuItem("새 폴더", null, (_, _) => CreateNew(true));
         miRename = new ToolStripMenuItem("이름 바꾸기", null, (_, _) => BeginRename()) { ShortcutKeyDisplayString = "F2" };

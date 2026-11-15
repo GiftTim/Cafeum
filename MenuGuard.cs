@@ -10,7 +10,10 @@ internal static class MenuGuard
 {
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
 
-    private static bool AnyButtonDown() => (GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0 || (GetAsyncKeyState(0x04) & 0x8000) != 0;
+    /// <summary>시험용: 마우스 단추 · 위치를 흉내 낼 때만 채운다(평소에는 null).</summary>
+    internal static Func<bool>? ButtonDownOverride;
+    internal static Func<Point>? PositionOverride;
+    private static bool AnyButtonDown() => ButtonDownOverride?.Invoke() ?? ((GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0 || (GetAsyncKeyState(0x04) & 0x8000) != 0);
 
     private static bool Inside(ToolStripDropDown dd, Point p)
     {
@@ -21,6 +24,35 @@ internal static class MenuGuard
         return false;
     }
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, object> hooked = new();
+
+    /// <summary>이 팝업(메뉴 · 목록)이 열릴 때마다, 밖을 누르면 닫히게 지켜보기 시작한다. 한 팝업에 여러 번 불러도 한 번만 걸린다.</summary>
+    public static void Attach(ToolStripDropDown menu)
+    {
+        if (hooked.TryGetValue(menu, out _)) return;
+        hooked.Add(menu, menu);
+        menu.Opened += (_, _) => CloseOnOutsideClick(menu);
+    }
+
+    /// <summary>툴바 · 메뉴 줄에 달린 모든 드롭다운(하위 메뉴까지)에 같은 보호를 건다.</summary>
+    public static void AttachAll(ToolStrip strip)
+    {
+        foreach (ToolStripItem item in strip.Items) AttachItem(item);
+        if (hooked.TryGetValue(strip, out _)) return;
+        hooked.Add(strip, strip);
+        strip.ItemAdded += (_, e) => AttachItem(e.Item); // 나중에 올라오는 버튼(참고 자료 서식창의 읽기 방식 등)도 걸어 둔다
+    }
+
+    private static void AttachItem(ToolStripItem item)
+    {
+        if (item is not ToolStripDropDownItem d) return;
+        if (!hooked.TryGetValue(d, out _))
+        {
+            hooked.Add(d, d);
+            d.DropDownOpened += (_, _) => CloseOnOutsideClick(d.DropDown);
+        }
+        foreach (ToolStripItem child in d.DropDownItems) AttachItem(child);
+    }
     public static void CloseOnOutsideClick(ToolStripDropDown menu)
     {
         var timer = new System.Windows.Forms.Timer { Interval = 30 };
@@ -30,7 +62,7 @@ internal static class MenuGuard
         {
             if (!menu.Visible) { Stop(); timer.Dispose(); return; }
             bool down = AnyButtonDown();
-            if (down && !wasDown && !Inside(menu, Cursor.Position)) menu.Close(ToolStripDropDownCloseReason.AppClicked);
+            if (down && !wasDown && !Inside(menu, PositionOverride?.Invoke() ?? Cursor.Position)) menu.Close(ToolStripDropDownCloseReason.AppClicked);
             wasDown = down;
         };
         menu.Closed += (_, _) => Stop();

@@ -402,6 +402,8 @@ public partial class MainForm : Form
         menu.Items.Add(alwaysOnTopItem);
 
         MainMenuStrip = menu;
+        Load += (_, _) => AttachMenuGuards();   // 툴바 · 메뉴의 드롭다운도 밖을 한 번 누르면 닫히게(웹 화면 위여도)
+        Shown += (_, _) => AttachMenuGuards();
         if (embedded) { menu.AutoSize = false; menu.Height = 0; } // 서재 안에서는 메뉴 줄을 안 쓴다(메뉴는 칸 머리의 ⋯로) — 남겨 두면 탭 밑에 빈 띠가 생긴다
 
         SetEditMode(false); // 시작은 항상 읽기 전용
@@ -592,6 +594,18 @@ public partial class MainForm : Form
     /// txt를 웹 화면으로 띄운다: 글을 문서 여러 개로 나눠 임시 폴더에 쓰고(TxtWebBook) epub과 같은 길로 보여준 뒤 offset 위치로 옮긴다.
     /// WebView2 런타임이 없는 PC처럼 웹 화면을 못 쓰면 예전처럼 텍스트 상자로 보여준다.
     /// </summary>
+    /// <summary>이 창의 모든 툴바 · 메뉴 줄의 드롭다운에 "밖을 누르면 닫기"를 건다(이미 건 것은 건너뛴다).</summary>
+    private void AttachMenuGuards()
+    {
+        void Walk(Control c)
+        {
+            if (c is ToolStrip ts) MenuGuard.AttachAll(ts);
+            foreach (Control child in c.Controls) Walk(child);
+        }
+        Walk(this);
+        if (readBar != null) MenuGuard.AttachAll(readBar); // 참고 자료 서식창(읽기 방식 · 보기 모드 …)은 창에 붙기 전에도 걸어 둔다
+        if (lookBar != null) MenuGuard.AttachAll(lookBar);
+    }
     private async void ShowTxtWeb(int offset)
     {
         string path = currentPath!;

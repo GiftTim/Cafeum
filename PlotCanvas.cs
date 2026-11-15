@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Text;
 using System.Text.Json;
@@ -1064,6 +1064,7 @@ internal sealed class PlotCanvasView : Control
         if (e != null && !selEdges.Contains(e)) { selNodes.Clear(); selEdges.Clear(); selEdges.Add(e); }
         Invalidate();
         var m = new ContextMenuStrip { Font = new Font(NovelStore.UiFontFamily, 9.5f) };
+        MenuGuard.Attach(m);
         if (n == null && e == null)
         {
             m.Items.Add("메모 추가", null, (_, _) => AddMemo(new PointF(w.X - 120, w.Y - 70)));
@@ -1358,6 +1359,7 @@ internal sealed class PlotCanvasPage : Panel
     public void ShowMenuAt(Control anchor, Point at)
     {
         var m = new ContextMenuStrip { Font = new Font(NovelStore.UiFontFamily, 9.5f) };
+        MenuGuard.Attach(m);
         var export = new ToolStripMenuItem("캔버스 내보내기");
         export.DropDownItems.Add("PNG 그림", null, (_, _) => View.Export("png"));
         export.DropDownItems.Add("JPG 그림 (작은 파일)", null, (_, _) => View.Export("jpg"));
@@ -1408,6 +1410,7 @@ internal sealed class PlotCanvasPage : Panel
             list.EndUpdate();
         }
         var dd = picker = new ToolStripDropDown { Padding = Padding.Empty, AutoSize = true, BackColor = p.Card };
+        MenuGuard.Attach(dd);
         void Choose()
         {
             if (list.SelectedIndex < 0 || list.SelectedIndex >= shown.Count) return;

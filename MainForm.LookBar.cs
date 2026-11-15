@@ -66,6 +66,9 @@ public partial class MainForm
             Padding = new Padding(6, 2, 6, 2),
             ShowItemToolTips = true,
         };
+
+        MenuGuard.AttachAll(lookBar);
+
         ToolStripComboBox Combo(int width, string tip)
         {
             var c = new ToolStripComboBox { DropDownStyle = ComboBoxStyle.DropDownList, AutoSize = false, Width = width, ToolTipText = tip };
@@ -248,6 +251,7 @@ public partial class MainForm
             if (toolbarItems.TryGetValue(key, out var it)) it.Owner?.Items.Remove(it); // 머리 막대 메뉴에서 떼어 낸다
         readBar.Resize += (_, _) => CenterReadBar();
         readBar.VisibleChanged += (_, _) => CenterReadBar();
+        MenuGuard.AttachAll(readBar); // 이 서식창은 나중에 만들어지므로 여기서 건다: 읽기 방식 · 보기 모드 팝업이 밖을 누르면 닫히게
         Controls.Add(readBar);
         Controls.SetChildIndex(readBar, Controls.GetChildIndex(lookBar));
         ApplyReadBarLayout();

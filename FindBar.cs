@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 using System.Text;
 
 namespace CoffeeViewer;
@@ -110,6 +110,7 @@ public class FindBar : Panel
         // 켜면(기본값) 문서 끝/처음에 닿았을 때 반대쪽부터 다시 찾는다. 끄면 거기서 멈춘다.
         wrapAroundItem = new ToolStripMenuItem("줄바꿈 (문서 전체를 순환 검색)") { CheckOnClick = true, Checked = true };
         optionsMenu = new ContextMenuStrip();
+        MenuGuard.Attach(optionsMenu);
         optionsMenu.Items.Add(matchCaseItem);
         optionsMenu.Items.Add(wrapAroundItem);
 

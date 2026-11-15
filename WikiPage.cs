@@ -292,6 +292,7 @@ internal sealed class WikiPage : Panel
         if (doc == null) return;
         moreMenu?.Dispose();
         var m = moreMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(Rename));
         m.Items.Add("탐색기에서 보기", null, (_, _) => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{doc.Path}\""));
         m.Items.Add(new ToolStripSeparator());

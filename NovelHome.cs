@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 using Microsoft.VisualBasic.FileIO;
 
 namespace CoffeeViewer;
@@ -318,6 +318,7 @@ internal sealed class NovelHome : Panel
     {
         cardMenu?.Dispose();
         var m = cardMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         string dir = card.NovelPath;
         m.Items.Add("열기", null, (_, _) => NovelOpened?.Invoke(dir));
         m.Items.Add("기본 정보…", null, (_, _) => BeginInvoke(() => EditInfo(dir)));

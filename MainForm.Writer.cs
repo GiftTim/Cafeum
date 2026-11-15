@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 
 namespace CoffeeViewer;
 
@@ -263,6 +263,7 @@ public partial class MainForm
     {
         goalMenu?.Dispose();
         var m = goalMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
         m.Items.Add($"목표 글자 수 바꾸기… (지금 {settings.WriterGoalChars:N0}자)", null, (_, _) => BeginInvoke(AskGoal));
         var spaces = new ToolStripMenuItem("공백 포함해서 세기") { Checked = settings.WriterGoalWithSpaces };
         spaces.Click += (_, _) => { settings.WriterGoalWithSpaces = !settings.WriterGoalWithSpaces; settings.Save(); UpdateGoalWidget(charsAll, charsSolid); };

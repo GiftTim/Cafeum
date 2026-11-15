@@ -652,6 +652,7 @@ public partial class MainForm
         var editSeparator = new ToolStripSeparator();
 
         var menu = new ContextMenuStrip();
+        MenuGuard.Attach(menu);
         menu.Items.AddRange(new ToolStripItem[]
         {
             readHere, new ToolStripSeparator(), copy, selectAll, new ToolStripSeparator(), naver, google,
