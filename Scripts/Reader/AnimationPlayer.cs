@@ -68,14 +68,22 @@ public sealed class AnimationPlayer : IDisposable
                 index = next;
 
                 var frame = ImageLoader.ToGdiBitmap(buffer);
-                var wait = due - DateTime.UtcNow;
-                if (wait > TimeSpan.Zero) await Task.Delay(wait, token);
-                else if (wait < TimeSpan.FromMilliseconds(-500)) due = DateTime.UtcNow; // 한참 밀렸으면(창을 끌던 중 등) 따라잡으려 빨리 감지 않는다
-
-                while (!isVisible())
+                try
                 {
-                    await Task.Delay(200, token);
-                    due = DateTime.UtcNow;
+                    var wait = due - DateTime.UtcNow;
+                    if (wait > TimeSpan.Zero) await Task.Delay(wait, token);
+                    else if (wait < TimeSpan.FromMilliseconds(-500)) due = DateTime.UtcNow; // 한참 밀렸으면(창을 끌던 중 등) 따라잡으려 빨리 감지 않는다
+
+                    while (!isVisible())
+                    {
+                        await Task.Delay(200, token);
+                        due = DateTime.UtcNow;
+                    }
+                }
+                catch
+                {
+                    frame.Dispose(); // 기다리다 멈추라는 신호를 받으면 아직 넘기지 못한 프레임을 버린다
+                    throw;
                 }
 
                 bool delivered = false;
