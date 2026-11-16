@@ -309,7 +309,7 @@ internal sealed class NovelHome : Panel
             NovelStore.AddEpisode(dir); // 바로 쓸 수 있게 1편을 하나 만들어 둔다
             NovelOpened?.Invoke(dir);
         }
-        catch (Exception ex) { Warn($"작품을 만들지 못했어요: {ex.Message}"); }
+        catch (Exception ex) { Warn($"작품을 만들지 못했어요: {ex.Message}"); Reload(); } // 폴더만 만들어지고 실패했어도 목록에 보이게
     }
 
     private ContextMenuStrip? cardMenu;
@@ -336,6 +336,7 @@ internal sealed class NovelHome : Panel
         try
         {
             NovelStore.SaveDescription(dir, dlg.DescText);
+            if (dlg.RemoveCover) NovelStore.DeleteCover(dir); // 창에서 [×]로 지운 표지(새로 고른 그림이 있으면 아래에서 덮어쓴다)
             if (dlg.NewCoverSource != null) NovelStore.SaveCover(dir, dlg.NewCoverSource);
             if (dlg.TitleText != Path.GetFileName(dir)) { PathAboutToChange?.Invoke(dir); NovelStore.RenameNovel(dir, dlg.TitleText); }
         }
