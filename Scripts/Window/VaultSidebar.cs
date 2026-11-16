@@ -399,10 +399,10 @@ internal sealed class VaultSidebar : Panel
             if (openIt && !entry.IsDir) BeginInvoke(() => OpenRequested?.Invoke(entry.Path));
             return;
         }
-        if (label.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || label is "." or "..")
+        if (!NovelStore.ValidName(label)) // 쓸 수 없는 글자, 앞의 점(숨김이 되어 목록에서 사라진다), 윈도우 예약어
         {
             e.CancelEdit = true;
-            MessageBox.Show(FindForm(), "이름에 쓸 수 없는 글자(\\ / : * ? \" < > |)가 들어 있어요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(FindForm(), NovelStore.InvalidNameMessage(), AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         // 파일은 확장자를 빼고 적었다면 원래 확장자를 붙여 준다(메모 → 메모.txt).
@@ -426,6 +426,7 @@ internal sealed class VaultSidebar : Panel
             return;
         }
         RenameBookmarks(entry.Path, newPath);
+        if (!entry.IsDir) NovelStore.FollowRename(entry.Path, newPath); // 회차면 상태 · 그룹 · 속성 · 순서도 새 이름으로 따라가게
         BeginInvoke(() =>
         {
             RefreshTree((entry.Path, newPath));

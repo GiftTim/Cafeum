@@ -479,7 +479,13 @@ internal static class NovelStore
             .Select(Path.GetFileName).OfType<string>().ToList();
         SaveMeta(dir, meta);
 
-        // 글자 서식 보관 파일(.cafeum-fmt\이름.rtf)도 새 이름으로 따라가게
+        MoveFormatFile(dir, oldName, newName, sameFile);
+        return target;
+    }
+
+    /// <summary>글자 서식 보관 파일(.cafeum-fmt\이름.rtf)도 새 이름으로 따라가게 한다.</summary>
+    private static void MoveFormatFile(string dir, string oldName, string newName, bool sameFile)
+    {
         try
         {
             string fmtOld = FormatFile(dir, oldName), fmtNew = FormatFile(dir, newName);
@@ -491,7 +497,26 @@ internal static class NovelStore
             else if (!sameFile) DeleteFormatFile(dir, newName); // 옛 서식이 없으면 그 이름에 남아 있던 다른 회차의 서식을 이어받지 않게
         }
         catch (Exception ex) { AppLog.Write($"{oldName}의 글자 서식 파일을 옮기지 못했어요", ex); }
-        return target;
+    }
+
+    /// <summary>
+    /// 회차 파일의 이름이 바깥(볼트 파일 트리 등)에서 같은 폴더 안에서 바뀐 뒤, 그 회차의 기록(상태 · 유형 · 그룹 · 속성 · 순서 · 글자 서식)을 새 이름으로 옮긴다.
+    /// 작품 폴더가 아니어서 기록 파일이 없으면 아무것도 만들지 않는다.
+    /// </summary>
+    public static void FollowRename(string oldPath, string newPath)
+    {
+        string? dir = Path.GetDirectoryName(oldPath);
+        if (dir == null || !string.Equals(dir, Path.GetDirectoryName(newPath), StringComparison.OrdinalIgnoreCase)) return;
+        string oldName = Path.GetFileName(oldPath), newName = Path.GetFileName(newPath);
+        if (!File.Exists(NovelFiles.PathOf(dir, NovelFiles.MetaFileName))) return;
+        var meta = LoadMeta(dir);
+        meta.Status = MoveKey(meta.Status, oldName, newName);
+        meta.Types = MoveKey(meta.Types, oldName, newName);
+        meta.Props = MoveKey(meta.Props, oldName, newName);
+        meta.GroupOf = MoveKey(meta.GroupOf, oldName, newName);
+        meta.Order = meta.Order.Select(n => string.Equals(n, oldName, StringComparison.OrdinalIgnoreCase) ? newName : n).ToList();
+        SaveMeta(dir, meta);
+        MoveFormatFile(dir, oldName, newName, string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase));
     }
 
     public static string RenameNovel(string novelDir, string newTitle)

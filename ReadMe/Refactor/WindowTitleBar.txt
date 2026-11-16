@@ -1,0 +1,18 @@
+WindowTitleBar.cs (125줄)
+
+윈도우 기본 제목줄 대신 창 맨 위에 그리는 제목줄이에요. 왼쪽에 작은 로고와 이름 Cafeum(필기체)이 있고, 오른쪽에 [최소화] [최대화/복원] [닫기]가 있어요. 높이는 32예요. 빈 곳을 끌면 창이 움직이고 두 번 누르면 최대화되는데, 이 줄은 빈 곳을 "제목줄"로 알려 주기만 하고(VaultForm.WndProc이 판정) 실제 동작은 윈도우가 해 줘요.
+
+1	네임스페이스
+3~8	설명과 클래스 선언
+10~14	필드: 색, 마우스를 올린 단추, 로고 그림
+16~20	생성자
+22~25	S, SetPalette, OnHandleCreated, OnDpiChangedAfterParent
+27	ButtonRect: 단추 자리(정사각형)
+29~30	IsCaptionPoint: 이 자리를 끌어서 창을 움직여도 되는지(단추 자리가 아닌 곳)
+32~36	IndexAt: 마우스 자리의 단추
+38~48	WndProc: 빈 곳은 창이 제목줄로 판정하도록 넘기기
+50~57	OnMouseMove, OnMouseLeave
+59~69	OnMouseClick: 최소화, 최대화·복원, 닫기
+71~93	EnsureLogo: 앱 아이콘을 읽어 크기에 맞게 그려 두기
+95~124	OnPaint: 로고, 이름, 단추 그리기
+125	클래스 끝

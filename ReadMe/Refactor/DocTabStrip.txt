@@ -1,0 +1,24 @@
+DocTabStrip.cs (156줄)
+
+문서 탭 막대예요. 탭마다 제목과 [×]가 있고 가운데 단추(휠 클릭)로도 닫아요. 탭 하나가 막대 전체를 쓰고 탭이 늘 때마다 전체 폭을 똑같이 나눠요. 탭 안의 화면(MainForm)은 이 컨트롤이 아니라 쓰는 쪽(문서 칸의 참고 자료 탭)이 들고 있고, 여기서는 이름표만 그려요.
+
+1	도구함
+3	네임스페이스
+5~9	설명과 클래스 선언
+11	Tab: 탭 하나(열쇠, 제목)
+13~16	필드: 탭들, 열린 탭, 마우스를 올린 탭과 ×, 색
+18~19	TabSelected, TabCloseRequested
+21~25	생성자
+27~29	Count, ActiveKey, Keys
+31	SetPalette
+33	S
+35~39	Add: 탭 추가
+41	Contains
+43~49	SelectTab: 탭 열기
+51~57	SetTitle: 제목 바꾸기
+59~70	Remove: 탭 빼기(열려 있던 탭이면 이어받을 탭의 열쇠를 돌려줌)
+72~90	배치: TabRect, CloseRect, HitTab
+92~104	OnMouseMove, OnMouseLeave
+106~115	OnMouseDown: 왼쪽은 탭 열기나 ×로 닫기, 가운데 단추는 닫기
+117~155	OnPaint: 납작한 탭과 구분선, ×(마우스를 올린 탭에서만) 그리기
+156	클래스 끝

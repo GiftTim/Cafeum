@@ -233,7 +233,7 @@ internal sealed class VaultForm : Form
         Text = vaultName + " — " + AppShared.AppDisplayName;
     }
 
-    /// <summary>작품(폴더)의 워크스페이스로 들어간다. 지난번에 열어 둔 칸들이 되살아난다.</summary>
+    /// <summary>작품(폴더)의 워크스페이스로 들어간다. 늘 소설 메인에서 시작한다(열어 둔 칸은 기억하지 않는다).</summary>
     private void EnterNovel(string novelDir)
     {
         homeMode = false;
