@@ -29,7 +29,14 @@ internal sealed class IconMenuPanel : Control
     private int S(int v) => (int)Math.Round(v * dpi / 96.0);
     private int RowHeight => S(32);
 
+    /// <summary>항목을 더한다. 넘긴 아이콘 그림과 글꼴은 이 패널이 맡아서 패널이 사라질 때 함께 놓는다(부르는 쪽이 목록을 열 때마다 새로 만들어 넘긴다).</summary>
     public void Add(string text, Image icon, Action click) => rows.Add(new Row(text, icon, click));
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { foreach (var r in rows) r.Icon.Dispose(); Font.Dispose(); }
+        base.Dispose(disposing);
+    }
 
     /// <summary>항목 수와 가장 긴 글자에 맞는 크기(왼쪽 여백 + 아이콘 + 간격 + 글자 + 오른쪽 여백).</summary>
     public Size MeasureAll()

@@ -1,0 +1,18 @@
+FullScreenButton.cs (96줄)
+
+글꼴 아이콘으로 그리는 작은 단추 두 개가 들어 있어요. FullScreenButton은 서재와 스케줄러 오른쪽 위의 전체 화면 단추로, 켜지면 "나가기" 모양으로 바뀌고 툴팁도 바뀌어요. GlyphIconButton은 글꼴 아이콘 한 개짜리 단추로(마우스를 올리면 둥근 바탕), 작품 화면의 환경설정(톱니바퀴)에 써요. 둘 다 바탕이 투명해서 뒤의 그라데이션이 그대로 비쳐요.
+
+1~4	도구함과 네임스페이스
+6~7	FullScreenButton 설명과 클래스 선언
+9~11	필드: 색, 마우스 올림과 켜짐, 툴팁
+13~18	On: 켜짐(툴팁도 바꿈)
+20~28	생성자
+30~33	SetPalette, 마우스 올림 처리, Dispose
+35~52	OnPaint: 올렸을 때의 둥근 바탕과 아이콘 그리기
+53	FullScreenButton 클래스 끝
+55~56	GlyphIconButton 설명과 클래스 선언
+58~61	필드: 색, 마우스 올림, 아이콘 글자, 툴팁
+63~72	생성자
+74~77	SetPalette, 마우스 올림 처리, Dispose
+79~95	OnPaint
+96	GlyphIconButton 클래스 끝
