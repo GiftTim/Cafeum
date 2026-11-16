@@ -1,0 +1,17 @@
+ImageLoader.cs (93줄)
+
+그림 파일 바이트를 Image로 디코딩해요. 순수 CPU 작업만 하고 zip이나 파일 스트림 같은 공유 자원은 건드리지 않아서 여러 스레드에서 동시에 불러도 안전해요. GDI+는 webp를 못 읽어서 webp와 움직이는 gif는 SkiaSharp로 풀고, 나머지(jpg, png, bmp, 정지 gif)는 GDI+가 바로 처리해요. 확장자만 믿지 않고 파일 머리글로 판별해요(zip 안의 001.png가 사실은 webp인 경우가 있어서). 한 장이 1억 2천만 픽셀을 넘으면 작은 파일이 거대한 해상도로 풀려 메모리를 다 먹는 일을 막으려고 열지 않아요. 움직이는 그림은 첫 프레임만 Image로 주고, 재생용 원본 바이트는 약한 참조 표에 붙여 두어서 Image가 버려지면 같이 사라져요.
+
+1~2	도구함
+4	네임스페이스
+6~12	설명과 ImageLoader 선언
+14~27	Decode: 머리글로 종류를 판별해 디코딩, 너무 크면 거부
+29~30	MaxPixels
+32	TooBig
+34~38	animatedSources: 움직이는 그림의 원본 바이트 표
+40~41	GetAnimationSource
+43~47	IsWebp: webp 머리글인지
+49~51	IsGif: gif 머리글인지
+53~73	DecodeWithSkia: 머리글로 해상도를 먼저 보고 디코딩, 움직이면 원본 바이트 붙이기
+75~92	ToGdiBitmap: 픽셀을 직접 복사해 GDI+ 비트맵으로
+93	클래스 끝

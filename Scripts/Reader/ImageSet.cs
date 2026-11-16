@@ -60,6 +60,7 @@ public sealed class ZipImageSet : IImageSet
 
     public static bool IsImageExtension(string name)
     {
+        if (Path.GetFileName(name).StartsWith("._", StringComparison.Ordinal)) return false; // 맥에서 만든 zip에 딸려 오는 '._1.jpg' 같은 가짜 항목(그림이 아니다)
         string ext = Path.GetExtension(name).ToLowerInvariant();
         return ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" or ".webp";
     }
@@ -169,7 +170,12 @@ public sealed class FolderImageSet : IImageSet
     public int Count => files.Count;
     public string Name(int index) => Path.GetFileName(files[index]);
 
-    public byte[] LoadRawBytes(int index) => File.ReadAllBytes(files[index]);
+    public byte[] LoadRawBytes(int index)
+    {
+        var info = new FileInfo(files[index]);
+        if (info.Length > ZipImageSet.MaxImageBytes) throw new InvalidDataException($"그림이 너무 커서 열지 않았어요: {info.Name}");
+        return File.ReadAllBytes(info.FullName);
+    }
 
     public void Dispose() { }
 }
