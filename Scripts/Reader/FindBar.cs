@@ -255,19 +255,31 @@ public class FindBar : Panel
 
             Box.Enter += (_, _) =>
             {
-                if (Box.Text == placeholder) Box.Text = "";
+                if (placeholderShown && Box.Text == placeholder) SetInternal("");
+                placeholderShown = false;
                 Refresh2();
             };
             Box.Leave += (_, _) =>
             {
-                if (string.IsNullOrEmpty(Box.Text)) Box.Text = placeholder;
+                if (string.IsNullOrEmpty(Box.Text)) { SetInternal(placeholder); placeholderShown = true; }
                 Refresh2();
             };
-            Box.TextChanged += (_, _) => Refresh2();
+            Box.TextChanged += (_, _) =>
+            {
+                if (!internalChange) placeholderShown = false; // 우리가 안내 글을 넣고 뺀 게 아니라 글이 바뀌었으면 사용자가 쓴 글이다(포커스 이벤트가 오기 전이어도)
+                Refresh2();
+            };
             Resize += (_, _) => LayoutInner();
         }
 
-        private bool ShowingPlaceholder => !Box.Focused && Box.Text == placeholder;
+        // 안내 글("찾기" · "바꾸기")이 지금 칸에 떠 있는지. 글자만 비교하면 사용자가 정말로 "찾기"나 "바꾸기"라는 낱말을 쓴 것과 구별할 수 없다.
+        private bool placeholderShown = true;
+        private bool internalChange; // 안내 글을 우리가 넣거나 뺄 때만 true
+        private void SetInternal(string text) { internalChange = true; try { Box.Text = text; } finally { internalChange = false; } }
+        private bool ShowingPlaceholder => placeholderShown && !Box.Focused && Box.Text == placeholder;
+
+        /// <summary>사용자가 쓴 글(안내 글이 떠 있으면 빈 글).</summary>
+        public string Value => placeholderShown && Box.Text == placeholder ? "" : Box.Text;
 
         private void LayoutInner()
         {
@@ -493,8 +505,8 @@ public class FindBar : Panel
 
     private void FindNext(bool forward)
     {
-        string q = queryBox.Text;
-        if (string.IsNullOrEmpty(q) || q == FindPlaceholder) return;
+        string q = queryField.Value;
+        if (string.IsNullOrEmpty(q)) return;
 
         var comparison = matchCaseItem.Checked ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         string text = getText();
@@ -530,8 +542,8 @@ public class FindBar : Panel
     private void ReplaceCurrent()
     {
         if (!EnsureEditable()) return;
-        string q = queryBox.Text;
-        if (string.IsNullOrEmpty(q) || q == FindPlaceholder) return;
+        string q = queryField.Value;
+        if (string.IsNullOrEmpty(q)) return;
         var comparison = matchCaseItem.Checked ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
         if (target.SelectionLength > 0 && string.Equals(target.SelectedText, q, comparison))
@@ -544,14 +556,15 @@ public class FindBar : Panel
     private void ReplaceAll()
     {
         if (!EnsureEditable()) return;
-        string q = queryBox.Text;
-        if (string.IsNullOrEmpty(q) || q == FindPlaceholder) return;
+        string q = queryField.Value;
+        if (string.IsNullOrEmpty(q)) return;
         var comparison = matchCaseItem.Checked ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         string replacement = ReplacementText();
 
         string text = target.Text;
         var sb = new StringBuilder();
-        int pos = 0, count = 0;
+        var hits = new List<int>();
+        int pos = 0;
         while (true)
         {
             int idx = text.IndexOf(q, pos, comparison);
@@ -563,22 +576,37 @@ public class FindBar : Panel
             sb.Append(text, pos, idx - pos);
             sb.Append(replacement);
             pos = idx + q.Length;
-            count++;
+            hits.Add(idx);
         }
 
-        if (count == 0)
+        if (hits.Count == 0)
         {
             FlashNotFound(queryBox);
             return;
         }
 
         int caret = target.SelectionStart;
-        target.Text = sb.ToString();
-        target.SelectionStart = Math.Min(caret, target.Text.Length);
+        if (hits.Count <= SmallReplaceLimit)
+        {
+            // 몇 곳이면 일치하는 곳만 뒤에서부터 바꿔서, 바뀌지 않는 글자의 서식(굵게 · 기울임 · 색)을 지킨다
+            for (int i = hits.Count - 1; i >= 0; i--) { target.Select(hits[i], q.Length); target.SelectedText = replacement; }
+        }
+        else
+        {
+            // 많으면 글 전체를 한 번에 바꾼다(하나씩 바꾸면 곳이 많을수록 몹시 느리다). Text 대신 SelectedText로 넣어서 되돌리기(Ctrl+Z)가 되게 한다.
+            // 이때 글자 서식은 기본으로 돌아간다(안 그러면 첫 글자의 서식이 글 전체로 퍼진다).
+            target.SelectAll();
+            if (target is RichTextBox rtb) { rtb.SelectionFont = rtb.Font; rtb.SelectionColor = rtb.ForeColor; }
+            target.SelectedText = sb.ToString();
+        }
+        target.SelectionStart = Math.Min(caret, target.TextLength);
         target.SelectionLength = 0;
     }
 
-    private string ReplacementText() => replaceBox.Text == ReplacePlaceholder ? "" : replaceBox.Text;
+    /// <summary>[모두 바꾸기]에서 일치하는 곳을 하나씩 바꿀 최대 개수(서식을 지킨다). 이보다 많으면 한 번에 바꾼다.</summary>
+    private const int SmallReplaceLimit = 100;
+
+    private string ReplacementText() => replaceField.Value;
 
     /// <summary>본문이 읽기 전용이면 바꾸기를 실행할 수 없으니 안내만 하고 멈춘다.</summary>
     private bool EnsureEditable()
