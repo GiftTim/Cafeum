@@ -25,6 +25,9 @@ internal static class JsonFile
     public static T? Load<T>(string path, JsonSerializerOptions? options = null) where T : class =>
         LoadWith(path, text => JsonSerializer.Deserialize<T>(text, options));
 
+    /// <summary>이 파일은 마지막 읽기가 다른 프로그램의 사용 때문에 실패한 채인가(그동안 저장은 거부된다). 다시 읽어 볼 때를 판단하는 데 쓴다.</summary>
+    public static bool IsUnreadable(string path) { lock (gate) return unreadable.Contains(path); }
+
     /// <summary>읽는 방법을 직접 정하고 싶을 때(예전 형식도 읽어야 하는 파일). parse가 null을 돌려주거나 예외를 던지면 깨진 파일로 본다.</summary>
     public static T? LoadWith<T>(string path, Func<string, T?> parse) where T : class
     {

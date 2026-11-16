@@ -56,29 +56,41 @@ internal static class ScheduleStore
     {
         get
         {
-            if (data != null) return data;
-            data = JsonFile.LoadWith<Data>(FilePath, json => json.TrimStart().StartsWith("[") // 예전 형식(일정 목록만)도 읽는다
-                ? new Data { Entries = JsonSerializer.Deserialize<List<ScheduleEntry>>(json, Opts) ?? new() }
-                : JsonSerializer.Deserialize<Data>(json, Opts));
-            data ??= new();
-            data.Calendars ??= new();
-            data.Entries ??= new();
-            if (data.Calendars.Count == 0)
-            {
-                data.Calendars.Add(new ScheduleCal { Name = "집필", Color = "#4aa3df" });
-                data.Calendars.Add(new ScheduleCal { Name = "마감", Color = "#2b2570" });
-                data.Calendars.Add(new ScheduleCal { Name = "휴식", Color = "#a0714f" });
-            }
-            // 맨 위에 지워지지 않는 [새 스케줄]이 늘 있게 한다
-            var def = data.Calendars.FirstOrDefault(c => c.IsDefault);
-            if (def == null) def = new ScheduleCal { Id = "default", Name = "새 스케줄", Color = "#9aa0a6", IsDefault = true };
-            data.Calendars.Remove(def);
-            data.Calendars.Insert(0, def);
-            foreach (var c in data.Calendars) if (c.IsDefault) c.Visible = true; // 맨 위 [새 스케줄]은 늘 보인다(나머지는 저장된 보이기 / 안 보이기를 따른다)
-            data.Entries.RemoveAll(e => e == null || !TryParse(e.Date, out _));
-            foreach (var e in data.Entries) if (data.Calendars.All(c => c.Id != e.Cal)) e.Cal = data.Calendars[0].Id;
+            if (data == null) return data = LoadData();
+            if (!JsonFile.IsUnreadable(FilePath)) return data;
+            // 처음에 다른 프로그램이 잡고 있어서 못 읽어 기본값으로 시작한 경우(그동안 저장은 거부된다): 잠금이 풀렸으면 같은 목록 객체를 채워서 이어 간다
+            var fresh = LoadData();
+            if (JsonFile.IsUnreadable(FilePath)) return data;
+            data.Calendars.Clear(); data.Calendars.AddRange(fresh.Calendars);
+            data.Entries.Clear(); data.Entries.AddRange(fresh.Entries);
+            data.HolidaysVisible = fresh.HolidaysVisible; data.HolidayColor = fresh.HolidayColor;
             return data;
         }
+    }
+
+    private static Data LoadData()
+    {
+        var d = JsonFile.LoadWith<Data>(FilePath, json => json.TrimStart().StartsWith("[") // 예전 형식(일정 목록만)도 읽는다
+            ? new Data { Entries = JsonSerializer.Deserialize<List<ScheduleEntry>>(json, Opts) ?? new() }
+            : JsonSerializer.Deserialize<Data>(json, Opts)) ?? new();
+        d.Calendars ??= new();
+        d.Entries ??= new();
+        if (d.Calendars.Count == 0)
+        {
+            d.Calendars.Add(new ScheduleCal { Name = "집필", Color = "#4aa3df" });
+            d.Calendars.Add(new ScheduleCal { Name = "마감", Color = "#2b2570" });
+            d.Calendars.Add(new ScheduleCal { Name = "휴식", Color = "#a0714f" });
+        }
+        // 맨 위에 지워지지 않는 [새 스케줄]이 늘 있게 한다
+        var def = d.Calendars.FirstOrDefault(c => c.IsDefault);
+        if (def == null) def = new ScheduleCal { Id = "default", Name = "새 스케줄", Color = "#9aa0a6", IsDefault = true };
+        d.Calendars.Remove(def);
+        d.Calendars.Insert(0, def);
+        foreach (var c in d.Calendars) if (c.IsDefault) c.Visible = true; // 맨 위 [새 스케줄]은 늘 보인다(나머지는 저장된 보이기 / 안 보이기를 따른다)
+        int dropped = d.Entries.RemoveAll(e => e == null || !TryParse(e.Date, out _));
+        if (dropped > 0) AppLog.Write($"날짜를 읽지 못한 일정 {dropped}개를 목록에서 뺐어요(schedule.json)");
+        foreach (var e in d.Entries) if (d.Calendars.All(c => c.Id != e.Cal)) e.Cal = d.Calendars[0].Id;
+        return d;
     }
 
     public static List<ScheduleCal> Calendars => D.Calendars;
@@ -1395,6 +1407,7 @@ internal sealed class ScheduleView : Panel
                 int ns = Math.Clamp(scroll + d, 0, MaxScroll());
                 if (ns != scroll) { scroll = ns; Invalidate(); }
             };
+            Disposed += (_, _) => { holdTimer.Dispose(); edgeTimer.Dispose(); };
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -1435,7 +1448,7 @@ internal sealed class ScheduleView : Panel
         private void AddCalendar()
         {
             var free = ScheduleStore.FreeColors();
-            if (free.Count == 0) { MessageBox.Show(FindForm(), "All 8 colors are used (one schedule per color). Delete or recolor a schedule first.", "Schedule", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (free.Count == 0) { MessageBox.Show(FindForm(), $"스케줄 색 {SchedulePalette7.Colors.Length}가지를 모두 쓰고 있어요(색마다 스케줄 하나).\n다른 스케줄을 지우거나 색을 바꾼 뒤에 만들어 주세요.", "스케줄", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             using var dlg = new ScheduleDefDialog(p!, "", free[0], "");
             if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
             ScheduleStore.AddCal(dlg.DefName, dlg.DefColor, dlg.DefNote);
@@ -1532,7 +1545,8 @@ internal sealed class ScheduleView : Panel
                 float pcx = pr.X + pr.Width / 2f, pcy = pr.Y + pr.Height / 2f, arm = S(6);
                 g.DrawLine(pp, pcx - arm, pcy, pcx + arm, pcy);
                 g.DrawLine(pp, pcx, pcy - arm, pcx, pcy + arm);
-            }        }
+            }
+        }
     }
 }
 

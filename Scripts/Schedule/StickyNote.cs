@@ -72,22 +72,36 @@ internal static class MemoStore
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
-    private static readonly Dictionary<string, List<MemoNote>> Cache = new(StringComparer.OrdinalIgnoreCase);
+    // 작품 경로마다 읽어 둔 목록. 작품 폴더를 지우고 같은 이름으로 새로 만들면(또는 이름을 바꾼 뒤 옛 이름을 다시 쓰면) 옛 작품의 메모가 새 작품에 나타나지 않도록
+    // 폴더가 만들어진 시각을 같이 적어 두고, 달라졌으면 옛 목록은 버린다.
+    private sealed record Entry(List<MemoNote> List, DateTime Folder);
+    private static readonly Dictionary<string, Entry> Cache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static DateTime FolderStamp(string dir) { try { return Directory.GetCreationTimeUtc(dir); } catch { return DateTime.MinValue; } }
 
     /// <summary>메모가 바뀌어 저장됐다(작품 폴더). 목록이 다시 그린다.</summary>
     public static event Action<string>? Changed;
 
     public static List<MemoNote> Get(string novelDir)
     {
-        if (Cache.TryGetValue(novelDir, out var list)) return list;
-        list = Load(novelDir);
-        Cache[novelDir] = list;
+        var stamp = FolderStamp(novelDir);
+        if (Cache.TryGetValue(novelDir, out var e) && e.Folder == stamp)
+        {
+            string file = NovelFiles.PathOf(novelDir, NovelFiles.MemoFileName);
+            if (!JsonFile.IsUnreadable(file)) return e.List;
+            // 처음에 다른 프로그램이 잡고 있어서 못 읽어 빈 목록이던 것: 잠금이 풀렸으면 같은 목록 객체를 채워서(열려 있는 메모 창도 그대로 쓰게) 이어 간다
+            var again = Load(novelDir);
+            if (!JsonFile.IsUnreadable(file)) { e.List.Clear(); e.List.AddRange(again); }
+            return e.List;
+        }
+        var list = Load(novelDir);
+        Cache[novelDir] = new Entry(list, stamp);
         return list;
     }
 
     public static void Save(string novelDir)
     {
-        if (Cache.TryGetValue(novelDir, out var list)) Write(novelDir, list);
+        if (Cache.TryGetValue(novelDir, out var e)) Write(novelDir, e.List);
         Changed?.Invoke(novelDir);
     }
 
@@ -124,13 +138,22 @@ internal static class MemoStore
     // ───────── 메모 그룹(에피소드 그룹처럼: 이름 순서는 .cafeum-memo-groups.json, 메모마다 Group) ─────────
 
     public const string DefaultGroupName = "새 메모 그룹";
-    private static readonly Dictionary<string, List<string>> GroupCache = new(StringComparer.OrdinalIgnoreCase);
+    private sealed record GroupEntry(List<string> List, DateTime Folder);
+    private static readonly Dictionary<string, GroupEntry> GroupCache = new(StringComparer.OrdinalIgnoreCase);
 
     public static List<string> Groups(string novelDir)
     {
-        if (GroupCache.TryGetValue(novelDir, out var list)) return list;
-        list = JsonFile.Load<List<string>>(NovelFiles.PathOf(novelDir, NovelFiles.MemoGroupFileName), Opt) ?? new();
-        GroupCache[novelDir] = list;
+        var stamp = FolderStamp(novelDir);
+        string file = NovelFiles.PathOf(novelDir, NovelFiles.MemoGroupFileName);
+        if (GroupCache.TryGetValue(novelDir, out var e) && e.Folder == stamp)
+        {
+            if (!JsonFile.IsUnreadable(file)) return e.List;
+            var again = JsonFile.Load<List<string>>(file, Opt) ?? new();
+            if (!JsonFile.IsUnreadable(file)) { e.List.Clear(); e.List.AddRange(again); }
+            return e.List;
+        }
+        var list = JsonFile.Load<List<string>>(file, Opt) ?? new();
+        GroupCache[novelDir] = new GroupEntry(list, stamp);
         return list;
     }
 
@@ -559,7 +582,8 @@ internal sealed class StickyNoteWindow : Form
         try
         {
             title.Text = note.Title ?? "";
-            try { if (!string.IsNullOrEmpty(note.Rtf)) body.Rtf = note.Rtf; } catch { body.Clear(); }
+            try { if (!string.IsNullOrEmpty(note.Rtf)) body.Rtf = note.Rtf; }
+            catch { body.Clear(); body.Text = note.Text; } // 서식 글을 못 읽어도 함께 저장해 둔 글자는 살린다(비운 채 시작해서 저장하면 메모가 사라지므로)
             ApplyColors();
             body.Select(body.TextLength, 0);
             tools.OpacityValue = note.Opacity;
