@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 네비게이션 바(보기 > 네비게이션 바 · 툴바의 목차 아이콘) — 읽기 화면 아래 막대(NavigationBar)를 MainForm에 잇는 부분.
@@ -269,7 +269,7 @@ public partial class MainForm
         try
         {
             string full = Path.GetFullPath(currentPath);
-            string tempZipRoot = Path.Combine(Path.GetTempPath(), "CoffeeViewerZip");
+            string tempZipRoot = Path.Combine(Path.GetTempPath(), "CafeumZip");
             if (full.StartsWith(tempZipRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return null;
             string? dir = Path.GetDirectoryName(full);
             if (dir == null || !Directory.Exists(dir)) return null;

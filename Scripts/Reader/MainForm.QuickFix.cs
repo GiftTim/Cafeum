@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 public partial class MainForm
 {

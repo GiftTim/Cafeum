@@ -1,9 +1,9 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
-/// Muvel처럼 왼쪽 옆 막대 맨 위에 붙는 로고 줄: [앱 아이콘] Caffeum(필기체) · 부제, 오른쪽 끝에 접기 버튼(‹ / ›).
+/// Muvel처럼 왼쪽 옆 막대 맨 위에 붙는 로고 줄: [앱 아이콘] Cafeum(필기체) · 부제, 오른쪽 끝에 접기 버튼(‹ / ›).
 /// 로고를 누르면 BrandClicked(작품 목록으로), 접기 버튼을 누르면 CollapseClicked.
 /// 좁게 접혀 있으면(Collapsed) 아이콘과 펼치기 버튼만 그린다.
 /// </summary>
@@ -25,7 +25,7 @@ internal sealed class SidebarBrand : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         TabStop = false;
         if (logo == null)
-            try { using var s = typeof(SidebarBrand).Assembly.GetManifestResourceStream("Caffeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logo = ic.ToBitmap(); } } catch { }
+            try { using var s = typeof(SidebarBrand).Assembly.GetManifestResourceStream("Cafeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logo = ic.ToBitmap(); } } catch { }
     }
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]

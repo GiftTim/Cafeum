@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 팝업 메뉴가 열려 있는 동안 메뉴 밖을 한 번 누르면 닫는다. WinForms 기본 동작은 웹 화면(WebView) 위를 누를 때처럼

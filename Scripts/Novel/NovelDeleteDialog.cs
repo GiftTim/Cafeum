@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 소설 삭제 확인 창: 소설 이름을 그대로 적어야만 [소설 삭제하기]가 눌린다(실수로 지우는 걸 막는다).

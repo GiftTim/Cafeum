@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 만화(이미지) 보기 하단에 두는 위치 막대. 꿀뷰처럼 클릭하거나 눌러서 끌면(드래그) 그 자리에 해당하는

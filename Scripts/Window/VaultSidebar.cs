@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using Microsoft.VisualBasic.FileIO;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 볼트 왼쪽 패널(옵시디언의 왼쪽 사이드바를 본뜬 것). 맨 위 아이콘 셋으로 [파일 · 검색 · 북마크] 화면을 오가고,

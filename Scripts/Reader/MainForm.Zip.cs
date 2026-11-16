@@ -2,7 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// zip 열기. 안에 든 내용을 보고 소설이면 소설로, 그림이면 만화로 연다(나만의 소설뷰어와 같은 방식).
@@ -199,7 +199,7 @@ public partial class MainForm
 
             // 같은 zip이면 항상 같은 폴더를 써서(다시 열 때 읽던 자리가 이어지게), zip 경로로 폴더 이름을 정한다.
             string hash = Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(zipPath.ToLowerInvariant())))[..12];
-            string dir = Path.Combine(Path.GetTempPath(), "CoffeeViewerZip", hash);
+            string dir = Path.Combine(Path.GetTempPath(), "CafeumZip", hash);
             Directory.CreateDirectory(dir);
             // 이름만 쓴다(Path.GetFileName) — zip 안 경로에 ../ 가 있어도 임시 폴더 밖으로 나갈 수 없게.
             string target = Path.Combine(dir, Path.GetFileName(entry.Name));

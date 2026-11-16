@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>집필 일정 한 건. Cal은 어느 캘린더(색)에 속하는지.</summary>
 internal sealed class ScheduleEntry

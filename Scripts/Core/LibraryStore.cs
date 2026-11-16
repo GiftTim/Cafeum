@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>서재에 등록된 책 한 권. 읽던 위치와 마지막으로 연 시각도 여기에 같이 든다.</summary>
 public sealed class BookRecord
@@ -45,7 +45,7 @@ public sealed class BookRecord
 }
 
 /// <summary>
-/// 서재(등록한 폴더들 + 그 안의 책 목록 + 읽던 위치). %LOCALAPPDATA%\CoffeeViewer\library.json 한 파일에 담는다.
+/// 서재(등록한 폴더들 + 그 안의 책 목록 + 읽던 위치). %LOCALAPPDATA%\Cafeum\library.json 한 파일에 담는다.
 /// 소설 몇 천 권 규모면 JSON 하나로 충분해서 DB 엔진(SQLite)은 쓰지 않았다 — 네이티브 DLL이 하나 더 늘면
 /// 단일 exe 배포(csproj 주석 참고)에서 또 "DLL was not found"를 겪을 수 있어서다.
 /// UI 스레드에서만 만지는 걸 전제로 한다(스캔의 파일 열거만 백그라운드에서 돌고, 결과 병합은 UI 스레드).

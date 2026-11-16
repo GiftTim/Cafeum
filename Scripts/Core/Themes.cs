@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>독서용 색 조합. Back/Fore는 본문, Chrome/ChromeFore는 메뉴·상태줄·서재 같은 주변 화면에 쓴다.</summary>
 public sealed class ReaderTheme
@@ -19,7 +19,7 @@ public static class Themes
 {
     public static readonly ReaderTheme[] All =
     {
-        // Caffeum 기본: Muvel처럼 여백 많고 깨끗한 바탕에, 커피 · 캐러멜 강조색.
+        // Cafeum 기본: Muvel처럼 여백 많고 깨끗한 바탕에, 커피 · 캐러멜 강조색.
         new() { Name = "카페 라이트", Back = Color.FromArgb(0xFD, 0xFC, 0xFA), Fore = Color.FromArgb(0x2B, 0x26, 0x22), Chrome = Color.FromArgb(0xF4, 0xF1, 0xEC), ChromeFore = Color.FromArgb(0x3A, 0x33, 0x2D), Link = Color.FromArgb(0x9C, 0x63, 0x3A) },
         new() { Name = "카페 다크", Back = Color.FromArgb(0x1C, 0x1A, 0x18), Fore = Color.FromArgb(0xE4, 0xDF, 0xD9), Chrome = Color.FromArgb(0x26, 0x23, 0x20), ChromeFore = Color.FromArgb(0xE4, 0xDF, 0xD9), Link = Color.FromArgb(0xD8, 0xA0, 0x6E), Dark = true },
         new() { Name = "라이트", Back = Color.White, Fore = Color.Black, Chrome = SystemColors.Control, ChromeFore = SystemColors.ControlText, Link = Color.FromArgb(0x06, 0x45, 0xad) },

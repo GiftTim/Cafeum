@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 메모장식 메뉴바(파일 / 편집 / 보기 / 서식 …) 대신 쓰는 얇은 아이콘 툴바.

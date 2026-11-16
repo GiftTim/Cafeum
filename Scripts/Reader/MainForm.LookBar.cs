@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 글(txt · epub) 위쪽의 얇은 서식 줄: 글꼴 · 크기 · 줄 간격 · 정렬 · 줄바꿈.

@@ -2,7 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>같은 폴더의 마지막 파일을 다 넘겼거나(또는 첫 파일 앞으로 되돌렸을 때) 무엇을 할지. 설정창의 콤보 상자 순서와 같다.</summary>
 public enum EdgeFileAction
@@ -29,7 +29,7 @@ public enum NovelReadingMode
 }
 
 /// <summary>
-/// 화면·낭독 설정. %LOCALAPPDATA%\CoffeeViewer\settings.json 에 저장한다.
+/// 화면·낭독 설정. %LOCALAPPDATA%\Cafeum\settings.json 에 저장한다.
 /// 설정 파일이 깨졌거나 없어도 앱이 멈추면 안 되므로, 읽기/쓰기 실패는 조용히 기본값으로 넘어간다.
 /// </summary>
 public sealed class AppSettings

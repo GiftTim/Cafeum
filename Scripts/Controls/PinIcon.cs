@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 항상 위(압정) 아이콘을 코드로 얇은 선으로 그려서 원하는 색 · 크기로 만든다.

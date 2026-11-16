@@ -2,17 +2,17 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 업데이트 확인: GitHub 저장소의 최신 릴리스(Releases)를 보고, 지금보다 새 버전이면 설치 파일(Setup.exe)을 내려받아
-/// 조용히 설치한다(설치가 끝나면 Caffeum이 다시 열린다).
+/// 조용히 설치한다(설치가 끝나면 Cafeum이 다시 열린다).
 /// 새 버전을 낼 때: 저장소에 v1.0.2 같은 태그로 릴리스를 만들고 Install\CafeumOffice-Setup-1.0.2.exe를 첨부한다.
 /// </summary>
 internal static class Updater
 {
     /// <summary>"소유자/저장소" 형태(예: "계정/CafeumOffice"). 비어 있으면 업데이트 확인은 안내만 한다.</summary>
-    public const string RepoSlug = "GiftTim/Caffeum";
+    public const string RepoSlug = "GiftTim/Cafeum";
 
     private static bool busy;
 
@@ -37,7 +37,7 @@ internal static class Updater
     private static HttpClient CreateClient()
     {
         var c = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("Caffeum-Updater");
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("Cafeum-Updater");
         c.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return c;
     }
@@ -70,7 +70,7 @@ internal static class Updater
                 return;
             }
             string notes = rel.Notes.Length > 0 ? "\n\n" + (rel.Notes.Length > 400 ? rel.Notes[..400] + "…" : rel.Notes) : "";
-            var ask = MessageBox.Show(owner, $"새 버전 v{Format(rel.Version)}이 있어요. (지금 v{Format(Current)})\n지금 내려받아 설치할까요?\n설치하는 동안 Caffeum이 잠깐 닫혔다가 다시 열려요.{notes}",
+            var ask = MessageBox.Show(owner, $"새 버전 v{Format(rel.Version)}이 있어요. (지금 v{Format(Current)})\n지금 내려받아 설치할까요?\n설치하는 동안 Cafeum이 잠깐 닫혔다가 다시 열려요.{notes}",
                 "업데이트 확인", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (ask != DialogResult.Yes) return;
             await DownloadAndInstallAsync(owner, rel);
@@ -143,7 +143,7 @@ internal static class Updater
         dlg.Close();
         try
         {
-            // 설치 프로그램이 Caffeum을 닫고 새 버전으로 덮은 뒤 다시 실행한다. 우리는 저장을 마치고 먼저 끝난다.
+            // 설치 프로그램이 Cafeum을 닫고 새 버전으로 덮은 뒤 다시 실행한다. 우리는 저장을 마치고 먼저 끝난다.
             Process.Start(new ProcessStartInfo(path, "/SILENT /NORESTART /CLOSEAPPLICATIONS") { UseShellExecute = true });
         }
         catch (Exception ex)

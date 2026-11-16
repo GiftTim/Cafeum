@@ -1,7 +1,7 @@
 using System.Drawing.Imaging;
 using SkiaSharp;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 순수 CPU 디코딩만 한다(zip이나 파일 스트림 같은 공유 자원은 안 건드림) — 그래서 다른 페이지의

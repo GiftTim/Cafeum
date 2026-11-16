@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 한글 문서(.hwp · .hwpx)에서 본문 글만 뽑아 낸다 — 커피뷰어는 이 글을 txt와 같은 읽기 화면으로 보여주고, 고치는 건 한컴 한글에 맡긴다.

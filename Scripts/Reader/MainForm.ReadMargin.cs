@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// epub · 만화 읽기 전용 서식창의 [여백 상 하 좌 우] 칸과, 지금 보기 모드를 글자로 보여 주는 [페이지] 버튼.

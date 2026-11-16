@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 움직이는 그림(webp·gif)을 재생한다. 프레임을 미리 다 풀어두지 않고, 백그라운드 스레드에서 다음 프레임을 그때그때

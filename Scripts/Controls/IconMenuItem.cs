@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 아이콘이 앞에 붙는 짧은 목록(새 편 쓰기 밑의 에피소드 / 새 에피소드 그룹). 기본 메뉴 항목은 글자 높이 · 폭 · 마우스를 올린 칸이

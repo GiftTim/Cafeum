@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// txt를 메모장처럼: 파일을 열면 곧바로 쓸 수 있고(수정하기를 누를 필요 없음), 고친 내용은 잠깐 쉬면 알아서 저장한다.

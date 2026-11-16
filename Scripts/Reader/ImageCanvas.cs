@@ -1,7 +1,7 @@
 using System.Drawing.Imaging;
 using SkiaSharp;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>보기 > 보기 모드에서 고르는 네 가지 맞춤 방식.</summary>
 public enum ImageViewMode

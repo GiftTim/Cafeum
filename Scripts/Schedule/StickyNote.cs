@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 // 윈도우 스티커 메모를 본뜬 메모 기능.
 // 사이드바 [메모] → 파일 트리 자리에 메모 목록(검색 · 카드). 카드를 누르면 메모 한 장이 따로 뜨는 작은 창으로 열린다.

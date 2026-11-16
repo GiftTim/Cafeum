@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 화면 아래쪽에 잠깐 떴다 사라지는 짧은 알림("이어서 읽습니다", "낭독 시작" 등). 대화상자처럼 흐름을 끊지 않으려고 쓴다.

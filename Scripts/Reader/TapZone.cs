@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 페이지 터치(화면 탭으로 넘기기)의 영역 나누기. 화면을 세로로 셋으로 나눠 왼쪽 = 뒤로, 오른쪽 = 앞으로,

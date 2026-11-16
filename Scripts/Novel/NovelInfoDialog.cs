@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 소설 "기본 정보" 창: 제목(= 소설 폴더 이름)과 작품 설명을 고친다. 소설 메인의 제목이나 설명을 누르면 뜬다.

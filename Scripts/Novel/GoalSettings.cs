@@ -2,7 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>글자 수 세기 위젯이 쓰는 분량 계산: 글자 수 · 단어 수 · 문장 수 · 용량(바이트), 공백 · 문장부호 · 특수문자 제외.</summary>
 internal static class GoalCounter

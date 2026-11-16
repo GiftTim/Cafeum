@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 서식창의 [낭독 · 자동 재생] 버튼을 누르면 뜨는 작은 창.

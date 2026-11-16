@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 프로그램 전체가 함께 쓰는 것들: 설정, 읽은 기록, 그리고 볼트 창(VaultForm)·설정 창을 여는 곳.
@@ -27,20 +27,20 @@ internal static class AppShared
         catch { return null; }
     }
 
-    /// <summary>창 · 작업 표시줄 아이콘: 앱에 넣어 둔 Caffeum.ico에서 48px 그림을 골라 쓴다(ExtractAssociatedIcon은 32px만 줘서 작업 표시줄에서 작게 보였다).</summary>
+    /// <summary>창 · 작업 표시줄 아이콘: 앱에 넣어 둔 Cafeum.ico에서 48px 그림을 골라 쓴다(ExtractAssociatedIcon은 32px만 줘서 작업 표시줄에서 작게 보였다).</summary>
     public static Icon? LoadAppIcon()
     {
         try
         {
-            using var s = typeof(AppShared).Assembly.GetManifestResourceStream("CaffeumTaskbar.ico"); // 창 · 작업 표시줄 아이콘은 흰 바탕 로고(어두운 작업 표시줄에서도 보이게)
+            using var s = typeof(AppShared).Assembly.GetManifestResourceStream("CafeumTaskbar.ico"); // 창 · 작업 표시줄 아이콘은 흰 바탕 로고(어두운 작업 표시줄에서도 보이게)
             if (s != null) return new Icon(s, 48, 48);
         }
         catch { }
         return Icon.ExtractAssociatedIcon(Application.ExecutablePath);
     }
 
-    /// <summary>화면에 보이는 프로그램 이름과 한 줄 소개(머리 막대 · 제목표시줄). 내부 이름(네임스페이스 CoffeeViewer)은 그대로.</summary>
-    public const string AppDisplayName = "Caffeum";
+    /// <summary>화면에 보이는 프로그램 이름과 한 줄 소개(머리 막대 · 제목표시줄). 내부 이름(네임스페이스 Cafeum)은 그대로.</summary>
+    public const string AppDisplayName = "Cafeum";
     public const string AppSubtitle = "작은 카페 속 당신의 이야기";
 
     public static AppSettings Settings { get; } = AppSettings.Load();
@@ -101,7 +101,7 @@ internal static class AppShared
         {
             var pip = new PipForm(f);
             Track(pip);
-            pip.Show(vaults.LastOrDefault(v => !v.IsDisposed)); // 열려 있는 Caffeum 창이 있으면 그 앞에(없으면 혼자 뜬다)
+            pip.Show(vaults.LastOrDefault(v => !v.IsDisposed)); // 열려 있는 Cafeum 창이 있으면 그 앞에(없으면 혼자 뜬다)
         }
     }
 

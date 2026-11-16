@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 텍스트 파일 안에서 잘라낸 한 화(챕터). Start/End는 원본 전체 문자열에서

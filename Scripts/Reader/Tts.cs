@@ -1,7 +1,7 @@
 using System.Speech.Synthesis;
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// Windows에 설치된 음성(SAPI)으로 문장을 하나씩 읽어주는 엔진. 문장 하나 읽기가 끝나면 SentenceFinished가

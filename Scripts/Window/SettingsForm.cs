@@ -1,6 +1,6 @@
 using System.Drawing.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 설정창. 창을 띄워둔 채로 값을 만지면 그 즉시 본문에 반영된다(모달이 아니라 옆에 두고 보면서 조절하는 방식).

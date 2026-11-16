@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>칸 안에 단위(pt, %)가 같이 보이는 숫자 입력칸: "10.0      pt ⇅". 값을 직접 써도 되고 화살표로 올리고 내려도 된다.</summary>
 internal sealed class UnitUpDown : NumericUpDown

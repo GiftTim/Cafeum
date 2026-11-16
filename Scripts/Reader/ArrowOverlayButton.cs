@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 본문(txt/epub/만화) 화면 위에 그대로 얹는 좌우 넘김 버튼 — 회색 원 안에 흰 꺾쇠(‹ ›).

@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 큰 파일(용량이 큰 zip 만화, 이미지가 많은 epub, 긴 txt 등)을 불러올 때 걸리는 시간을 게이지로 보여주는

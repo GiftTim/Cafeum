@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// txt를 epub처럼 WebView2로 보여주려고, 글을 작은 HTML 문서 여러 개로 나눠 임시 폴더에 써 둔 "가상 epub".
@@ -31,7 +31,7 @@ public sealed class TxtWebBook
     /// <summary>text는 줄바꿈이 \r\n으로 정리된 전체 글(ShowLoadedText 참고), chapters는 그 글을 나눈 챕터 목록.</summary>
     public static TxtWebBook Build(string text, IReadOnlyList<TxtChapter> chapters, string title, string sourcePath, bool autoBreak = false)
     {
-        string dir = Path.Combine(Path.GetTempPath(), "CoffeeViewerTxt",
+        string dir = Path.Combine(Path.GetTempPath(), "CafeumTxt",
             Path.GetFileNameWithoutExtension(sourcePath) + "_" + Math.Abs(sourcePath.GetHashCode()));
         try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { /* 못 지운 옛 파일은 아래에서 덮어쓴다 */ }
         Directory.CreateDirectory(dir);

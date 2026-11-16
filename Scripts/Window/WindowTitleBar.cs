@@ -1,7 +1,7 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
-/// 창 맨 위 제목줄(윈도우 기본 제목줄 대신): 왼쪽에 앱 이름 Caffeum(필기체)만, 오른쪽에 [최소화] [최대화/복원] [닫기].
+/// 창 맨 위 제목줄(윈도우 기본 제목줄 대신): 왼쪽에 앱 이름 Cafeum(필기체)만, 오른쪽에 [최소화] [최대화/복원] [닫기].
 /// 높이 32, 이름을 왼쪽 끝에서 조금 오른쪽에 둔다. 빈 곳을 끌면 창이 움직이고 두 번 누르면 최대화된다 —
 /// 그건 VaultForm.WndProc이 이 줄의 빈 곳을 "제목줄(HTCAPTION)"로 알려 주어서 윈도우가 알아서 한다.
 /// </summary>
@@ -68,11 +68,11 @@ internal sealed class WindowTitleBar : Control
         }
     }
 
-    /// <summary>앱 아이콘(Caffeum.ico)의 큰 그림을 불러와, 모양(투명도)은 그대로 두고 크기만 맞춰 둔다(흰 테두리가 있어 어두운 테마에서도 보인다).</summary>
+    /// <summary>앱 아이콘(Cafeum.ico)의 큰 그림을 불러와, 모양(투명도)은 그대로 두고 크기만 맞춰 둔다(흰 테두리가 있어 어두운 테마에서도 보인다).</summary>
     private void EnsureLogo(Color tint, int size)
     {
         if (logoMask == null)
-            try { using var s = typeof(WindowTitleBar).Assembly.GetManifestResourceStream("Caffeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logoMask = ic.ToBitmap(); } } catch { }
+            try { using var s = typeof(WindowTitleBar).Assembly.GetManifestResourceStream("Cafeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logoMask = ic.ToBitmap(); } } catch { }
         if (logoMask == null || (logoTinted != null && logoTint == tint && logoTinted.Width == size)) return;
         logoTinted?.Dispose();
         logoTint = tint;
@@ -98,7 +98,7 @@ internal sealed class WindowTitleBar : Control
         g.Clear(palette?.Main ?? BackColor);
         if (palette is not { } p) return;
         g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-        // 왼쪽에 작은 로고(글자색으로 물들여서), 그 옆에 이름 Caffeum(필기체)
+        // 왼쪽에 작은 로고(글자색으로 물들여서), 그 옆에 이름 Cafeum(필기체)
         int logoSize = S(20);
         EnsureLogo(p.Fore, logoSize);
         if (logoTinted != null) g.DrawImage(logoTinted, new Rectangle(S(10), (Height - logoSize) / 2, logoSize, logoSize));

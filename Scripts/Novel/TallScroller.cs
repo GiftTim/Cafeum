@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 집필 화면에서 상세 정보(머리)와 글 상자를 한 장으로 이어 같이 스크롤시키는 자리.

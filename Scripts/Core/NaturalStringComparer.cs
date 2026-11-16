@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// "2.jpg"가 "10.jpg"보다 앞에 오도록(사전순이 아니라 숫자 크기 순으로) 비교한다.

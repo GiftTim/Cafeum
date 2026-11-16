@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// Muvel식 작품 · 회차 구조. 볼트 바로 아래 폴더 하나 = 작품, 그 폴더 바로 안의 .txt 하나 = 회차.

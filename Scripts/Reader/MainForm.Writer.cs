@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// Muvel식 글쓰기 화면: 볼트 창 안에서 바로 고치는 txt(회차)는 글을 창 가운데 일정한 폭의 칸에 놓고,

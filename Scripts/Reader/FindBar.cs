@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 윈도우 11 메모장의 찾기 바를 흉내낸 오버레이.

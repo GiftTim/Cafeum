@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>기능과 단축키를 안내하는 독립 창.</summary>
 public sealed class HelpForm : Form

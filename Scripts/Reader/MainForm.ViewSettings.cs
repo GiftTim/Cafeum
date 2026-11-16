@@ -1,7 +1,7 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
-/// 읽기 화면(탐색기 "Caffeum으로 보기" · 참고 자료)의 [줄바꿈 · 줄간격] 설정.
+/// 읽기 화면(탐색기 "Cafeum으로 보기" · 참고 자료)의 [줄바꿈 · 줄간격] 설정.
 /// 예전의 [수정하기] 버튼 자리에 들어갔다: 누르면 이 작은 창이 뜬다. 읽는 글은 이제 고칠 수 없다.
 /// </summary>
 public partial class MainForm

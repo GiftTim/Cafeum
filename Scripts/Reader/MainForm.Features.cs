@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 나만의 소설뷰어에서 가져온 기능들: 서재(책장) · 낭독(TTS) · 테마/설정창 · 몰입 모드 · 읽던 자리 기억 ·

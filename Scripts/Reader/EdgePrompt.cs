@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 책의 끝(처음)에 닿았을 때 화면 가운데 위쪽에 띄우는 반디뷰 스타일 안내 상자:

@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>코드로 그리는 보라색 선 아이콘(에피소드 = 펼친 책, 에피소드 그룹 = 이어진 네 개의 점). 선 두께를 직접 정해서 얇게 그린다.</summary>
 internal static class PurpleIcons

@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 작업 화면 위쪽의 문서 탭 막대. 탭마다 제목과 [×]가 있고, 가운데 단추(휠 클릭)로도 닫는다.

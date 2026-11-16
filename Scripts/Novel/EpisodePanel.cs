@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using Microsoft.VisualBasic.FileIO;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 워크스페이스의 "파일 트리" 칸(Muvel의 파일 트리처럼).

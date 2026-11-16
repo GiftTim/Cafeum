@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 참고 자료 문서(작품의 "참고 자료" 폴더 안 파일)의 서식창. 종류(txt · epub · 만화 · pdf)와 상관없이 같은 줄을 쓴다:

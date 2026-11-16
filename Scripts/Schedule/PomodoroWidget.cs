@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.ComponentModel;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 떠 있는 뽀모도로 타이머: 머리 줄(이름 · 최소화 · 닫기) + 고리 + [시작/일시정지] [리셋] [목록 설정] [위치 고정] + 볼륨 막대.

@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Xml.Linq;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 public sealed record EpubChapter(string Name, string FilePath);
 

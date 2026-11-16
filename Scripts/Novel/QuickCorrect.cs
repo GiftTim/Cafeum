@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>사용자 사전 한 줄: [틀린 말(입력할 말)] → [맞는 말(바뀔 말)].</summary>
 public sealed class WordPair

@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using Microsoft.VisualBasic.FileIO;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 첫 화면(Muvel의 "로컬 도서관"식 작품 목록).

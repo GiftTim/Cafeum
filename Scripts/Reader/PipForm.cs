@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// PIP 모드: 참고 자료를 다른 창 위에 늘 떠 있는 작은 창으로 띄운다. 원고를 쓰면서 옆에 참고 자료를 보는 용도.

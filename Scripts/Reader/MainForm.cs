@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 소설 · 만화 뷰어 겸 간단한 에디터.
@@ -701,7 +701,7 @@ public partial class MainForm : Form
 
     /// <summary>작품 폴더의 "참고 자료" 폴더 안 파일인가.</summary>
     private bool IsReferenceFile(string? path) =>
-        InPip /* 탐색기 "Caffeum으로 보기"로 연 PIP 창의 문서는 어느 폴더의 파일이든 참고 자료처럼 다룬다(참고 자료 서식창 · 읽기 전용) */ || !string.IsNullOrEmpty(path) && string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), NovelStore.ReferenceFolder, StringComparison.OrdinalIgnoreCase);
+        InPip /* 탐색기 "Cafeum으로 보기"로 연 PIP 창의 문서는 어느 폴더의 파일이든 참고 자료처럼 다룬다(참고 자료 서식창 · 읽기 전용) */ || !string.IsNullOrEmpty(path) && string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), NovelStore.ReferenceFolder, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>수정하기를 켜면: 웹 화면에서 보던 자리 그대로 텍스트 상자(mainEditor)로 넘어간다.</summary>
     private void LeaveTxtWebForEditing()
@@ -988,7 +988,7 @@ public partial class MainForm : Form
         try
         {
             await EnsureEpubViewAsync();
-            epubExtractDir = Path.Combine(Path.GetTempPath(), "CoffeeViewerEpub",
+            epubExtractDir = Path.Combine(Path.GetTempPath(), "CafeumEpub",
                 Path.GetFileNameWithoutExtension(path) + "_" + Math.Abs(path.GetHashCode()));
             string extractDir = epubExtractDir;
             var progress = new Progress<double>(loadingOverlay.Report);

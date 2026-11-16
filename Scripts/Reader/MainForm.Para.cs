@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>서식창의 [문단 서식] · 글자 서식: 정렬 · 여백 · 첫 줄 · 줄/문단 간격 · 줄 나눔 기준과 진하게 · 기울임 · 밑줄 · 취소선 · 글자 색을 파일마다 기억하고 적용한다.</summary>
 public partial class MainForm

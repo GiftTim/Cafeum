@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 작품 안의 작업 화면(Muvel의 워크스페이스). 작품에 들어가면 늘 이 화면이다.
@@ -416,7 +416,7 @@ internal sealed class NovelWorkspace : Panel
             if (held.Count == 0) CloseDocsUnder(path); // 회차 · 위키는 같은 문서를 두 곳에서 고치지 않게 칸을 닫는다
             var pip = new PipForm(path);
             pip.FormClosed += (_, _) => { foreach (var pane in held) if (!pane.IsDisposed) pane.EndPip(path); };
-            pip.Show(FindForm()); // Caffeum 창이 전체 화면이어도(항상 위여도) PIP는 그 앞에 뜬다(소유 창). 작업표시줄 버튼은 PipForm이 따로 만든다
+            pip.Show(FindForm()); // Cafeum 창이 전체 화면이어도(항상 위여도) PIP는 그 앞에 뜬다(소유 창). 작업표시줄 버튼은 PipForm이 따로 만든다
         });
     }
 
@@ -1225,7 +1225,7 @@ internal sealed class DocPane : PaneFrame
 }
 
 /// <summary>
-/// 소설 메인 화면 맨 위 머리 줄(사이드 막대 대신): 왼쪽에 [로고] Caffeum · 부제(서재 사이드바와 같은 모양), 오른쪽에 [도움말] [항상 위] [전체 화면] [설정].
+/// 소설 메인 화면 맨 위 머리 줄(사이드 막대 대신): 왼쪽에 [로고] Cafeum · 부제(서재 사이드바와 같은 모양), 오른쪽에 [도움말] [항상 위] [전체 화면] [설정].
 /// 문서 안에 들어가면 이 줄은 사라지고 왼쪽 아이콘 막대(WorkspaceRail)가 나온다.
 /// </summary>
 internal sealed class MainHeaderBar : Control
@@ -1257,7 +1257,7 @@ internal sealed class MainHeaderBar : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         TabStop = false;
         if (logo == null)
-            try { using var s = typeof(MainHeaderBar).Assembly.GetManifestResourceStream("Caffeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logo = ic.ToBitmap(); } } catch { }
+            try { using var s = typeof(MainHeaderBar).Assembly.GetManifestResourceStream("Cafeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logo = ic.ToBitmap(); } } catch { }
     }
 
     public void SetPalette(LibraryPalette p) { palette = p; BackColor = p.Main; Invalidate(); }
@@ -1313,7 +1313,7 @@ internal sealed class MainHeaderBar : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-        // 서재 사이드바의 로고 줄과 같은 크기 · 같은 이름: [로고] Caffeum(필기체) / 부제
+        // 서재 사이드바의 로고 줄과 같은 크기 · 같은 이름: [로고] Cafeum(필기체) / 부제
         var lr = LogoRect;
         if (logo != null) g.DrawImage(logo, lr);
         using var tf = SidebarBrand.TitleFont(15f);

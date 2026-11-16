@@ -27,7 +27,7 @@ internal sealed class PageLockTextBox : RichTextBox
 
     /// <summary>집필 화면에서 이 상자를 머리와 함께 스크롤시키는 패널(없으면 상자가 스스로 스크롤한다).</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-    internal CoffeeViewer.TallScroller? TallHost { get; set; }
+    internal Cafeum.TallScroller? TallHost { get; set; }
 
     public new void ScrollToCaret()
     {
@@ -99,7 +99,7 @@ internal sealed class PageLockTextBox : RichTextBox
     private string? lastParaKey;
 
     /// <summary>문단 서식을 모든 문단에 적용한다(새로 치는 문단은 앞 문단의 서식을 이어받는다). 글을 새로 넣은 뒤에는 force로 다시 건다.</summary>
-    public void ApplyParaFormat(CoffeeViewer.ParaFormat p, bool force = false)
+    public void ApplyParaFormat(Cafeum.ParaFormat p, bool force = false)
     {
         if (!IsHandleCreated) return;
         string key = string.Join("|", Font.SizeInPoints, Font.Name, p.Align, p.Left, p.Right, p.FirstMode, p.FirstPt, p.LineMode, p.LinePercent, p.LinePt, p.Before, p.After);

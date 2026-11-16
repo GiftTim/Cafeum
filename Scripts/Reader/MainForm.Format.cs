@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>"서식" 메뉴(윈도우 메모장처럼): 자동 줄바꿈, 글꼴.</summary>
 public partial class MainForm

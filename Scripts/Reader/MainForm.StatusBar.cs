@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 하단 상태 표시줄 오른쪽 끝의 윈도우 메모장식 칸들: [줄 N, 열 M] [100%] [Windows (CRLF)] [UTF-8].

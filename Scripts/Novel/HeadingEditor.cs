@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 위키 본문 편집기(Muvel처럼 제목이 바로 제목으로 보이는 글 상자).

@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 참고 자료 서식창의 [잠금 모드]. 켜면 문서 화면이 완전히 잠긴다 — 페이지 터치 · 페이지 넘김 · 스크롤 · 클릭 · 키 이동이 모두 안 먹고,

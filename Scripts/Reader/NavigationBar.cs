@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 네비게이션 바(툴바의 목차 아이콘 · 보기 > 네비게이션 바). 반디뷰 아래쪽 막대처럼 읽기 화면 맨 아래에 붙는다:

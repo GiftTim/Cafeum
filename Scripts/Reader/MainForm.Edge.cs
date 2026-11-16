@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 책의 끝(마지막 페이지에서 더 넘김)이나 처음(첫 페이지에서 더 되돌림)에 닿았을 때의 처리.
@@ -282,7 +282,7 @@ public partial class MainForm
             if (!EdgeExtensions.Contains(ext)) return null; // 낱장 이미지·pdf 등
 
             // zip 안의 epub을 꺼내 연 임시 파일은 옆 파일이 아니라 임시 폴더의 다른 zip 것들이다.
-            string tempZipRoot = Path.Combine(Path.GetTempPath(), "CoffeeViewerZip");
+            string tempZipRoot = Path.Combine(Path.GetTempPath(), "CafeumZip");
             if (full.StartsWith(tempZipRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return null;
 
             string? dir = Path.GetDirectoryName(full);

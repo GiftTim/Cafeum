@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 위키 문서 화면(Muvel의 위키 문서처럼):

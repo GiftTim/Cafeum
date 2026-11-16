@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 서재 화면 전용 색 묶음. 읽기 화면 테마(ReaderTheme) 하나에서 바탕 · 옆 막대 · 머리 막대 · 카드 · 강조색을 뽑아서,
@@ -401,11 +401,11 @@ internal sealed class LibraryHeader : Panel
     {
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
-        try { using var s = typeof(LibraryHeader).Assembly.GetManifestResourceStream("Caffeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logo = ic.ToBitmap(); } else logo = Icon.ExtractAssociatedIcon(Application.ExecutablePath)?.ToBitmap(); } catch { }
+        try { using var s = typeof(LibraryHeader).Assembly.GetManifestResourceStream("Cafeum.ico"); if (s != null) { using var ic = new Icon(s, 256, 256); logo = ic.ToBitmap(); } else logo = Icon.ExtractAssociatedIcon(Application.ExecutablePath)?.ToBitmap(); } catch { }
         Disposed += (_, _) => logo?.Dispose();
     }
 
-    /// <summary>로고 · 이름 · 부제를 그릴지. 끄면(Caffeum 볼트 창) 로고는 왼쪽 옆 막대가 맡고, 여기는 문서 툴바와 아이콘 버튼만 담는다.</summary>
+    /// <summary>로고 · 이름 · 부제를 그릴지. 끄면(Cafeum 볼트 창) 로고는 왼쪽 옆 막대가 맡고, 여기는 문서 툴바와 아이콘 버튼만 담는다.</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool ShowBrand { get; set; } = true;
 
@@ -459,7 +459,7 @@ internal sealed class LibraryHeader : Panel
             + Math.Max(TextRenderer.MeasureText(AppShared.AppDisplayName, titleFont).Width, TextRenderer.MeasureText(AppShared.AppSubtitle, subFont).Width);
     }
 
-    /// <summary>이름(Caffeum)은 필기체로: Windows에 늘 있는 Segoe Script 굵게, 없으면 기본 글꼴 굵게.</summary>
+    /// <summary>이름(Cafeum)은 필기체로: Windows에 늘 있는 Segoe Script 굵게, 없으면 기본 글꼴 굵게.</summary>
     private Font TitleFont()
     {
         using var probe = new Font("Segoe Script", 10f);

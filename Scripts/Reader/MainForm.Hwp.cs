@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Win32;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 한글 문서(.hwp · .hwpx). 읽기는 본문 글을 뽑아(HwpDocument) txt와 같은 웹 화면으로 보여주고, "수정하기"는 설치된 한컴 한글에

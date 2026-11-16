@@ -1,6 +1,6 @@
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 글자 크기를 바꿀 때 툴바의 보기 버튼 밑에 잠깐 뜨는 작은 상자(크롬의 확대/축소 표시처럼):

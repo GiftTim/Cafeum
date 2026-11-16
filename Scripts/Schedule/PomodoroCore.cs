@@ -4,7 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 // ───────── 뽀모도로 위젯의 데이터 · 타이머 · 소리 (PomodoroTimer 앱을 WinForms로 옮긴 것) ─────────
 
@@ -253,7 +253,7 @@ internal static class Pomodoro
         try
         {
             var ni = new NotifyIcon { Icon = AppShared.LoadAppIcon() ?? SystemIcons.Information, Visible = true };
-            ni.ShowBalloonTip(5000, "Caffeum 타이머", text, ToolTipIcon.Info);
+            ni.ShowBalloonTip(5000, "Cafeum 타이머", text, ToolTipIcon.Info);
             var t = new System.Windows.Forms.Timer { Interval = 8000 };
             t.Tick += (_, _) => { t.Dispose(); ni.Visible = false; ni.Dispose(); };
             t.Start();

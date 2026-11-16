@@ -1,7 +1,7 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
-/// Caffeum의 본체 창(볼트 하나).
+/// Cafeum의 본체 창(볼트 하나).
 ///  · 첫 화면: 작품 목록(NovelHome — 왼쪽 옆 막대 · 내 서재 · 작품 카드).
 ///  · 작품에 들어가면 늘 워크스페이스(NovelWorkspace — 아이콘 막대 · 파일 트리 · 문서 칸들, Muvel처럼).
 /// 회차 하나 = 읽기 · 쓰기 화면(MainForm) 하나라서 txt 편집 · 낭독 · 이어 읽기를 그대로 쓴다.

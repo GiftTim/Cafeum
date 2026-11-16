@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 // 플롯 캔버스(Muvel의 캔버스): 에피소드 · 위키 · 메모를 공간에 놓고 선으로 이어 작품의 흐름과 관계를 정리한다.
 // 파일 트리의 에피소드 그룹 줄 오른쪽 [캔버스] 아이콘 → 그 그룹의 캔버스가 문서 칸에 열린다(그룹마다 하나, 작품폴더\canvas\그룹이름.canvas).

@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>편집 용지: 판형(폭 · 길이) · 방향 · 여백(mm). Fit이면 용지 없이 창 폭에 맞춰 보여준다(기본).</summary>
 public sealed class PaperSetup

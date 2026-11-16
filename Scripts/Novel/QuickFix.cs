@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>도구 > 빠른 교정: 글에 흔한 자잘한 흐트러짐(줄 끝 공백 · 겹친 띄어쓰기 · 빈 줄 · 말줄임표 …)을 한 번에 고친다.</summary>
 internal sealed class QuickFixDialog : Form

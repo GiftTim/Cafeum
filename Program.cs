@@ -1,11 +1,11 @@
 using System.IO.Pipes;
 using System.Text;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 static class Program
 {
-    private const string PipeName = "Caffeum.SingleInstance.Pipe";
+    private const string PipeName = "Cafeum.SingleInstance.Pipe";
 
     /// <summary>
     /// 진입점. 프로그램은 하나만 떠 있는다: 이미 실행 중이면 새로 띄우지 않고 받은 인자(폴더 · 파일)를 기존 프로그램에 넘긴 뒤 끝낸다
@@ -17,10 +17,10 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
-        using var mutex = new Mutex(true, @"Local\Caffeum.SingleInstance", out bool first);
+        using var mutex = new Mutex(true, @"Local\Cafeum.SingleInstance", out bool first);
         if (!first)
         {
-            if (!SendToRunning(args)) MessageBox.Show("Caffeum이 이미 실행 중이지만 응답이 없어요. 잠시 뒤에 다시 시도해 주세요.", "Caffeum");
+            if (!SendToRunning(args)) MessageBox.Show("Cafeum이 이미 실행 중이지만 응답이 없어요. 잠시 뒤에 다시 시도해 주세요.", "Cafeum");
             return;
         }
 
@@ -225,6 +225,6 @@ static class Program
                 }
                 catch { Thread.Sleep(500); }
             }
-        }) { IsBackground = true, Name = "CaffeumPipe" }.Start();
+        }) { IsBackground = true, Name = "CafeumPipe" }.Start();
     }
 }

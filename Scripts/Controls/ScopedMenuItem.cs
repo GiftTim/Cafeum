@@ -1,6 +1,6 @@
 using System.Windows.Forms;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 단축키가 "이 탭"에서만 먹는 메뉴 항목. 볼트 창에는 탭마다 MainForm(과 그 메뉴)이 하나씩 들어 있는데,

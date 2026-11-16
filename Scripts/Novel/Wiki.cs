@@ -2,7 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Text;
 using Microsoft.VisualBasic.FileIO;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>
 /// 위키 문서 한 개 = 작품 폴더 안의 <c>wiki\제목.txt</c>. 메모장으로 열어도 그대로 읽히는 평범한 글이다.

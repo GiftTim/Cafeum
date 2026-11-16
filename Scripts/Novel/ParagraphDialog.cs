@@ -1,4 +1,4 @@
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>문단 서식 값(파일마다 기억). 정렬 · 줄 간격(%)은 서식창이 쓰는 LookAlign · LookLine과 같은 값을 쓰고, 나머지는 여기에 둔다.</summary>
 public sealed class ParaFormat

@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>서재 오른쪽 위의 전체 화면 버튼(켜지면 "나가기" 모양으로 바뀐다).</summary>
 internal sealed class FullScreenButton : Control

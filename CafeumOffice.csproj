@@ -7,12 +7,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CafeumOffice</AssemblyName>
-    <RootNamespace>CoffeeViewer</RootNamespace>
-    <AssemblyTitle>Caffeum</AssemblyTitle>
-    <Product>Caffeum</Product>
+    <RootNamespace>Cafeum</RootNamespace>
+    <AssemblyTitle>Cafeum</AssemblyTitle>
+    <Product>Cafeum</Product>
     <Company>JuneSilver</Company>
-    <Version>1.1.7</Version>
-    <ApplicationIcon>Img/Used/CaffeumTaskbar.ico</ApplicationIcon>
+    <Version>1.1.8</Version>
+    <ApplicationIcon>Img/Used/CafeumTaskbar.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- 배포(CafeumOffice.iss, 아직 없음)는 publish 폴더의 exe 하나만 그대로 담아간다. 아래 설정을 빠뜨리고
@@ -28,8 +28,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Img/Used/Caffeum.ico" LogicalName="Caffeum.ico" />
-    <EmbeddedResource Include="Img/Used/CaffeumTaskbar.ico" LogicalName="CaffeumTaskbar.ico" />
+    <EmbeddedResource Include="Img/Used/Cafeum.ico" LogicalName="Cafeum.ico" />
+    <EmbeddedResource Include="Img/Used/CafeumTaskbar.ico" LogicalName="CafeumTaskbar.ico" />
     <EmbeddedResource Include="Img/Used/OnePage.png" LogicalName="OnePage.png" />
     <EmbeddedResource Include="Img/Used/TwoPage.png" LogicalName="TwoPage.png" />
     <EmbeddedResource Include="Img/Used/원본 크기로 보기.png" LogicalName="ViewActual.png" />

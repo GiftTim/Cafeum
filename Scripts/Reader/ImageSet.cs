@@ -1,6 +1,6 @@
 using System.IO.Compression;
 
-namespace CoffeeViewer;
+namespace Cafeum;
 
 /// <summary>zip 안이든 폴더 안이든, "이미지 여러 장을 순서대로 넘겨볼 수 있는 것"을 똑같이 다루기 위한 인터페이스.</summary>
 public interface IImageSet : IDisposable
