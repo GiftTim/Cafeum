@@ -141,7 +141,7 @@ public sealed class EdgePrompt : Control
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) boldFont.Dispose();
+        if (disposing) { boldFont.Dispose(); Font.Dispose(); } // 둘 다 생성자에서 직접 만든 글꼴
         base.Dispose(disposing);
     }
 }

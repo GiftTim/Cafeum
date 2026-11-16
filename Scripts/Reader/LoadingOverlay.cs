@@ -112,7 +112,7 @@ public sealed class LoadingOverlay : Panel
     /// <summary>0.0~1.0 진행률 보고. 어느 정도 지나야(그래야 추정이 의미 있어서) 남은 시간도 같이 보여준다.</summary>
     public void Report(double fraction)
     {
-        fraction = Math.Clamp(fraction, 0.0, 1.0);
+        fraction = double.IsNaN(fraction) ? 0.0 : Math.Clamp(fraction, 0.0, 1.0);
         if (progressBar.Style != ProgressBarStyle.Continuous) progressBar.Style = ProgressBarStyle.Continuous;
         progressBar.Value = (int)Math.Round(fraction * 100);
 
@@ -153,6 +153,7 @@ public sealed class LoadingOverlay : Panel
         {
             showDelayTimer.Dispose();
             keepOnTopTimer.Dispose();
+            titleLabel.Font.Dispose(); // 직접 만든 글꼴
         }
         base.Dispose(disposing);
     }
