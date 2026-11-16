@@ -70,10 +70,14 @@ internal static class NovelStore
         catch { return null; }
     }
 
-    /// <summary>고른 이미지를 400 × 600 px PNG로 작품 폴더에 저장한다(크기 · 용량은 부르는 쪽이 먼저 확인).</summary>
+    /// <summary>
+    /// 고른 이미지를 400 × 600 px PNG로 작품 폴더에 저장한다(크기 · 용량은 부르는 쪽이 먼저 확인).
+    /// 고른 파일을 통째로 읽어 둔 뒤 쓰므로 지금 표지 파일을 그대로 고르는 경우에도 된다. 저장은 임시 파일을 거쳐서, 도중에 멈춰도 있던 표지가 그대로 남는다.
+    /// </summary>
     public static void SaveCover(string novelDir, string sourcePath)
     {
-        using var src = Image.FromFile(sourcePath);
+        using var ms = new MemoryStream(File.ReadAllBytes(sourcePath));
+        using var src = Image.FromStream(ms);
         using var bmp = new Bitmap(CoverWidth, CoverHeight);
         using (var g = Graphics.FromImage(bmp))
         {
@@ -83,7 +87,7 @@ internal static class NovelStore
         }
         string p = CoverFile(novelDir);
         if (File.Exists(p)) File.SetAttributes(p, FileAttributes.Normal);
-        bmp.Save(p, System.Drawing.Imaging.ImageFormat.Png);
+        SafeFile.WriteAtomic(p, tmp => bmp.Save(tmp, System.Drawing.Imaging.ImageFormat.Png));
     }
 
     /// <summary>참고 자료의 독서상태를 정한다.</summary>
@@ -136,14 +140,14 @@ internal static class NovelStore
 
     public const string DefaultGroupName = "새 에피소드 그룹";
 
-    public static List<string> Groups(string novelDir) => LoadMeta(novelDir).Groups ?? new();
+    public static List<string> Groups(string novelDir) => new(ReadOnlyMeta(novelDir).Groups ?? new());
 
     /// <summary>회차가 속한 그룹 이름(없으면 null). 없는 그룹을 가리키면 그룹 밖으로 본다.</summary>
     public static string? GroupOfEpisode(string episodePath)
     {
         string? dir = Path.GetDirectoryName(episodePath);
         if (dir == null) return null;
-        var meta = LoadMeta(dir);
+        var meta = ReadOnlyMeta(dir);
         return meta.GroupOf != null && meta.GroupOf.TryGetValue(Path.GetFileName(episodePath), out var g) && (meta.Groups?.Contains(g) ?? false) ? g : null;
     }
 
@@ -224,7 +228,7 @@ internal static class NovelStore
     {
         string? dir = Path.GetDirectoryName(episodePath);
         if (dir == null) return EpisodeTypes[0];
-        var t = LoadMeta(dir).Types;
+        var t = ReadOnlyMeta(dir).Types;
         return t != null && t.TryGetValue(Path.GetFileName(episodePath), out var v) && EpisodeTypes.Contains(v) ? v : EpisodeTypes[0];
     }
 
@@ -253,7 +257,7 @@ internal static class NovelStore
     {
         string? dir = Path.GetDirectoryName(episodePath);
         if (dir == null) return new();
-        var p = LoadMeta(dir).Props;
+        var p = ReadOnlyMeta(dir).Props;
         return p != null && p.TryGetValue(Path.GetFileName(episodePath), out var v) ? v.Clone() : new();
     }
 
@@ -272,7 +276,7 @@ internal static class NovelStore
     public static string GetWriteStatus(string episodePath)
     {
         string? dir = Path.GetDirectoryName(episodePath);
-        if (dir != null && LoadMeta(dir).Status is { } st && st.TryGetValue(Path.GetFileName(episodePath), out var v))
+        if (dir != null && ReadOnlyMeta(dir).Status is { } st && st.TryGetValue(Path.GetFileName(episodePath), out var v))
         {
             int i = Array.IndexOf(StatusKeys, v switch { "예정" => "준비", "진행" => "집필", _ => v });
             if (i >= 0) return WriteStatusNames[i];
@@ -327,8 +331,37 @@ internal static class NovelStore
     public static Meta LoadMeta(string novelDir) =>
         JsonFile.Load<Meta>(NovelFiles.PathOf(novelDir, NovelFiles.MetaFileName), JsonOpts) ?? new Meta();
 
-    public static void SaveMeta(string novelDir, Meta meta) =>
-        JsonFile.Save(NovelFiles.PathOf(novelDir, NovelFiles.MetaFileName), meta, JsonOpts, hidden: true);
+    public static void SaveMeta(string novelDir, Meta meta)
+    {
+        string path = NovelFiles.PathOf(novelDir, NovelFiles.MetaFileName);
+        JsonFile.Save(path, meta, JsonOpts, hidden: true);
+        lock (metaGate) metaCache.Remove(path);
+    }
+
+    private static readonly Dictionary<string, (long Size, DateTime Time, Meta Meta)> metaCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly object metaGate = new();
+
+    /// <summary>
+    /// 읽기만 할 때 쓰는 메타(받은 쪽에서 고치면 안 된다 — 고칠 때는 LoadMeta).
+    /// 회차 목록을 그릴 때 회차마다 상태 · 유형 · 그룹을 물어보므로, 파일 크기 · 고친 시각이 같으면 다시 읽지 않는다.
+    /// 읽지 못해 빈 값이 된 경우는 담아 두지 않는다(잠금이 풀리면 바로 제대로 읽도록).
+    /// </summary>
+    private static Meta ReadOnlyMeta(string novelDir)
+    {
+        string path = NovelFiles.PathOf(novelDir, NovelFiles.MetaFileName);
+        try
+        {
+            var fi = new FileInfo(path);
+            if (!fi.Exists) return new Meta();
+            lock (metaGate)
+                if (metaCache.TryGetValue(path, out var c) && c.Size == fi.Length && c.Time == fi.LastWriteTimeUtc) return c.Meta;
+            var meta = JsonFile.Load<Meta>(path, JsonOpts);
+            if (meta == null) return new Meta();
+            lock (metaGate) metaCache[path] = (fi.Length, fi.LastWriteTimeUtc, meta);
+            return meta;
+        }
+        catch { return LoadMeta(novelDir); }
+    }
 
     /// <summary>회차(작품 폴더 바로 안의 txt) — 저장해 둔 순서대로, 나머지는 이름 순으로 뒤에.</summary>
     public static List<string> Episodes(string novelDir)
@@ -336,7 +369,7 @@ internal static class NovelStore
         List<FileInfo> files;
         try { files = new DirectoryInfo(novelDir).EnumerateFiles("*.txt").Where(IsShown).ToList(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new(); }
-        var order = LoadMeta(novelDir).Order;
+        var order = ReadOnlyMeta(novelDir).Order;
         var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < order.Count; i++) rank.TryAdd(order[i], i);
         return files
@@ -370,43 +403,94 @@ internal static class NovelStore
         return dir;
     }
 
-    /// <summary>맨 뒤에 새 회차("N화.txt")를 만들고 그 경로를 돌려준다.</summary>
+    /// <summary>맨 뒤에 새 회차("새 에피소드.txt", 겹치면 뒤에 숫자)를 만들고 그 경로를 돌려준다.</summary>
     public static string AddEpisode(string novelDir)
     {
         var eps = Episodes(novelDir);
         string path = Unique(Path.Combine(novelDir, "새 에피소드"), ".txt");
-        File.WriteAllText(path, "", new UTF8Encoding(false));
+        ForgetEpisode(novelDir, Path.GetFileName(path)); // 지워진 회차가 같은 이름으로 남긴 상태 · 유형 · 그룹 · 서식이 새 회차에 붙지 않게
+        using (File.Open(path, FileMode.CreateNew)) { }
         eps.Add(path);
         SaveOrder(novelDir, eps);
         return path;
     }
 
-    /// <summary>회차 이름을 바꾼다(순서 목록의 이름도 같이). 새 경로를 돌려준다.</summary>
+    /// <summary>
+    /// 이 이름의 회차에 남아 있는 기록(상태 · 유형 · 그룹 · 상세 속성 · 글자 서식 파일)을 비운다.
+    /// 회차를 휴지통으로 보내도 기록은 남겨 두므로(복원하면 그대로 돌아오게), 같은 이름의 새 회차가 생길 때 이어받지 않도록 여기서 정리한다.
+    /// </summary>
+    private static void ForgetEpisode(string novelDir, string fileName)
+    {
+        var meta = LoadMeta(novelDir);
+        bool had = false;
+        had |= meta.Status?.Remove(fileName) ?? false;
+        had |= meta.Types?.Remove(fileName) ?? false;
+        had |= meta.Props?.Remove(fileName) ?? false;
+        had |= meta.GroupOf?.Remove(fileName) ?? false;
+        if (had)
+        {
+            if (meta.Status is { Count: 0 }) meta.Status = null;
+            if (meta.Types is { Count: 0 }) meta.Types = null;
+            if (meta.Props is { Count: 0 }) meta.Props = null;
+            if (meta.GroupOf is { Count: 0 }) meta.GroupOf = null;
+            SaveMeta(novelDir, meta);
+        }
+        DeleteFormatFile(novelDir, fileName);
+    }
+
+    private static string FormatFile(string novelDir, string fileName) =>
+        Path.Combine(NovelFiles.PathOf(novelDir, NovelFiles.FormatDirName), fileName + ".rtf");
+
+    private static void DeleteFormatFile(string novelDir, string fileName)
+    {
+        try { string f = FormatFile(novelDir, fileName); if (File.Exists(f)) File.Delete(f); }
+        catch (Exception ex) { AppLog.Write($"{fileName}의 글자 서식 파일을 지우지 못했어요", ex); }
+    }
+
+    /// <summary>from 이름의 기록을 to 이름으로 옮긴다(to에 남아 있던 옛 기록은 버린다). 비면 null.</summary>
+    private static Dictionary<string, T>? MoveKey<T>(Dictionary<string, T>? d, string from, string to)
+    {
+        if (d == null) return null;
+        bool had = d.Remove(from, out var v);
+        d.Remove(to);
+        if (had) d[to] = v!;
+        return d.Count == 0 ? null : d;
+    }
+
+    /// <summary>회차 이름을 바꾼다(순서 · 상태 · 그룹 · 유형 · 상세 속성 · 글자 서식도 같이). 새 경로를 돌려준다.</summary>
     public static string RenameEpisode(string path, string newTitle)
     {
         string dir = Path.GetDirectoryName(path)!;
         string target = Path.Combine(dir, SafeName(newTitle) + ".txt");
-        if (string.Equals(target, path, StringComparison.OrdinalIgnoreCase) && target == path) return path;
-        if (!string.Equals(target, path, StringComparison.OrdinalIgnoreCase) && File.Exists(target)) throw new IOException($"같은 이름이 이미 있어요: {Path.GetFileName(target)}");
+        if (string.Equals(target, path, StringComparison.Ordinal)) return path;
+        bool sameFile = string.Equals(target, path, StringComparison.OrdinalIgnoreCase); // 대소문자만 바꾸는 경우
+        if (!sameFile && File.Exists(target)) throw new IOException($"같은 이름이 이미 있어요: {Path.GetFileName(target)}");
         var eps = Episodes(dir);
         File.Move(path, target);
-        var st = LoadMeta(dir).Status;
-        if (st != null && st.TryGetValue(Path.GetFileName(path), out var kept)) { SaveStatus(path, null); SaveStatus(target, kept); } // 이름을 바꿔도 상태는 따라가게
-        string? oldGroup = GroupOfEpisode(path);
-        if (oldGroup != null) { SetEpisodeGroup(path, null); SetEpisodeGroup(target, oldGroup); } // 그룹도 이름을 따라가게
-        var oldProps = GetProps(path);
-        if (!oldProps.IsEmpty) { SaveProps(path, new EpisodeProps()); SaveProps(target, oldProps); } // 상세 정보 속성도 이름을 따라가게
+
+        // 기록은 한 번에 옮겨 적는다(여러 번 나눠 쓰다 중간에 멈추면 서로 어긋나므로)
+        string oldName = Path.GetFileName(path), newName = Path.GetFileName(target);
+        var meta = LoadMeta(dir);
+        meta.Status = MoveKey(meta.Status, oldName, newName);
+        meta.Types = MoveKey(meta.Types, oldName, newName);
+        meta.Props = MoveKey(meta.Props, oldName, newName);
+        meta.GroupOf = MoveKey(meta.GroupOf, oldName, newName);
+        meta.Order = eps.Select(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase) ? target : p)
+            .Select(Path.GetFileName).OfType<string>().ToList();
+        SaveMeta(dir, meta);
+
         // 글자 서식 보관 파일(.cafeum-fmt\이름.rtf)도 새 이름으로 따라가게
         try
         {
-            string fmtDir = NovelFiles.PathOf(dir, NovelFiles.FormatDirName);
-            string fmtOld = Path.Combine(fmtDir, Path.GetFileName(path) + ".rtf"), fmtNew = Path.Combine(fmtDir, Path.GetFileName(target) + ".rtf");
-            if (File.Exists(fmtOld)) { if (File.Exists(fmtNew)) File.Delete(fmtNew); File.Move(fmtOld, fmtNew); }
+            string fmtOld = FormatFile(dir, oldName), fmtNew = FormatFile(dir, newName);
+            if (File.Exists(fmtOld))
+            {
+                if (!sameFile && File.Exists(fmtNew)) File.Delete(fmtNew); // 대소문자만 다른 이름이면 같은 파일이므로 지우면 안 된다
+                File.Move(fmtOld, fmtNew);
+            }
+            else if (!sameFile) DeleteFormatFile(dir, newName); // 옛 서식이 없으면 그 이름에 남아 있던 다른 회차의 서식을 이어받지 않게
         }
-        catch { }
-        string oldType = GetEpisodeType(path);
-        if (oldType != EpisodeTypes[0]) { SaveEpisodeType(path, EpisodeTypes[0]); SaveEpisodeType(target, oldType); } // 유형도 이름을 따라가게
-        SaveOrder(dir, eps.Select(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase) ? target : p));
+        catch (Exception ex) { AppLog.Write($"{oldName}의 글자 서식 파일을 옮기지 못했어요", ex); }
         return target;
     }
 
@@ -419,13 +503,35 @@ internal static class NovelStore
         return target;
     }
 
-    public static bool ValidName(string s) => s.Trim().Length > 0 && s.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+    /// <summary>이름을 쓸 수 없을 때 보여 줄 안내.</summary>
+    public static string InvalidNameMessage(string what = "이름") =>
+        $"{what}이 비어 있거나 쓸 수 없는 글자(\\ / : * ? \" < > |)가 들어 있어요.\n맨 앞에 점(.)을 쓸 수 없고, CON · NUL · COM1 같은 윈도우 예약어도 쓸 수 없어요.";
+
+    /// <summary>폴더 · 파일 이름으로 쓸 수 있는지. 점으로 시작하는 이름은 숨김으로 보아 목록에서 사라지므로 안 된다.</summary>
+    public static bool ValidName(string s)
+    {
+        string t = s.Trim();
+        return t.Length > 0 && t.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && !t.StartsWith('.') && !IsReservedName(t);
+    }
+
+    private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
+    /// <summary>윈도우가 장치 이름으로 쓰는 이름인가(확장자가 붙어도 마찬가지: CON.txt).</summary>
+    private static bool IsReservedName(string name)
+    {
+        int dot = name.IndexOf('.');
+        return ReservedNames.Contains((dot >= 0 ? name[..dot] : name).TrimEnd());
+    }
 
     private static string SafeName(string s)
     {
         var sb = new StringBuilder();
         foreach (char c in s.Trim()) sb.Append(Array.IndexOf(Path.GetInvalidFileNameChars(), c) >= 0 ? ' ' : c);
-        return sb.ToString().Trim().TrimEnd('.');
+        string name = sb.ToString().Trim().Trim('.').Trim(); // 앞의 점은 숨김이 되고, 끝의 점은 윈도우가 떼어 버린다
+        return IsReservedName(name) ? name + "_" : name;
     }
 
     private static string Unique(string basePath, string ext)
@@ -489,7 +595,6 @@ internal static class NovelStore
 
     private static readonly Dictionary<string, (long Size, DateTime Time, int Chars)> charCache = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>회차의 글자 수(공백 · 줄바꿈 포함, 줄바꿈 \r\n은 한 글자로). 못 읽으면 0.</summary>
     private static bool listWithSpaces;
     /// <summary>목록의 글자 수에 공백을 넣을지(바꾸면 센 값을 모두 버린다).</summary>
     public static bool ListCountWithSpaces
@@ -498,6 +603,7 @@ internal static class NovelStore
         set { if (listWithSpaces == value) return; listWithSpaces = value; lock (charCache) charCache.Clear(); }
     }
 
+    /// <summary>회차의 글자 수(\r은 세지 않아 줄바꿈 \r\n은 한 글자, 공백은 ListCountWithSpaces가 켜져 있을 때만 센다). 못 읽으면 0.</summary>
     public static int CountChars(string path)
     {
         try
@@ -591,7 +697,7 @@ internal sealed class NovelInputDialog : Form
         {
             if (firstIsName && !NovelStore.ValidName(first.Text))
             {
-                MessageBox.Show(this, "이름이 비어 있거나 쓸 수 없는 글자(\\ / : * ? \" < > |)가 들어 있어요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, NovelStore.InvalidNameMessage(), AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
             }
         };

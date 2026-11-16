@@ -224,7 +224,7 @@ internal sealed class NovelInfoDialog : Form
         if (!Changed) return;
         if (!Valid)
         {
-            MessageBox.Show(this, "제목이 비어 있거나 쓸 수 없는 글자(\\ / : * ? \" < > |)가 들어 있어요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, NovelStore.InvalidNameMessage("제목"), AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         DialogResult = DialogResult.OK;
