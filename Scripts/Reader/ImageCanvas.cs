@@ -53,6 +53,7 @@ public class ImageCanvas : Panel
     private Point dragStart;
     private PointF panStart;
     private bool dragging;
+    private bool pressedOnImage; // 눌렀다 떼는 한 쌍이 이어졌는지(탭 판별용) — 붙잡기가 풀려 dragging이 꺼져도 영향받지 않는다
 
     private ImageViewMode viewMode = ImageViewMode.FitWindowUpscale; // 지금까지의 기본 동작과 동일
     /// <summary>보기 모드가 사용자 지정일 때의 배율(%, 100 = 원본 크기).</summary>
@@ -73,6 +74,7 @@ public class ImageCanvas : Panel
     // 캐시 없이는 페이지를 넘길 때마다, 심지어 마우스로 끌 때마다 매번 그 비용을 다시 치른다.
     // SkiaSharp로 한 번만 스케일해두면(같은 크기 기준 15~20ms) 그 다음부터는 그냥 그대로 찍기만 하면 된다.
     private Bitmap? renderCache;
+    private const long MaxCachePixels = 40_000_000; // 4바이트 × 4천만 = 160MB
 
     // 움직이는 그림(webp·gif) 재생기. 페이지가 바뀌면 멈추고 새로 만든다.
     private AnimationPlayer? animation;
@@ -90,6 +92,7 @@ public class ImageCanvas : Panel
         MouseDown += OnMouseDown;
         MouseMove += OnMouseMove;
         MouseUp += OnMouseUp;
+        MouseCaptureChanged += (_, _) => dragging = false; // 다른 창으로 넘어가 마우스를 뗀 신호를 못 받아도 끌기가 남지 않게
         tapTimer.Tick += (_, _) => { tapTimer.Stop(); PageRequested?.Invoke(pendingTapDelta); };
         DoubleClick += (_, _) => { tapTimer.Stop(); ResetZoom(); }; // 더블클릭으로 확정되면 대기 중이던 탭 넘김은 취소
         Resize += (_, _) =>
@@ -109,10 +112,11 @@ public class ImageCanvas : Panel
 
     public void SetImage(Image? img)
     {
+        tapTimer.Stop(); // 앞 장에서 기다리던 탭 넘김이 새 장에서 한 번 더 넘기지 않게
         animation?.Dispose();
         animation = null;
         animationSource = null;
-        image?.Dispose();
+        if (!ReferenceEquals(image, img)) image?.Dispose();
         image = img;
         pan = PointF.Empty;
         zoomFollowsFit = true; // 새 페이지는 항상 지금 보기 모드 기준으로 다시 시작한다
@@ -245,6 +249,7 @@ public class ImageCanvas : Panel
     {
         if (e.Button != MouseButtons.Left || image == null) return;
         dragging = true;
+        pressedOnImage = true;
         dragStart = e.Location;
         panStart = pan;
         Focus();
@@ -265,7 +270,8 @@ public class ImageCanvas : Panel
 
     private void OnMouseUp(object? sender, MouseEventArgs e)
     {
-        bool wasDragging = dragging;
+        bool wasDragging = pressedOnImage;
+        pressedOnImage = false;
         dragging = false;
         if (e.Button != MouseButtons.Left || image == null) return;
         if (!TapToTurnEnabled) return;
@@ -302,6 +308,8 @@ public class ImageCanvas : Panel
 
         int w = Math.Max(1, (int)Math.Round(image.Width * zoom));
         int h = Math.Max(1, (int)Math.Round(image.Height * zoom));
+        // 크게 확대하면 미리 스케일한 그림이 수 GB가 될 수 있다 — 한도를 넘으면 캐시 없이 보이는 부분만 GDI+로 그린다.
+        if ((long)w * h > MaxCachePixels) return;
         try
         {
             renderCache = ScaleWithSkia(source, w, h);
