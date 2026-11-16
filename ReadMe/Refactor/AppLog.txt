@@ -1,0 +1,11 @@
+AppLog.cs (30줄)
+
+조용히 넘기던 오류를 한 줄씩 남기는 작은 기록장이에요(%LOCALAPPDATA%\Cafeum\cafeum.log). 기록하다가 실패해도 앱은 멈추지 않고, 파일이 256KB를 넘으면 옛 기록을 cafeum.log.old로 넘기고 새로 시작해요.
+
+1	네임스페이스
+3~7	설명과 AppLog 선언
+9~10	한도와 잠금
+12	FilePath
+14~27	Write: 한 줄 남기기
+29	Write: 오류 정보와 함께 남기기
+30	클래스 끝

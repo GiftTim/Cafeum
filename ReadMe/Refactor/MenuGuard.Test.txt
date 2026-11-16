@@ -1,0 +1,10 @@
+MenuGuard.Test.cs (20줄)
+
+MenuGuard를 시험할 때 마우스를 흉내 내는 부분이에요(ShotTest가 써요). 개발용(Debug) 빌드에서만 값을 채울 수 있고, 배포용(Release)에서는 항상 null이라 실제 마우스 상태만 써요.
+
+1	네임스페이스
+3	설명 주석
+4	DEBUG 조건
+5~13	Debug: 마우스 단추와 위치를 흉내 내는 함수, 시험용 값 돌려주기
+14~19	Release: 항상 null
+20	조건 끝
