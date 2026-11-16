@@ -1,0 +1,92 @@
+LibraryChrome.cs (646줄)
+
+서재 화면(책 목록 창)을 이루는 작은 부품들을 한곳에 모은 파일이에요. 모양은 전부 코드로 그려서 윈도우 버전이나 글꼴에 상관없이 같게 보이고, 색은 LibraryPalette 한 벌에서 와요. LibraryPalette는 읽기 화면 테마 하나에서 바탕, 옆 막대, 머리 막대, 카드, 강조색을 뽑아서 어떤 테마든 같은 짜임새(머리 막대가 가장 진하고 옆 막대, 본문 순)가 되게 해요. 부품은 둥근 납작 버튼(PillButton), 검색칸(SearchField), 영문 머리말과 큰 제목(TitleBlock), 가로 스크롤바 없는 트리(NoHScrollTreeView), 이름과 숫자 한 줄(StatRow), 맨 위 머리 막대(LibraryHeader), 선 그림 아이콘 버튼(IconButton)이에요. 직접 만든 그림이나 말풍선은 부품이 닫힐 때 같이 해제해요.
+
+1~2	도구함
+4	네임스페이스
+6~10	설명과 LibraryPalette 선언
+12~23	색 속성들
+25~45	From: 테마에서 색 한 벌 뽑기
+47~58	Rounded: 둥근 모서리 경로
+59	LibraryPalette 끝
+61~62	설명과 PillButton 선언
+64~66	필드: 팔레트, 마우스 상태, 주 버튼과 선택 여부
+68~88	속성: Primary, Selected, Surface, Compact, TextColor, Glyph, GlyphImage, GlyphFactory, Muted
+90~98	생성자
+100	SetPalette
+102	S: 화면 배율에 맞춘 크기
+104~109	GetPreferredSize
+111~118	글, 글꼴, 사용 여부, 마우스, 포커스 변화 처리
+119~132	키보드: 이 버튼 위에서 누른 키만 뗄 때 클릭으로 침
+134~138	Dispose: 아이콘 그림 해제
+140~194	OnPaint: 둥근 바탕, 테두리, 글자와 아이콘
+195	PillButton 끝
+197~198	설명과 SearchField 선언
+200~203	필드: 입력칸, 팔레트, 돋보기 글꼴, 앞쪽 버튼들
+205~214	AddLeading: 돋보기와 입력칸 사이에 작은 버튼 넣기
+216~227	생성자
+229~237	SetPalette
+239	S
+241~252	OnLayout: 버튼, 입력칸 자리 잡기
+254~255	LeadingWidth: 안에 든 버튼까지 보이는 데 필요한 최소 폭
+257~258	GetPreferredSize
+260~274	OnPaint: 둥근 칸과 돋보기
+275	SearchField 끝
+277~278	설명과 TitleBlock 선언
+280~283	필드
+285	Caption
+287~289	Subtitle: 큰 제목 밑의 작은 한 줄
+291~292	ShowSubtitle
+294~300	생성자
+302	SetPalette
+304~306	글꼴 셋
+308~317	GetPreferredSize
+319	OnTextChanged
+321~322	Spaced: 영문 머리말 자간 흉내
+324~339	OnPaint
+340	TitleBlock 끝
+342~346	설명과 NoHScrollTreeView 선언
+348	TVS_NOHSCROLL
+350~358	CreateParams: 가로 스크롤바 없는 트리
+359	NoHScrollTreeView 끝
+361~362	설명과 StatRow 선언
+364~365	필드
+367	Value
+369~374	생성자
+376	SetPalette
+378	ValueFont
+380~384	GetPreferredSize
+386~397	OnPaint: 이름, 숫자, 구분선
+398	StatRow 끝
+400~401	설명과 LibraryHeader 선언
+403~404	필드: 팔레트, 로고
+406~412	생성자: 앱 아이콘 불러오기
+414~416	ShowBrand
+418~421	Compact
+423	SetPalette
+425	S
+427	hosted: 얹은 툴바
+429~441	HostToolbar: 책을 읽는 동안 툴바를 로고 오른쪽에 얹기
+443~452	UnhostToolbar
+454	SyncHostedColor
+456~457	BrandClicked
+459~466	BrandRight: 로고와 이름이 차지하는 오른쪽 끝
+468~475	TitleFont: 이름용 필기체 글꼴
+477	OnBrand
+479~483	OnMouseMove
+485~489	OnMouseClick
+491~499	OnLayout: 툴바 자리 잡기
+501~524	OnPaint: 로고, 이름, 소개, 아래 선
+525	LibraryHeader 끝
+527	IconKind: 아이콘 종류
+529~530	설명과 IconButton 선언
+532~535	필드: 종류, 말풍선, 팔레트, 마우스와 선택 상태
+537~539	Selected, Label
+541~542	WidthFor: 글자까지 들어가는 폭
+544~552	생성자
+554	SetPalette
+555	S
+557~563	사용 여부, 마우스, 키보드 처리
+565~569	Dispose: 말풍선 해제
+571~645	OnPaint: 바탕과 종류별 선 그림(위아래 화살표, 정렬, 고르기, 톱니바퀴, 2x2 칸)
+646	IconButton 끝

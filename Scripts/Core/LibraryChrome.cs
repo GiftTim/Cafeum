@@ -131,6 +131,12 @@ internal sealed class PillButton : Control
         if (e.KeyCode is Keys.Space or Keys.Enter && keyDownHere) { keyDownHere = false; OnClick(EventArgs.Empty); }
     }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { factoryBmp?.Dispose(); factoryBmp = null; }
+        base.Dispose(disposing);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var p = palette;
@@ -555,6 +561,12 @@ internal sealed class IconButton : Control
     protected override void OnKeyDown(KeyEventArgs e) { base.OnKeyDown(e); if (e.KeyCode is Keys.Space or Keys.Enter) keyDownHere = true; }
     protected override void OnLostFocus(EventArgs e) { keyDownHere = false; base.OnLostFocus(e); }
     protected override void OnKeyUp(KeyEventArgs e) { base.OnKeyUp(e); if (e.KeyCode is Keys.Space or Keys.Enter && keyDownHere) { keyDownHere = false; OnClick(EventArgs.Empty); } }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) tip.Dispose();
+        base.Dispose(disposing);
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
