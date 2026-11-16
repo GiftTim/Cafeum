@@ -160,7 +160,7 @@ internal sealed class QuickCorrectDialog : Form
             list.EndUpdate();
             SyncButtons();
         }
-        void Persist() { AppShared.Settings.Save(); }
+        void Persist() { settings.Save(); } // 고치는 대상(settings)과 같은 객체를 저장한다
         if (box != null) box.TextChanged += (_, _) => Refill();
         list.SelectedIndexChanged += (_, _) => SyncButtons();
 
@@ -293,7 +293,7 @@ internal sealed class QuickCorrectDialog : Form
         void Check(string text, bool value, Action<bool>? set, bool available = true)
         {
             var c = new CheckBox { Text = text, AutoSize = true, Location = new Point(40, y), Checked = value && available, Enabled = available };
-            if (set != null) c.CheckedChanged += (_, _) => { set(c.Checked); AppShared.Settings.Save(); };
+            if (set != null) c.CheckedChanged += (_, _) => { set(c.Checked); settings.Save(); };
             page.Controls.Add(c);
             y += 34;
         }
