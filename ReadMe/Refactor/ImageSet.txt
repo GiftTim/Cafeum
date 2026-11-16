@@ -19,7 +19,7 @@ ImageSet.cs (181줄)
 80~87	생성자 설명과 선언(진행률, 취소)
 88~127	생성자 본문: 안쪽 zip을 메모리에 올려 이어진 목록 만들기, 실패하면 정리
 129~132	Count, Name, LoadRawBytes
-134~140	Dispose: 안쪽 zip 닫기
+134~139	Dispose: 안쪽 zip 닫기
 141~148	LooksNested: 이미지 없이 .zip만 있는 묶음인지
 149	NestedZipImageSet 끝
 151~152	설명과 FolderImageSet 선언
@@ -27,6 +27,6 @@ ImageSet.cs (181줄)
 158~165	FromDirectory: 폴더의 이미지를 자연순으로
 167~168	IndexOfPath
 170~171	Count, Name
-173~179	LoadRawBytes: 한도 안일 때만 파일 읽기
+173~178	LoadRawBytes: 한도 안일 때만 파일 읽기
 180	Dispose
 181	클래스 끝

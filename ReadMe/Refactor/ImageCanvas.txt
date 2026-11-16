@@ -17,8 +17,8 @@ ImageCanvas.cs (416줄)
 84~111	생성자: 이벤트 연결(탭 대기, 리사이즈, 방향키, 붙잡기 풀림)
 113~133	SetImage: 새 그림으로 바꾸기
 135~141	RestartAnimation
-143~144	StartAnimation
-146~155	ShowAnimationFrame: 다음 프레임으로 바꾸기
+143~145	StartAnimation
+147~155	ShowAnimationFrame: 다음 프레임으로 바꾸기
 157~160	ZoomPercentChanged, NotifyZoom
 162~170	ResetZoom
 172~182	ZoomStep: 확대 표시 상자의 − / +
