@@ -6,16 +6,16 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>CafeumOffice</AssemblyName>
+    <AssemblyName>Cafeum</AssemblyName>
     <RootNamespace>Cafeum</RootNamespace>
     <AssemblyTitle>Cafeum</AssemblyTitle>
     <Product>Cafeum</Product>
     <Company>JuneSilver</Company>
-    <Version>1.1.8</Version>
+    <Version>1.1.9</Version>
     <ApplicationIcon>Img/Used/CafeumTaskbar.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- 배포(CafeumOffice.iss, 아직 없음)는 publish 폴더의 exe 하나만 그대로 담아간다. 아래 설정을 빠뜨리고
+  <!-- 배포(Cafeum.iss)는 publish 폴더의 exe 하나만 그대로 담아간다. 아래 설정을 빠뜨리고
        그냥 "dotnet publish -c Release"만 돌리면 WebView2Loader.dll·libSkiaSharp.dll 같은 네이티브
        의존 파일들이 exe에 안 묶이고 옆에 낱개로 남는데, 인스톨러는 그걸 안 챙겨가므로 설치본에서
        "DLL was not found"로 깨진다(실제로 한 번 이렇게 겪었다) — 그래서 커맨드 옵션이 아니라

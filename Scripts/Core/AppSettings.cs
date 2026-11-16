@@ -185,10 +185,24 @@ public sealed class AppSettings
     /// <summary>묶음 안 책 제목을 머리글보다 안쪽으로 들여쓰는 폭(px, 화면 배율 100% 기준).</summary>
     public int SeriesIndent { get; set; } = 16;
 
-    /// <summary>CAFEUMOFFICE_DATA_DIR 환경 변수가 있으면 그 폴더를 쓴다(설치본의 실제 설정을 건드리지 않고 시험해볼 때).</summary>
-    internal static string DataDir => Environment.GetEnvironmentVariable("CAFEUMOFFICE_DATA_DIR") is { Length: > 0 } custom
-        ? custom
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CafeumOffice");
+    /// <summary>
+    /// 설정 · 기록 파일을 두는 폴더(%LOCALAPPDATA%\Cafeum). CAFEUM_DATA_DIR 환경 변수가 있으면 그 폴더를 쓴다(설치본의 실제 설정을 건드리지 않고 시험해볼 때).
+    /// 예전 이름(CafeumOffice) 폴더가 있고 새 폴더가 아직 없으면 한 번 옮겨 온다. 옮기지 못하면(다른 창이 쓰는 중 등) 데이터를 잃지 않게 예전 폴더를 그대로 쓴다.
+    /// </summary>
+    internal static string DataDir { get; } = ResolveDataDir();
+
+    private static string ResolveDataDir()
+    {
+        if (Environment.GetEnvironmentVariable("CAFEUM_DATA_DIR") is { Length: > 0 } custom) return custom;
+        string root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string current = Path.Combine(root, "Cafeum"), legacy = Path.Combine(root, "CafeumOffice");
+        if (Directory.Exists(legacy) && !Directory.Exists(current))
+        {
+            try { Directory.Move(legacy, current); }
+            catch { return legacy; }
+        }
+        return current;
+    }
 
     private static string FilePath => Path.Combine(DataDir, "settings.json");
 

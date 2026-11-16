@@ -3,11 +3,11 @@
 ; 커피뷰어(CoffeeViewer.iss)와는 별개 프로그램이라 AppId · 설치 폴더 · 바로가기가 모두 따로다.
 ; 탐색기 우클릭 "Cafeum으로 보기"(클래식 메뉴)는 등록한다. 윈도우 11 새 우클릭 메뉴 직접 노출은 아직 넣지 않았다.
 
-#define MyAppName "CafeumOffice"
+#define MyAppName "Cafeum"
 #define MyAppDisplayName "Cafeum"
-#define MyAppVersion "1.1.8"
+#define MyAppVersion "1.1.9"
 #define MyAppPublisher "JuneSilver"
-#define MyAppExeName "CafeumOffice.exe"
+#define MyAppExeName "Cafeum.exe"
 
 [Setup]
 AppId={{B3A5E0C4-7D1F-4E8A-9A52-5C2D6F0B1E37}
@@ -20,7 +20,7 @@ DisableProgramGroupPage=yes
 UsePreviousGroup=no
 PrivilegesRequired=lowest
 OutputDir=Install
-OutputBaseFilename=CafeumOffice-Setup-{#MyAppVersion}
+OutputBaseFilename=Cafeum-Setup-{#MyAppVersion}
 SetupIconFile=Img\Used\CafeumTaskbar.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2
@@ -34,6 +34,10 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "바탕 화면에 아이콘 만들기"; GroupDescription: "추가 아이콘:"
+
+[InstallDelete]
+; 예전 이름(CafeumOffice.exe)으로 설치돼 있던 사용자가 업데이트하면, 옛 exe가 남지 않게 지운다.
+Type: files; Name: "{app}\CafeumOffice.exe"
 
 [Files]
 Source: "publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion

@@ -7,11 +7,11 @@ namespace Cafeum;
 /// <summary>
 /// 업데이트 확인: GitHub 저장소의 최신 릴리스(Releases)를 보고, 지금보다 새 버전이면 설치 파일(Setup.exe)을 내려받아
 /// 조용히 설치한다(설치가 끝나면 Cafeum이 다시 열린다).
-/// 새 버전을 낼 때: 저장소에 v1.0.2 같은 태그로 릴리스를 만들고 Install\CafeumOffice-Setup-1.0.2.exe를 첨부한다.
+/// 새 버전을 낼 때: 저장소에 v1.0.2 같은 태그로 릴리스를 만들고 Install\Cafeum-Setup-1.0.2.exe를 첨부한다.
 /// </summary>
 internal static class Updater
 {
-    /// <summary>"소유자/저장소" 형태(예: "계정/CafeumOffice"). 비어 있으면 업데이트 확인은 안내만 한다.</summary>
+    /// <summary>"소유자/저장소" 형태(예: "계정/Cafeum"). 비어 있으면 업데이트 확인은 안내만 한다.</summary>
     public const string RepoSlug = "GiftTim/Cafeum";
 
     private static bool busy;
@@ -21,9 +21,10 @@ internal static class Updater
     {
         try
         {
-            foreach (var f in Directory.GetFiles(Path.GetTempPath(), "CafeumOffice-Setup-*.exe"))
+            foreach (var f in Directory.GetFiles(Path.GetTempPath(), "Cafeum*-Setup-*.exe")) // Cafeum-Setup-x.y.z.exe, 예전 이름 CafeumOffice-Setup-x.y.z.exe 둘 다
             {
-                string v = Path.GetFileNameWithoutExtension(f)["CafeumOffice-Setup-".Length..];
+                string name = Path.GetFileNameWithoutExtension(f);
+                string v = name[(name.IndexOf("-Setup-", StringComparison.Ordinal) + "-Setup-".Length)..];
                 if (Version.TryParse(v, out var ver) && ver <= Current) File.Delete(f);
             }
         }
