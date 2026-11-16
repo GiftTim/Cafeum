@@ -189,7 +189,8 @@ public sealed class NavigationBar : ToolStrip
         {
             lastClosedForFiles = forFiles;
             lastClosedTick = Environment.TickCount64;
-            BeginInvoke(() => dd.Dispose());
+            if (IsHandleCreated && !IsDisposed) BeginInvoke(() => dd.Dispose());
+            else dd.Dispose();
         };
 
         var anchor = forFiles ? fileButton : listButton;
@@ -237,7 +238,13 @@ public sealed class NavigationBar : ToolStrip
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { popup?.Dispose(); previewTip.Dispose(); }
+        if (disposing)
+        {
+            popup?.Dispose();
+            previewTip.Dispose();
+            prevPageButton.Image?.Dispose();
+            nextPageButton.Image?.Dispose();
+        }
         base.Dispose(disposing);
     }
 
@@ -312,6 +319,16 @@ public sealed class NavigationBar : ToolStrip
             Dragging = false;
             Capture = false;
             if (!LiveSeek && dragValue >= 0 && dragValue != value) Seek?.Invoke(dragValue);
+            dragValue = -1;
+            Invalidate();
+        }
+
+        // 끄는 도중 다른 창으로 넘어가는 등 마우스를 뗀 신호 없이 붙잡기가 풀리면, 끄는 중으로 남아 막대가 자동 숨김되지 않는다.
+        protected override void OnMouseCaptureChanged(EventArgs e)
+        {
+            base.OnMouseCaptureChanged(e);
+            if (!Dragging || Capture) return;
+            Dragging = false;
             dragValue = -1;
             Invalidate();
         }
