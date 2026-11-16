@@ -602,10 +602,10 @@ internal sealed class NovelTreeView : Control
 
     public void SetEpisodes(List<string> list) { episodes = list.ToList(); Rebuild(); }
 
-    /// <summary>에피소드 그룹(이름 순서와 회차 → 그룹 표)을 받아 둔다. SetEpisodes 앞에 부른다.</summary>
     /// <summary>회차 유형 표를 받아 둔다(번호 대신 유형 이름을 보일지 정하려고). SetEpisodes 앞에 부른다.</summary>
     public void SetTypes(Dictionary<string, string> map) { typeMap.Clear(); foreach (var (k, v) in map) typeMap[k] = v; }
 
+    /// <summary>에피소드 그룹(이름 순서와 회차 → 그룹 표)을 받아 둔다. SetEpisodes 앞에 부른다.</summary>
     public void SetGroups(List<string> names, Dictionary<string, string> map)
     {
         groupNames = names.ToList();
@@ -1626,6 +1626,7 @@ internal sealed class NovelOverview : Panel
     private int tab; // 0 = 에피소드, 1 = 위키, 2 = 메모
     private string query = "";
     private bool loadingMemo;
+    private string? memoDir; // 메모 칸에 지금 들어 있는 글이 속한 작품 폴더
     private LibraryPalette? palette;
 
     public event Action<string>? OpenRequested;
@@ -1872,7 +1873,7 @@ internal sealed class NovelOverview : Panel
         deleteButton.TextColor = p.Dark ? Color.FromArgb(0xFF, 0x6B, 0x6B) : Color.FromArgb(0xE0, 0x2B, 0x2B);
         reorderButton.SetPalette(p);
         settingsButton.SetPalette(p);
-search.SetPalette(p);
+        search.SetPalette(p);
         tagStrip.SetPalette(p);
         coverBox.SetPalette(p);
         list.SetPalette(p);
@@ -1906,7 +1907,13 @@ search.SetPalette(p);
         list.SetGroups(source.GroupNames, source.GroupMap);
         refList.SetMeta(meta.RefStatus, meta.RefFavorites);
         ApplyQuery(query, force: true);
-        if (!memoBox.Focused) { loadingMemo = true; memoBox.Text = meta.Memo ?? ""; loadingMemo = false; }
+        if (!string.Equals(memoDir, dir, StringComparison.OrdinalIgnoreCase))
+        {
+            SaveMemoNow(); // 이전 작품의 메모를 먼저 그 작품에 저장하고, 새 작품의 메모로 바꾼다(칸에 포커스가 있어도)
+            memoDir = dir;
+            loadingMemo = true; memoBox.Text = meta.Memo ?? ""; loadingMemo = false;
+        }
+        else if (!memoBox.Focused) { loadingMemo = true; memoBox.Text = meta.Memo ?? ""; loadingMemo = false; }
         UpdateDescStyle();
         head.PerformLayout();
         PerformLayout();
@@ -2041,9 +2048,13 @@ search.SetPalette(p);
         string oldTitle = Path.GetFileName(dir);
         using var dlg = new NovelInfoDialog(oldTitle, NovelStore.LoadMeta(dir).Description, dir);
         if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
-        NovelStore.SaveDescription(dir, dlg.DescText);
-        if (dlg.RemoveCover) NovelStore.DeleteCover(dir);
-        if (dlg.NewCoverSource != null) NovelStore.SaveCover(dir, dlg.NewCoverSource); // 폴더 이름을 바꾸기 전에 저장(파일이 같이 따라간다)
+        try
+        {
+            NovelStore.SaveDescription(dir, dlg.DescText);
+            if (dlg.RemoveCover) NovelStore.DeleteCover(dir);
+            if (dlg.NewCoverSource != null) NovelStore.SaveCover(dir, dlg.NewCoverSource); // 폴더 이름을 바꾸기 전에 저장(파일이 같이 따라간다)
+        }
+        catch (Exception ex) { MessageBox.Show(FindForm(), $"고치지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         if (dlg.TitleText != oldTitle) RenameRequested?.Invoke(dir, dlg.TitleText); // 폴더 이름이 바뀌니 받는 쪽이 문서를 닫고 새 경로로 다시 연다
         else source.LoadNovel(dir);
     }
@@ -2095,10 +2106,11 @@ search.SetPalette(p);
         if (source.NovelPath is string dir) list.SetStatuses(dir, NovelStore.LoadMeta(dir).Status);
     }
 
+    /// <summary>메모 칸의 글을, 그 글을 불러온 작품(memoDir)에 저장한다(작품이 바뀐 뒤에 이전 작품의 글이 새 작품에 들어가지 않게).</summary>
     private void SaveMemoNow()
     {
         memoTimer.Stop();
-        if (loadingMemo || source.NovelPath is not string dir) return;
+        if (loadingMemo || memoDir is not string dir || !Directory.Exists(dir)) return; // 폴더 이름이 바뀐 뒤라면 옛 폴더를 다시 만들지 않는다
         if ((NovelStore.LoadMeta(dir).Memo ?? "") == memoBox.Text) return;
         NovelStore.SaveMemo(dir, memoBox.Text);
     }
@@ -2163,12 +2175,19 @@ internal sealed class TagStrip : Control
         public bool PreFilterMessage(ref Message m)
         {
             const int WM_LBUTTONDOWN = 0x201, WM_RBUTTONDOWN = 0x204, WM_MBUTTONDOWN = 0x207, WM_NCLBUTTONDOWN = 0xA1;
+            if (owner.IsDisposed || !owner.IsHandleCreated) return false;
             if (m.Msg is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN or WM_NCLBUTTONDOWN && m.HWnd != owner.editor.Handle)
                 owner.BeginInvoke(owner.FinishOnClickAway); // 클릭 처리가 끝난 뒤에 닫는다(눌린 버튼 동작은 그대로)
             return false;
         }
     }
     private ClickAwayFilter? clickFilter;
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && clickFilter != null) { Application.RemoveMessageFilter(clickFilter); clickFilter = null; } // 입력 중에 사라져도 창 전체 클릭 감시가 남지 않게
+        base.Dispose(disposing);
+    }
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
 

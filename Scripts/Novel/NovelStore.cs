@@ -578,10 +578,23 @@ internal static class NovelStore
             if (!File.Exists(f) || !ReferenceExtensions.Contains(Path.GetExtension(f).ToLowerInvariant())) continue;
             if (string.Equals(Path.GetDirectoryName(Path.GetFullPath(f)), dir, StringComparison.OrdinalIgnoreCase)) continue; // 이미 들어 있다
             string target = Unique(Path.Combine(dir, Path.GetFileNameWithoutExtension(f)), Path.GetExtension(f));
+            ForgetReference(novelDir, Path.GetFileName(target)); // 지운 자료가 같은 이름으로 남긴 독서상태 · 즐겨찾기가 새 자료에 붙지 않게
             File.Copy(f, target);
             added.Add(target);
         }
         return added;
+    }
+
+    /// <summary>이 이름의 참고 자료에 남아 있는 독서상태 · 즐겨찾기 기록을 비운다(자료를 휴지통으로 보내도 기록은 남겨 두므로, 같은 이름의 새 자료가 들어올 때 정리한다).</summary>
+    private static void ForgetReference(string novelDir, string fileName)
+    {
+        var meta = LoadMeta(novelDir);
+        bool had = meta.RefStatus?.Remove(fileName) ?? false;
+        had |= meta.RefFavorites?.Remove(fileName) ?? false;
+        if (!had) return;
+        if (meta.RefStatus is { Count: 0 }) meta.RefStatus = null;
+        if (meta.RefFavorites is { Count: 0 }) meta.RefFavorites = null;
+        SaveMeta(novelDir, meta);
     }
 
     /// <summary>참고 자료 종류별 아이콘(소설 · 만화 · PDF · 이미지).</summary>
