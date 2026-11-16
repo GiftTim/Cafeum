@@ -1,0 +1,31 @@
+HwpDocument.cs (360줄)
+
+한글 문서(.hwp, .hwpx)에서 본문 글만 뽑아 내요. 커피뷰어는 이 글을 txt와 같은 읽기 화면으로 보여 주고, 고치는 일은 한컴 한글에 맡겨요. 한컴오피스가 없어도 읽을 수 있게 형식을 직접 풀어요. HWPX는 zip 안의 Contents/section0.xml 같은 파일에서 문단(p)마다 한 줄씩, 글자와 탭과 줄바꿈만 살려요. HWP 5.x는 OLE 복합 문서(CFB) 안의 BodyText/Section0 같은 스트림(보통 deflate 압축)에서 문단 글 레코드만 읽어요. 표 안의 글은 문단으로 이어서 나오고, 그림, 수식, 글상자 같은 개체는 건너뛰어요. 암호가 걸렸거나 배포용 문서는 읽을 수 없고, 3.0 이하의 아주 옛 문서도 못 읽어요. 남의 파일일 수 있고 형식을 직접 풀기 때문에, 파일 크기, 풀린 크기, 문단 수, 복합 문서의 섹터 사슬에 한도와 순환 검사를 두어서 일부러 망가뜨린 파일이 앱을 멈추거나 메모리를 다 쓰지 못하게 해요.
+
+1~4	도구함
+6	네임스페이스
+8~15	설명과 HwpDocument 선언
+17~20	한도: 파일 크기, 풀린 크기, 문단 수
+22~23	IsHwpExtension
+25~37	ReadLimited: 한도까지만 읽기
+39~41	ExtractText: 확장자에 따라 HWPX나 HWP로
+43	구분 주석(HWPX)
+45~66	ExtractHwpx: 구역 파일을 번호 순으로 읽기
+68~83	CollectHwpxParagraphs: 문단마다 한 줄 모으기
+85~111	AppendHwpxRuns: 글, 탭, 줄바꿈 살리기
+113	구분 주석(HWP 5.x)
+115~116	레코드 태그: 문단 머리, 문단 글
+118~140	ExtractHwp: 머리 확인, 암호와 배포용 거부, 구역 읽기
+142~147	Inflate: 압축 풀기(한도 있음)
+149~183	ReadHwpSection: 레코드를 읽어 문단 줄 만들기
+185~209	DecodeParaText: 문단 글의 조판 부호 처리
+211~215	설명과 CompoundFile 선언
+217~227	필드와 상수
+229~288	생성자: 머리 확인, FAT와 DIFAT, 디렉터리, 작은 FAT 읽기
+290	SectorOffset
+292~307	ReadChain: 섹터 사슬 읽기
+309~325	ReadMiniChain: 작은 섹터 사슬 읽기
+327~340	ReadStream: 경로로 스트림 내용 얻기
+342~358	FindChild: 이름으로 자식 찾기
+359	CompoundFile 끝
+360	클래스 끝
