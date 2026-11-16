@@ -75,12 +75,8 @@ internal static class CanvasStore
         return Path.Combine(novelDir, Folder, safe.Trim() + ".canvas");
     }
 
-    public static CanvasDoc Load(string path)
-    {
-        try { if (File.Exists(path)) return Parse(File.ReadAllText(path, Encoding.UTF8)) ?? new(); }
-        catch { }
-        return new();
-    }
+    /// <summary>캔버스 파일을 읽는다. 없으면 빈 캔버스. 내용이 깨졌으면 .corrupt로 옮기고 .bak에서 되살리며, 다른 프로그램이 잡고 있어서 못 읽는 파일은 덮어쓰지 않는다(JsonFile).</summary>
+    public static CanvasDoc Load(string path) => JsonFile.LoadWith(path, Parse) ?? new();
 
     public static CanvasDoc? Parse(string json)
     {
@@ -98,28 +94,35 @@ internal static class CanvasStore
 
     public static string ToJson(CanvasDoc doc) => JsonSerializer.Serialize(doc, Opt);
 
-    public static void Save(string path, CanvasDoc doc)
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            string tmp = path + ".tmp";
-            File.WriteAllText(tmp, ToJson(doc), Encoding.UTF8);
-            File.Move(tmp, path, overwrite: true);
-        }
-        catch { }
-    }
+    /// <summary>캔버스를 저장한다(임시 파일을 거쳐 바꾸고, 실패하면 false — 알림은 JsonFile이 한다).</summary>
+    public static bool Save(string path, CanvasDoc doc) => JsonFile.Save(path, doc, Opt);
 
-    /// <summary>그룹 이름이 바뀌면 캔버스 파일도 따라간다.</summary>
+    /// <summary>그룹 이름이 바뀌면 캔버스 파일도 따라간다(백업 .bak도 함께).</summary>
     public static void Rename(string novelDir, string oldGroup, string newGroup)
     {
         string a = PathFor(novelDir, oldGroup), b = PathFor(novelDir, newGroup);
-        try { if (File.Exists(a) && !File.Exists(b)) File.Move(a, b); } catch { }
+        try
+        {
+            if (!File.Exists(a) || File.Exists(b)) return;
+            File.Move(a, b);
+            if (File.Exists(a + ".bak") && !File.Exists(b + ".bak")) File.Move(a + ".bak", b + ".bak");
+        }
+        catch (Exception ex) { AppLog.Write("캔버스 파일 이름을 바꾸지 못했어요", ex); }
     }
 
     /// <summary>작품 폴더 기준 경로(슬래시) ↔ 전체 경로.</summary>
     public static string ToRel(string novelDir, string full) => Path.GetRelativePath(novelDir, full).Replace('\\', '/');
-    public static string ToFull(string novelDir, string rel) => Path.GetFullPath(Path.Combine(novelDir, rel.Replace('/', '\\')));
+
+    /// <summary>
+    /// 노드가 가리키는 문서의 전체 경로. 작품 폴더 밖을 가리키는 노드(다른 캔버스 · 클립보드에서 가져온 것)는
+    /// 읽지도 열지도 않도록 없는 문서 자리(.outside)를 돌려준다.
+    /// </summary>
+    public static string ToFull(string novelDir, string rel)
+    {
+        string root = Path.GetFullPath(novelDir).TrimEnd('\\', '/') + "\\";
+        string full = Path.GetFullPath(Path.Combine(root, rel.Replace('/', '\\')));
+        return full.StartsWith(root, StringComparison.OrdinalIgnoreCase) ? full : Path.Combine(root, ".outside");
+    }
 
     public static bool IsWikiRel(string rel) => rel.StartsWith("wiki/", StringComparison.OrdinalIgnoreCase);
 
@@ -228,7 +231,15 @@ internal sealed class PlotCanvasView : Control
         CommitEditor();
         if (!dirty) return;
         dirty = false;
-        CanvasStore.Save(path, doc);
+        if (!CanvasStore.Save(path, doc)) dirty = true; // 저장하지 못했으면 표시를 남겨 두어 다음 변경 때 다시 시도한다
+    }
+
+    /// <summary>에피소드 · 위키 노드의 원본을 연다(작품 안에 있는 문서만).</summary>
+    private void OpenNodeFile(CanvasNode n)
+    {
+        string full;
+        try { full = CanvasStore.ToFull(novelDir, n.File ?? ""); } catch { return; }
+        if (File.Exists(full)) OpenRequested?.Invoke(full);
     }
 
     private string Snapshot() => CanvasStore.ToJson(doc);
@@ -248,12 +259,18 @@ internal sealed class PlotCanvasView : Control
 
     // ───────── 노드 정보(에피소드 · 위키 원본에서 제목 · 미리보기) ─────────
 
+    private readonly Dictionary<string, long> infoCheckedAt = new(StringComparer.OrdinalIgnoreCase); // 원본이 바뀌었는지 마지막으로 본 때(ms)
+
     private (string Title, string Sub, string Preview, string Glyph, bool Missing) Info(CanvasNode n)
     {
         string rel = n.File ?? "";
+        long now = Environment.TickCount64;
+        // 그릴 때마다 모든 노드의 파일을 건드리지 않게, 원본이 바뀌었는지는 1초에 한 번만 본다
+        if (info.TryGetValue(rel, out var fresh) && infoCheckedAt.TryGetValue(rel, out long at) && now - at < 1000) return (fresh.Title, fresh.Sub, fresh.Preview, fresh.Glyph, fresh.Missing);
         string full;
         try { full = CanvasStore.ToFull(novelDir, rel); } catch { return (rel, "", "", "", true); }
         DateTime stamp = File.Exists(full) ? File.GetLastWriteTimeUtc(full) : DateTime.MinValue;
+        infoCheckedAt[rel] = now;
         if (info.TryGetValue(rel, out var c) && c.Stamp == stamp) return (c.Title, c.Sub, c.Preview, c.Glyph, c.Missing);
         string title = Path.GetFileNameWithoutExtension(rel), sub, preview = "", glyph;
         bool missing = stamp == DateTime.MinValue;
@@ -797,7 +814,7 @@ internal sealed class PlotCanvasView : Control
         var w = S2W(e.Location);
         var n = NodeAt(w);
         if (n == null) { AddMemo(new PointF(w.X - 120, w.Y - 60), edit: true); return; }
-        if (n.Type == "file" && n.File != null) { OpenRequested?.Invoke(CanvasStore.ToFull(novelDir, n.File)); return; }
+        if (n.Type == "file" && n.File != null) { OpenNodeFile(n); return; }
         if (n.Type == "text") BeginEdit(n);
         if (n.Type == "group") RenameGroupNode(n);
     }
@@ -875,7 +892,7 @@ internal sealed class PlotCanvasView : Control
             case Keys.Enter when selNodes.Count == 1:
                 var n = selNodes.First();
                 if (n.Type == "text") BeginEdit(n);
-                else if (n.Type == "file" && n.File != null) OpenRequested?.Invoke(CanvasStore.ToFull(novelDir, n.File));
+                else if (n.Type == "file" && n.File != null) OpenNodeFile(n);
                 break;
             case Keys.Left or Keys.Right or Keys.Up or Keys.Down when selNodes.Count > 0: // 화살표로 조금씩 옮기기(Shift면 크게)
                 int step = e.Shift ? 40 : 8;
@@ -1075,7 +1092,7 @@ internal sealed class PlotCanvasView : Control
         }
         else
         {
-            if (n?.Type == "file" && n.File != null) m.Items.Add("원본 열기", null, (_, _) => OpenRequested?.Invoke(CanvasStore.ToFull(novelDir, n.File)));
+            if (n?.Type == "file" && n.File != null) m.Items.Add("원본 열기", null, (_, _) => OpenNodeFile(n));
             if (n?.Type == "text") m.Items.Add("메모 고치기", null, (_, _) => BeginEdit(n));
             if (n?.Type == "group") m.Items.Add("이름 바꾸기…", null, (_, _) => RenameGroupNode(n));
             if (e != null)
