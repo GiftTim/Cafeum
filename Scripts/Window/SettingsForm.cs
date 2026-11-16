@@ -21,11 +21,14 @@ public sealed class SettingsForm : Form
         "리디바탕", "본명조", "본고딕", "고운바탕", "고운돋움", "이롭게 바탕체",
     };
 
+    // 분류 이름. 페이지를 만들 때(BeginPage)와 왼쪽 목록 순서(navOrder)가 똑같은 글자를 써야 해서 한 곳에 둔다(글자가 어긋나면 에러 없이 목록 맨 뒤로 밀린다).
+    private const string PageGeneral = "일반", PageVault = "볼트", PageSidebar = "사이드바", PageRefBar = "참고자료 서식창", PageTxtBar = "txt 서식창", PageView = "보기", PageReading = "읽기 · 낭독";
+
     /// <summary>창을 닫았다 다시 열어도 보던 분류로 돌아오게(프로그램이 켜져 있는 동안만).</summary>
     private static int lastPage;
 
     private readonly AppSettings settings;
-    private readonly Action<string> changed;
+    private readonly Action<SettingKind> changed;
     private readonly TtsEngine preview = new();
     private readonly ListBox nav;
     private readonly Label pageTitle;
@@ -39,7 +42,7 @@ public sealed class SettingsForm : Form
     // 챕터 나누기는 큰 글 전체를 다시 훑으므로, 글자를 치거나 숫자를 올리는 동안은 잠깐 기다렸다가 한 번만 반영한다.
     private readonly System.Windows.Forms.Timer splitTimer = new() { Interval = 500 };
 
-    public SettingsForm(AppSettings settings, Action<string> changed)
+    public SettingsForm(AppSettings settings, Action<SettingKind> changed)
     {
         this.settings = settings;
         this.changed = changed;
@@ -80,7 +83,7 @@ public sealed class SettingsForm : Form
         right.Controls.Add(titleLine);  // Top들은 나중에 넣을수록 위로 간다
         right.Controls.Add(pageTitle);
 
-        // 카페움 오피스 중심 순서: 일반 → 볼트(왼쪽 패널) → 서식창 · 머리 막대 → 보기(글자 · 여백) → 읽기 · 낭독.
+        // Cafeum 중심 순서: 일반 → 볼트(왼쪽 패널) → 서식창 · 머리 막대 → 보기(글자 · 여백) → 읽기 · 낭독.
         // 읽기 전용 설정(챕터 · PDF/움직이는 그림 · 낭독)은 한 분류("읽기 · 낭독")에 소제목으로 모은다.
         BuildGeneralPage();
         BuildLibraryPage();
@@ -91,7 +94,7 @@ public sealed class SettingsForm : Form
         BuildTtsPage();
 
         // 왼쪽 분류 순서: 일반 - 볼트 - 사이드바 - 참고자료 서식창(· txt · epub/만화 서식창) - 보기 - 읽기 · 낭독
-        string[] navOrder = { "일반", "볼트", "사이드바", "참고자료 서식창", "txt 서식창", "보기", "읽기 · 낭독" };
+        string[] navOrder = { PageGeneral, PageVault, PageSidebar, PageRefBar, PageTxtBar, PageView, PageReading };
         int Rank(TableLayoutPanel p) { int i = Array.IndexOf(navOrder, (string)p.Tag!); return i < 0 ? 99 : i; }
         var sorted = pages.OrderBy(Rank).ToList();
         pages.Clear();
@@ -132,13 +135,13 @@ public sealed class SettingsForm : Form
 
     private void BuildGeneralPage()
     {
-        BeginPage("일반");
+        BeginPage(PageGeneral);
 
         AddHeading("화면 색", first: true);
         var themeBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
         foreach (var t in Themes.All) themeBox.Items.Add(t.Name);
         themeBox.SelectedItem = Themes.Find(settings.Theme).Name;
-        themeBox.SelectedIndexChanged += (_, _) => Apply(() => settings.Theme = (string)themeBox.SelectedItem!, "theme");
+        themeBox.SelectedIndexChanged += (_, _) => Apply(() => settings.Theme = (string)themeBox.SelectedItem!, SettingKind.Theme);
         AddRow("테마", themeBox);
         AddHint("읽기 화면과 메뉴 · 설정 창의 색입니다. 볼트 화면 색은 '볼트'에서 따로 고를 수 있어요.");
 
@@ -152,7 +155,7 @@ public sealed class SettingsForm : Form
             "다음 · 이전 폴더의 파일로 넘어가기",
         }); // EdgeFileAction 선언 순서와 같다
         edgeBox.SelectedIndex = Math.Clamp((int)settings.EdgeFileAction, 0, edgeBox.Items.Count - 1);
-        edgeBox.SelectedIndexChanged += (_, _) => Apply(() => settings.EdgeFileAction = (EdgeFileAction)edgeBox.SelectedIndex, "edge");
+        edgeBox.SelectedIndexChanged += (_, _) => Apply(() => settings.EdgeFileAction = (EdgeFileAction)edgeBox.SelectedIndex, SettingKind.Edge);
         AddRow("동작", edgeBox);
         AddHint("폴더의 마지막 파일 끝에서 더 넘기거나, 첫 파일 앞으로 되돌릴 때의 동작입니다.\n" +
                 "'물어보기'는 화면에 안내를 띄우고, ] 를 누르면 다음 폴더로 [ 를 누르면 이전 폴더로 넘어갑니다.\n" +
@@ -162,7 +165,7 @@ public sealed class SettingsForm : Form
 
     private void BuildViewPage()
     {
-        BeginPage("보기");
+        BeginPage(PageView);
 
         AddHeading("문단 서식 기본값", first: true);
         var paraBtn = new Button { Text = "문단 서식 기본값 설정…", AutoSize = true, Padding = new Padding(10, 3, 10, 3) };
@@ -171,49 +174,50 @@ public sealed class SettingsForm : Form
             using var dlg = new ParagraphDialog(settings.DefaultPara?.Clone() ?? new ParaFormat { Align = "left", LinePercent = settings.LineHeight });
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
             var p = dlg.Result;
-            Apply(() => { settings.DefaultPara = p; if (p.LineMode == 0) settings.LineHeight = Math.Clamp(p.LinePercent, 100, 300); }, "font");
+            Apply(() => { settings.DefaultPara = p; if (p.LineMode == 0) settings.LineHeight = Math.Clamp(p.LinePercent, 100, 300); }, SettingKind.Font);
         };
         AddRow("", paraBtn);
         AddHint("정렬 · 여백 · 첫 줄 · 줄 간격 · 문단 간격 · 줄 나눔 기준을 파일마다 따로 정하지 않았을 때 이 값을 씁니다.");
         AddHeading("글자");
         var fontBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
-        var installed = new HashSet<string>(new InstalledFontCollection().Families.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+        using var fontCollection = new InstalledFontCollection();
+        var installed = new HashSet<string>(fontCollection.Families.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
         var fonts = ReadingFonts.Where(installed.Contains).ToList();
         if (!fonts.Contains(settings.FontFamily, StringComparer.OrdinalIgnoreCase)) fonts.Insert(0, settings.FontFamily);
         foreach (var f in fonts) fontBox.Items.Add(f);
         fontBox.SelectedItem = fonts.First(f => string.Equals(f, settings.FontFamily, StringComparison.OrdinalIgnoreCase));
-        fontBox.SelectedIndexChanged += (_, _) => Apply(() => settings.FontFamily = (string)fontBox.SelectedItem!, "font");
+        fontBox.SelectedIndexChanged += (_, _) => Apply(() => settings.FontFamily = (string)fontBox.SelectedItem!, SettingKind.Font);
         AddRow("글꼴", fontBox);
 
         var sizeBox = new NumericUpDown { Minimum = 8, Maximum = 48, Value = Math.Clamp(settings.FontSize, 8, 48), Width = 80 };
-        sizeBox.ValueChanged += (_, _) => Apply(() => settings.FontSize = (int)sizeBox.Value, "fontsize");
+        sizeBox.ValueChanged += (_, _) => Apply(() => settings.FontSize = (int)sizeBox.Value, SettingKind.FontSize);
         AddRow("글자 크기(pt)", sizeBox);
 
         var lineBox = new NumericUpDown { Minimum = 100, Maximum = 300, Increment = 10, Value = Math.Clamp(settings.LineHeight, 100, 300), Width = 80 };
-        lineBox.ValueChanged += (_, _) => Apply(() => settings.LineHeight = (int)lineBox.Value, "margin");
+        lineBox.ValueChanged += (_, _) => Apply(() => settings.LineHeight = (int)lineBox.Value, SettingKind.Margin);
         AddRow("줄 간격(%)", lineBox);
 
         var paraBox = new NumericUpDown { Minimum = 0, Maximum = 60, Increment = 2, Value = Math.Clamp(settings.ParagraphSpacing, 0, 60), Width = 80 };
-        paraBox.ValueChanged += (_, _) => Apply(() => settings.ParagraphSpacing = (int)paraBox.Value, "margin");
+        paraBox.ValueChanged += (_, _) => Apply(() => settings.ParagraphSpacing = (int)paraBox.Value, SettingKind.Margin);
         AddRow("문단 간격(px, txt)", paraBox);
 
         AddHeading("여백");
         var sideBox = new NumericUpDown { Minimum = 0, Maximum = 300, Increment = 4, Value = Math.Clamp(settings.SideMargin, 0, 300), Width = 80 };
-        sideBox.ValueChanged += (_, _) => Apply(() => { settings.SideMargin = (int)sideBox.Value; settings.EpubMarginLeft = settings.EpubMarginRight = null; }, "margin");
+        sideBox.ValueChanged += (_, _) => Apply(() => { settings.SideMargin = (int)sideBox.Value; settings.EpubMarginLeft = settings.EpubMarginRight = null; }, SettingKind.Margin);
         AddRow("좌우 여백(px)", sideBox);
 
         var vertBox = new NumericUpDown { Minimum = 0, Maximum = 200, Increment = 4, Value = Math.Clamp(settings.VerticalMargin, 0, 200), Width = 80 };
-        vertBox.ValueChanged += (_, _) => Apply(() => { settings.VerticalMargin = (int)vertBox.Value; settings.EpubMarginTop = settings.EpubMarginBottom = null; }, "margin");
+        vertBox.ValueChanged += (_, _) => Apply(() => { settings.VerticalMargin = (int)vertBox.Value; settings.EpubMarginTop = settings.EpubMarginBottom = null; }, SettingKind.Margin);
         AddRow("상하 여백(px)", vertBox);
         AddHint("소설(txt · epub) 본문에 적용됩니다.");
 
         AddHeading("만화 여백");
         var imgSideBox = new NumericUpDown { Minimum = 0, Maximum = 400, Increment = 4, Value = Math.Clamp(settings.ImageSideMargin, 0, 400), Width = 80 };
-        imgSideBox.ValueChanged += (_, _) => Apply(() => { settings.ImageSideMargin = (int)imgSideBox.Value; settings.ImageMarginLeft = settings.ImageMarginRight = null; }, "imagemargin");
+        imgSideBox.ValueChanged += (_, _) => Apply(() => { settings.ImageSideMargin = (int)imgSideBox.Value; settings.ImageMarginLeft = settings.ImageMarginRight = null; }, SettingKind.ImageMargin);
         AddRow("좌우 여백(px)", imgSideBox);
 
         var imgVertBox = new NumericUpDown { Minimum = 0, Maximum = 400, Increment = 4, Value = Math.Clamp(settings.ImageVerticalMargin, 0, 400), Width = 80 };
-        imgVertBox.ValueChanged += (_, _) => Apply(() => { settings.ImageVerticalMargin = (int)imgVertBox.Value; settings.ImageMarginTop = settings.ImageMarginBottom = null; }, "imagemargin");
+        imgVertBox.ValueChanged += (_, _) => Apply(() => { settings.ImageVerticalMargin = (int)imgVertBox.Value; settings.ImageMarginTop = settings.ImageMarginBottom = null; }, SettingKind.ImageMargin);
         AddRow("상하 여백(px)", imgVertBox);
         AddHint("만화(zip · 이미지)에 적용됩니다. 그림은 이 여백을 뺀 안쪽 영역에 맞춰 보이고, 0이면 예전처럼 창 전체를 씁니다.");
 
@@ -221,27 +225,27 @@ public sealed class SettingsForm : Form
         var novelReadingBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
         novelReadingBox.Items.AddRange(new object[] { "스크롤", "페이지", "페이지 터치" }); // NovelReadingMode 선언 순서와 같다
         novelReadingBox.SelectedIndex = Math.Clamp((int)settings.NovelReadingMode, 0, novelReadingBox.Items.Count - 1);
-        novelReadingBox.SelectedIndexChanged += (_, _) => Apply(() => settings.NovelReadingMode = (NovelReadingMode)novelReadingBox.SelectedIndex, "novelreading");
+        novelReadingBox.SelectedIndexChanged += (_, _) => Apply(() => settings.NovelReadingMode = (NovelReadingMode)novelReadingBox.SelectedIndex, SettingKind.NovelReading);
         AddRow("소설(epub)", novelReadingBox);
 
         var imageReadingBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
         imageReadingBox.Items.AddRange(new object[] { "페이지", "페이지 터치" }); // 만화엔 스크롤이 없다
         imageReadingBox.SelectedIndex = settings.ImagePageTouch ? 1 : 0;
-        imageReadingBox.SelectedIndexChanged += (_, _) => Apply(() => settings.ImagePageTouch = imageReadingBox.SelectedIndex == 1, "imagereading");
+        imageReadingBox.SelectedIndexChanged += (_, _) => Apply(() => settings.ImagePageTouch = imageReadingBox.SelectedIndex == 1, SettingKind.ImageReading);
         AddRow("만화(zip · 이미지)", imageReadingBox);
 
         var imageLayoutBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
         imageLayoutBox.Items.AddRange(new object[] { "한쪽 보기", "두쪽 보기" });
         imageLayoutBox.SelectedIndex = settings.ImageDoublePage ? 1 : 0;
-        imageLayoutBox.SelectedIndexChanged += (_, _) => Apply(() => settings.ImageDoublePage = imageLayoutBox.SelectedIndex == 1, "imagelayout");
+        imageLayoutBox.SelectedIndexChanged += (_, _) => Apply(() => settings.ImageDoublePage = imageLayoutBox.SelectedIndex == 1, SettingKind.ImageLayout);
         AddRow("만화 보기 방식", imageLayoutBox);
         AddHint("파일을 열 때 처음 쓰는 읽기 방식입니다.\n'페이지'는 화살표로, '페이지 터치'는 화면 왼쪽 · 오른쪽을 눌러 넘깁니다. txt는 메모장처럼 바로 쓰는 화면이라 스크롤만 됩니다.\n읽는 중에는 보기 > 읽기 방식에서 바꿀 수 있어요.");
     }
 
     private void BuildChapterPage()
     {
-        BeginPage("읽기 · 낭독");
-        splitTimer.Tick += (_, _) => { splitTimer.Stop(); Apply(() => { }, "txtsplit"); };
+        BeginPage(PageReading);
+        splitTimer.Tick += (_, _) => { splitTimer.Stop(); Apply(() => { }, SettingKind.TxtSplit); };
         void Changed(Action set) { if (loading) return; set(); splitTimer.Stop(); splitTimer.Start(); }
 
         AddHeading("나누는 방식", first: true);
@@ -361,24 +365,24 @@ public sealed class SettingsForm : Form
 
     private void BuildImagePage()
     {
-        BeginPage("읽기 · 낭독");
+        BeginPage(PageReading);
 
         AddHeading("PDF", first: true);
         var pdfDark = new CheckBox { Text = "PDF 야간 모드 (색 반전)", AutoSize = true, Checked = settings.PdfDarkMode };
-        pdfDark.CheckedChanged += (_, _) => Apply(() => settings.PdfDarkMode = pdfDark.Checked, "pdf");
+        pdfDark.CheckedChanged += (_, _) => Apply(() => settings.PdfDarkMode = pdfDark.Checked, SettingKind.Pdf);
         AddRow("", pdfDark);
         AddHint("흰 바탕 PDF를 검은 바탕으로 뒤집어서, 어두운 곳에서 눈부시지 않게 봅니다.");
 
         AddHeading("움직이는 그림");
         var loopCheck = new CheckBox { Text = "GIF · WebP 무한 반복 재생", AutoSize = true, Checked = settings.LoopAnimations };
-        loopCheck.CheckedChanged += (_, _) => Apply(() => settings.LoopAnimations = loopCheck.Checked, "anim");
+        loopCheck.CheckedChanged += (_, _) => Apply(() => settings.LoopAnimations = loopCheck.Checked, SettingKind.Anim);
         AddRow("", loopCheck);
         AddHint("끄면 한 번만 재생하고 마지막 장면에서 멈춥니다.");
     }
 
     private void BuildLibraryPage()
     {
-        BeginPage("볼트");
+        BeginPage(PageVault);
 
         AddHeading("화면", first: true);
         const string SameAsReader = "읽기 화면과 같게";
@@ -387,20 +391,20 @@ public sealed class SettingsForm : Form
         foreach (var t in Themes.All) libThemeBox.Items.Add(t.Name);
         libThemeBox.SelectedItem = settings.LibraryTheme != null && Themes.All.Any(t => t.Name == settings.LibraryTheme) ? settings.LibraryTheme : SameAsReader;
         libThemeBox.SelectedIndexChanged += (_, _) => Apply(() =>
-            settings.LibraryTheme = (string)libThemeBox.SelectedItem! == SameAsReader ? null : (string)libThemeBox.SelectedItem!, "libtheme");
+            settings.LibraryTheme = (string)libThemeBox.SelectedItem! == SameAsReader ? null : (string)libThemeBox.SelectedItem!, SettingKind.LibTheme);
         AddRow("화면 색", libThemeBox);
 
         var libSizeBox = new NumericUpDown { Minimum = 8, Maximum = 24, Value = Math.Clamp(settings.LibraryFontSize, 8, 24), Width = 80 };
-        libSizeBox.ValueChanged += (_, _) => Apply(() => settings.LibraryFontSize = (int)libSizeBox.Value, "libfont");
+        libSizeBox.ValueChanged += (_, _) => Apply(() => settings.LibraryFontSize = (int)libSizeBox.Value, SettingKind.LibFont);
         AddRow("폴더 트리 글자 크기(pt)", libSizeBox);
 
     }
 
-/// <summary>설정 > 아이콘 막대: 워크스페이스 맨 왼쪽 아이콘들의 순서와 켜고 끄기.
+    /// <summary>설정 > 아이콘 막대: 워크스페이스 맨 왼쪽 아이콘들의 순서와 켜고 끄기.
     /// "── 여기부터 아래쪽 ──" 줄 뒤의 항목은 막대 아래쪽에 붙는다(그 줄은 숨길 수 없다).</summary>
     private void BuildRailPage()
     {
-        BeginPage("사이드바");
+        BeginPage(PageSidebar);
         AddHeading("맨 왼쪽 아이콘 · 순서 · 켜고 끄기", first: true);
         var list = new CheckedListBox { Width = 320, Height = 300, IntegralHeight = false, CheckOnClick = false };
         bool filling = false, allowToggle = false;
@@ -431,9 +435,9 @@ public sealed class SettingsForm : Form
             string key = ((ToolbarEntry)list.Items[e.Index]).Key;
             if (!allowToggle || key == "spacer" || WorkspaceRail.IsCustom(key)) { e.NewValue = e.CurrentValue; return; }
             bool hide = e.NewValue == CheckState.Unchecked;
-            Apply(() => { settings.RailHidden.RemoveAll(x => x == key); if (hide) settings.RailHidden.Add(key); }, "toolbar");
+            Apply(() => { settings.RailHidden.RemoveAll(x => x == key); if (hide) settings.RailHidden.Add(key); }, SettingKind.Toolbar);
         };
-        void Commit(List<string> keys) { Apply(() => settings.RailOrder = keys, "toolbar"); Fill(); }
+        void Commit(List<string> keys) { Apply(() => settings.RailOrder = keys, SettingKind.Toolbar); Fill(); }
         void Move(int delta)
         {
             int i = list.SelectedIndex, j = i + delta;
@@ -472,7 +476,7 @@ public sealed class SettingsForm : Form
         var reset = new Button { Text = "기본으로", AutoSize = true, Padding = new Padding(8, 2, 8, 2) };
         up.Click += (_, _) => Move(-1);
         down.Click += (_, _) => Move(1);
-        reset.Click += (_, _) => { Apply(() => { settings.RailOrder = new(); settings.RailHidden = new() { "files" }; }, "toolbar"); Fill(); };
+        reset.Click += (_, _) => { Apply(() => { settings.RailOrder = new(); settings.RailHidden = new() { "files" }; }, SettingKind.Toolbar); Fill(); };
         var buttons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(8, 0, 0, 0) };
         buttons.Controls.AddRange(new Control[] { up, down, addSep, addBlank, del, reset });
         var row = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };
@@ -492,7 +496,7 @@ public sealed class SettingsForm : Form
             var list = kind == 3 ? settings.ToolbarRefHidden : settings.ToolbarHidden;
             list.RemoveAll(x => x == k);
             if (hidden) list.Add(k);
-        }, "toolbar");
+        }, SettingKind.Toolbar);
 
         // 세 분류: txt 서식창(탭 밑 편집 줄) / 머리 막대(맨 위 오른쪽 버튼) / epub · 만화 서식창(읽기 전용 줄).
         // 각각 순서를 바꾸고 켜고 끄며, [구분선 추가]로 구분선을 늘리고 [구분선 삭제]로 직접 추가한 구분선을 지운다.
@@ -547,7 +551,7 @@ public sealed class SettingsForm : Form
                 {
                     if (kind == Format) settings.ToolbarLeft = keys; else if (kind == Bar) settings.ToolbarOrder = keys; else if (kind == Ref) settings.ToolbarRef = keys; else settings.ToolbarRead = keys;
                     if (removedKey != null) Hidden().RemoveAll(x => x == removedKey);
-                }, "toolbar");
+                }, SettingKind.Toolbar);
                 Fill();
             }
             void Move(int delta)
@@ -597,9 +601,9 @@ public sealed class SettingsForm : Form
         }
 
         // ── txt 서식창 ──
-        BeginPage("txt 서식창");
+        BeginPage(PageTxtBar);
         var showBar = new CheckBox { Text = "서식창 보이기 (txt를 볼 때 탭 밑에 네비게이션 · 편집 용지 · 글꼴 · 크기 … 줄)", AutoSize = true, Checked = settings.ShowFormatBar };
-        showBar.CheckedChanged += (_, _) => Apply(() => settings.ShowFormatBar = showBar.Checked, "toolbar");
+        showBar.CheckedChanged += (_, _) => Apply(() => settings.ShowFormatBar = showBar.Checked, SettingKind.Toolbar);
         AddHeading("서식창 표시", first: true);
         AddRow("", showBar);
         AddHeading("항목 순서 · 켜고 끄기");
@@ -611,7 +615,7 @@ public sealed class SettingsForm : Form
         BuildRailPage();
 
         // ── 참고파일 서식창 ──
-        BeginPage("참고자료 서식창");
+        BeginPage(PageRefBar);
         AddHeading("참고 파일을 열 때 나오는 줄 · 순서 · 켜고 끄기", first: true);
         BuildOrderList(Ref, 340,
             "작품의 [참고 자료] 파일(txt · epub · 만화 · pdf)을 열 때 탭 밑에 나오는 줄입니다.\n" +
@@ -621,7 +625,7 @@ public sealed class SettingsForm : Form
 
     private void BuildTtsPage()
     {
-        BeginPage("읽기 · 낭독");
+        BeginPage(PageReading);
 
         AddHeading("목소리", first: true);
         var voiceBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240 };
@@ -631,7 +635,7 @@ public sealed class SettingsForm : Form
         voiceBox.SelectedIndex = Math.Max(0, voices.FindIndex(v => v == settings.TtsVoice));
         voiceBox.SelectedIndexChanged += (_, _) =>
         {
-            if (voices.Count > 0) Apply(() => settings.TtsVoice = (string)voiceBox.SelectedItem!, "tts");
+            if (voices.Count > 0) Apply(() => settings.TtsVoice = (string)voiceBox.SelectedItem!, SettingKind.Tts);
         };
         AddRow("목소리", voiceBox);
         // 목록이 왜 이것뿐인지 알려준다. 영어 전용 음성은 한글을 못 읽어서(문장 부호만 소리 냄) 일부러 뺐다.
@@ -642,7 +646,7 @@ public sealed class SettingsForm : Form
         rateBar.ValueChanged += (_, _) =>
         {
             rateLabel.Text = RateText(rateBar.Value);
-            Apply(() => settings.TtsRate = rateBar.Value, "tts");
+            Apply(() => settings.TtsRate = rateBar.Value, SettingKind.Tts);
         };
         var rateRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };
         rateRow.Controls.Add(rateBar);
@@ -751,7 +755,7 @@ public sealed class SettingsForm : Form
 
     private static string RateText(int v) => v == 0 ? "보통" : v > 0 ? $"+{v} (빠름)" : $"{v} (느림)";
 
-    private void Apply(Action set, string kind)
+    private void Apply(Action set, SettingKind kind)
     {
         if (loading) return;
         set();

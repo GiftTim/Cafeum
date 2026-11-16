@@ -17,6 +17,10 @@ public partial class MainForm
 
     private enum ZipKind { Comic, NovelTxt, NovelEpub, NovelPdf }
 
+    private const long MaxZipTextBytes = 512L << 20;     // zip 안 txt 한 파일의 최대 크기
+    private const long MaxZipTextChars = 600_000_000;    // 이어 붙인 글 전체의 최대 글자 수
+    private const long MaxZipExtractBytes = 4L << 30;    // zip 안에서 꺼내는 epub · pdf 한 파일의 최대 크기
+
     private void LoadZip(string path)
     {
         ZipKind kind;
@@ -155,6 +159,9 @@ public partial class MainForm
         for (int i = 0; i < entries.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
+            // 압축 폭탄 방지: 작은 zip이 풀면 수 GB의 글이 되도록 만든 파일에 메모리가 다 먹히지 않게 한도를 둔다.
+            if (entries[i].Length > MaxZipTextBytes || (long)sb.Length > MaxZipTextChars)
+                throw new InvalidDataException($"zip 안의 글이 너무 커서 열지 않았어요: {entries[i].Name}");
             using var ms = new MemoryStream();
             using (var s = entries[i].Open()) s.CopyTo(ms);
 
@@ -203,6 +210,7 @@ public partial class MainForm
             Directory.CreateDirectory(dir);
             // 이름만 쓴다(Path.GetFileName) — zip 안 경로에 ../ 가 있어도 임시 폴더 밖으로 나갈 수 없게.
             string target = Path.Combine(dir, Path.GetFileName(entry.Name));
+            if (entry.Length > MaxZipExtractBytes) throw new InvalidDataException("zip 안의 파일이 너무 커서 열지 않았어요.");
             entry.ExtractToFile(target, overwrite: true);
             OpenPath(target);
         }

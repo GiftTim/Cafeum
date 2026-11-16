@@ -25,6 +25,7 @@ static partial class Program
         }
 
         ApplicationConfiguration.Initialize();
+        InstallCrashHandlers();
 
 #if     DEBUG // 개발용(Scripts/Test/ShotTest.cs): 화면을 그려서 그림 파일로 저장하고 끝낸다
         if (Environment.GetEnvironmentVariable("CAFEUM_SHOT") is { Length: > 0 } shotDir) { ShotTest(shotDir); return; } 
@@ -34,7 +35,29 @@ static partial class Program
         var context = AppShared.Start(initialPath, args.Skip(1).ToArray());
         StartListener();
         Updater.CleanupOldInstallers();
+        TempCleanup.RunInBackground(); // 지난번 비정상 종료로 임시 폴더에 남은 epub · 소설 본문 복사본 정리
         Application.Run(context);
+    }
+
+    private static DateTime lastCrashNotice = DateTime.MinValue;
+
+    /// <summary>
+    /// 곳곳에서 잡지 못한 오류를 한곳에서 받아 cafeum.log에 자세히 남긴다(전에는 기본 오류창만 뜨고 기록이 없었다).
+    /// 화면 쪽 오류는 앱을 계속 쓸 수 있게 두고 안내만 하되, 타이머처럼 같은 오류가 계속 나도 창이 쏟아지지 않게 30초에 한 번만 띄운다.
+    /// 다른 스레드의 오류는 윈도우가 프로그램을 끝내므로 기록만 남긴다.
+    /// </summary>
+    private static void InstallCrashHandlers()
+    {
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) =>
+        {
+            AppLog.Write("처리하지 못한 오류(화면)\n" + e.Exception);
+            if (DateTime.Now - lastCrashNotice < TimeSpan.FromSeconds(30)) return;
+            lastCrashNotice = DateTime.Now;
+            MessageBox.Show("예상하지 못한 오류가 생겼어요. 계속 쓸 수는 있지만 이상하면 Cafeum을 다시 켜 주세요.\n오류 내용은 기록해 두었어요: " + AppLog.FilePath, "Cafeum");
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => AppLog.Write("처리하지 못한 오류(프로그램이 끝납니다)\n" + e.ExceptionObject);
+        TaskScheduler.UnobservedTaskException += (_, e) => { AppLog.Write("기다리지 않은 작업의 오류\n" + e.Exception); e.SetObserved(); };
     }
 
     private static bool SendToRunning(string[] args)

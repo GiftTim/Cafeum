@@ -59,7 +59,7 @@ public partial class MainForm
 
     private bool formatDirty; // 글은 그대로인데 서식만 바뀌었다(자동저장이 서식 파일을 다시 쓰게)
 
-    private bool CanFormatChars => embedded && directEdit && !mainEditor.ReadOnly && shownKind == ContentKind.Txt && editorHost.Visible;
+    private bool CanFormatChars => directEdit && !mainEditor.ReadOnly && shownKind == ContentKind.Txt && editorHost.Visible;
 
     /// <summary>서식 버튼을 눌렀다: 글자를 골랐으면 그 글자에, 안 골랐으면 커서 이후에 칠 글자에 적용한다. 이미 그 서식이면 해제한다.</summary>
     private void ApplyCharStyle(FontStyle style)
@@ -127,7 +127,7 @@ public partial class MainForm
                 Directory.CreateDirectory(Path.GetDirectoryName(p)!);
                 var di = new DirectoryInfo(Path.GetDirectoryName(p)!);
                 if ((di.Attributes & FileAttributes.Hidden) == 0) di.Attributes |= FileAttributes.Hidden;
-                File.WriteAllText(p, rtf, System.Text.Encoding.ASCII);
+                SafeFile.WriteAllText(p, rtf, System.Text.Encoding.ASCII);
             }
             else if (File.Exists(p)) File.Delete(p);
         }

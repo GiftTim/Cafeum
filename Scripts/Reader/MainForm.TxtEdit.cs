@@ -20,7 +20,7 @@ public partial class MainForm
     public event Action<bool?>? SavedStateChanged;
     private void UpdateSavedDot()
     {
-        bool? v = embedded && directEdit && !IsReferenceFile(currentPath) && !mainEditor.ReadOnly && savedSnapshot != null ? (mainEditor.Text == savedSnapshot && !formatDirty) : null;
+        bool? v = directEdit && !IsReferenceFile(currentPath) && !mainEditor.ReadOnly && savedSnapshot != null ? (mainEditor.Text == savedSnapshot && !formatDirty) : null;
         if (v == lastSavedState) return;
         lastSavedState = v;
         SavedStateChanged?.Invoke(v);
@@ -28,6 +28,36 @@ public partial class MainForm
 
     /// <summary>글 상자 안의 줄바꿈(\n)을 파일에 쓰는 줄바꿈(\r\n)으로.</summary>
     private static string ToCrlf(string s) => s.Replace("\r\n", "\n").Replace("\n", "\r\n");
+
+    /// <summary>
+    /// 이 파일의 글자 모양(인코딩)으로 지금 글을 빠짐없이 저장할 수 있는지 본다. 예전 한글 txt(CP949)에 이모지 같은 글자를 쓰면
+    /// 그냥 저장할 때 '?'로 바뀌어 글자가 사라지므로, 그럴 땐 UTF-8로 바꿔 저장하고 알려 준다.
+    /// </summary>
+    private Encoding ChooseSaveEncoding(string content)
+    {
+        var enc = SafeFile.PickEncoding(content, txtSaveEncoding);
+        if (!ReferenceEquals(enc, txtSaveEncoding))
+        {
+            AppLog.Write($"저장 형식을 {txtSaveEncoding.WebName}에서 UTF-8로 바꿨어요(이 형식으로는 저장할 수 없는 글자가 있어서): {currentPath}");
+            ShowToast("이 파일의 옛 글자 형식으로는 저장할 수 없는 글자가 있어서 UTF-8로 저장했어요");
+        }
+        return enc;
+    }
+
+    /// <summary>파일 앞부분에 NUL(0) 바이트가 있으면 글 파일이 아니다(압축 · 문서 · 실행 파일 등). UTF-16 글은 BOM으로 알아본다.</summary>
+    private static bool LooksLikeText(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var buf = new byte[8192];
+            int n = fs.Read(buf, 0, buf.Length);
+            if (n >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF))) return true;
+            for (int i = 0; i < n; i++) if (buf[i] == 0) return false;
+            return true;
+        }
+        catch { return true; } // 못 읽는 이유는 불러올 때 알려 준다
+    }
 
     private void InitTxtEdit()
     {
@@ -61,7 +91,8 @@ public partial class MainForm
         {
             if (textChanged)
             {
-                File.WriteAllText(currentPath, ToCrlf(content), txtSaveEncoding);
+                txtSaveEncoding = ChooseSaveEncoding(content);
+                SafeFile.WriteAllText(currentPath, ToCrlf(content), txtSaveEncoding); // 임시 파일에 다 쓴 뒤 바꿔치기 — 쓰다 멈춰도 원고가 잘리지 않는다
                 savedSnapshot = content;
                 fullText = content;
             }
@@ -72,6 +103,7 @@ public partial class MainForm
         }
         catch (Exception ex)
         {
+            AppLog.Write($"자동 저장에 실패했어요: {currentPath}", ex);
             statusLabel.Text = $"저장하지 못했어요: {ex.Message}";
         }
     }

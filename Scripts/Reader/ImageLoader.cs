@@ -21,8 +21,15 @@ public static class ImageLoader
             return DecodeWithSkia(bytes);
 
         using var ms = new MemoryStream(bytes);
-        return Image.FromStream(ms);
+        var img = Image.FromStream(ms);
+        if ((long)img.Width * img.Height > MaxPixels) { img.Dispose(); throw TooBig(); }
+        return img;
     }
+
+    /// <summary>그림 한 장의 최대 픽셀 수(1억 2천만 ≈ 11000×11000). 작은 파일이 거대한 해상도로 풀려 메모리를 다 먹는 걸 막는다.</summary>
+    private const long MaxPixels = 120_000_000;
+
+    private static InvalidDataException TooBig() => new("그림의 해상도가 너무 커서 열지 않았어요.");
 
     // 움직이는 그림(webp·gif)은 첫 프레임만 Image로 돌려주고, 나머지 프레임을 재생할 수 있게 원본 바이트를 그 Image에
     // 붙여둔다(ImageCanvas가 보여줄 때 꺼내서 AnimationPlayer로 재생). 프레임을 미리 다 풀어두면 한 장에
@@ -50,6 +57,12 @@ public static class ImageLoader
     /// </summary>
     private static Image DecodeWithSkia(byte[] bytes)
     {
+        // 본격적으로 풀기 전에 머리글만 읽어 해상도부터 본다.
+        using (var codec = SKCodec.Create(new MemoryStream(bytes)))
+        {
+            if (codec == null) throw new InvalidDataException("이미지를 디코딩하지 못했습니다.");
+            if ((long)codec.Info.Width * codec.Info.Height > MaxPixels) throw TooBig();
+        }
         using var decoded = SKBitmap.Decode(bytes)
             ?? throw new InvalidDataException("이미지를 디코딩하지 못했습니다.");
         var result = ToGdiBitmap(decoded);

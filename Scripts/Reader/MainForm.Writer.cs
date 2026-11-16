@@ -22,11 +22,10 @@ public partial class MainForm
     private string? writerKeyPath;
     private TallScroller? tall;
 
-    private bool WriterLayout => embedded && directEdit && shownKind == ContentKind.Txt && editorHost.Visible && EffPaper == null;
+    private bool WriterLayout => directEdit && shownKind == ContentKind.Txt && editorHost.Visible && EffPaper == null;
 
     private void InitWriter()
     {
-        if (!embedded) return;
         writerTitle = new WriterHeader { Dock = DockStyle.Top, Visible = false };
         tall = new TallScroller { Dock = DockStyle.Fill, Visible = false }; // 머리 + 글 상자를 한 장으로 같이 스크롤시킨다
         editorHost.Controls.Add(tall);
@@ -140,7 +139,7 @@ public partial class MainForm
     /// <summary>집필 상태가 [집필 완료]인 회차는 원고 보호로 글 상자를 잠근다(상태를 바꾸면 풀린다). 참고 자료 · 에피소드가 아닌 문서는 해당 없다.</summary>
     private void ApplyManuscriptProtection()
     {
-        if (!embedded || !directEdit || currentPath == null || shownKind != ContentKind.Txt || IsReferenceFile(currentPath)) return;
+        if (!directEdit || currentPath == null || shownKind != ContentKind.Txt || IsReferenceFile(currentPath)) return;
         bool protect = NovelStore.GetWriteStatus(currentPath) == "집필 완료";
         if (mainEditor.ReadOnly == protect) return;
         if (protect) FlushAutoSave(); // 잠그기 전에 고친 글부터 저장
@@ -176,7 +175,7 @@ public partial class MainForm
     private void SyncGoalWidget()
     {
         if (goalWidget == null) return;
-        bool show = embedded && directEdit && shownKind == ContentKind.Txt && editorHost.Visible && goalShown; // 편집 용지를 켠 글에서도 글자 수 위젯은 뜬다
+        bool show = directEdit && shownKind == ContentKind.Txt && editorHost.Visible && goalShown; // 편집 용지를 켠 글에서도 글자 수 위젯은 뜬다
         if (goalWidget.Visible != show) { goalWidget.Visible = show; if (show) { PlaceGoalWidget(); goalWidget.BringToFront(); } }
         if (show) { goalWidget.SetColors(mainEditor.BackColor, mainEditor.ForeColor, theme.Link); UpdateGoalWidget(charsAll, charsSolid); }
     }

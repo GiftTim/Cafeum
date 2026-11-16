@@ -74,7 +74,7 @@ public partial class MainForm
         var themeMenu = new ToolStripMenuItem("테마");
         foreach (var t in Themes.All)
         {
-            var item = new ToolStripMenuItem(t.Name, null, (_, _) => { settings.Theme = t.Name; settings.Save(); AppShared.NotifySettingsChanged("theme"); });
+            var item = new ToolStripMenuItem(t.Name, null, (_, _) => { settings.Theme = t.Name; settings.Save(); AppShared.NotifySettingsChanged(SettingKind.Theme); });
             themeMenuItems.Add(item);
             themeMenu.DropDownItems.Add(item);
         }
@@ -83,7 +83,7 @@ public partial class MainForm
         {
             settings.PdfDarkMode = !settings.PdfDarkMode;
             settings.Save();
-            AppShared.NotifySettingsChanged("pdf");
+            AppShared.NotifySettingsChanged(SettingKind.Pdf);
         });
         viewMenu.DropDownItems.Add(pdfDarkMenuItem);
         immersionMenuItem = new ToolStripMenuItem("몰입 모드", null, (_, _) => ToggleImmersion()) { ShortcutKeyDisplayString = "F11" };
@@ -101,7 +101,7 @@ public partial class MainForm
             {
                 settings.TtsRate = rate;
                 settings.Save();
-                AppShared.NotifySettingsChanged("tts");
+                AppShared.NotifySettingsChanged(SettingKind.Tts);
             }) { Tag = rate };
             ttsRateMenuItems.Add(item);
             rateMenu.DropDownItems.Add(item);
@@ -155,7 +155,7 @@ public partial class MainForm
             {
                 settings.TtsVoice = name;
                 settings.Save();
-                AppShared.NotifySettingsChanged("tts");
+                AppShared.NotifySettingsChanged(SettingKind.Tts);
             }) { Checked = name == current });
         }
     }
@@ -315,61 +315,61 @@ public partial class MainForm
     }
 
     /// <summary>설정창(또는 메뉴)에서 값이 바뀌었을 때 화면·엔진에 즉시 반영한다.</summary>
-    private void OnSettingsChanged(string kind)
+    private void OnSettingsChanged(SettingKind kind)
     {
         switch (kind)
         {
-            case "theme":
+            case SettingKind.Theme:
                 ApplyTheme();
                 break;
-            case "toolbar":
+            case SettingKind.Toolbar:
                 ApplyToolbarVisibility();
                 ApplyLookBarShown();
                 break;
-            case "novelreading":
+            case SettingKind.NovelReading:
                 // 보고 있는 epub · 웹 화면 글에도 바로(바로 쓰는 txt · 수정 중에는 건드리지 않는다).
                 if (epubMode && !(epubEditable && !txtWeb))
                     SetReadingMode(settings.NovelReadingMode switch { NovelReadingMode.Page => ReadingMode.Page, NovelReadingMode.PageTouch => ReadingMode.PageTouch, _ => ReadingMode.Scroll });
                 break;
-            case "font":
+            case SettingKind.Font:
                 if (mainEditor.Font.Name != EffFont || Math.Abs(mainEditor.Font.SizeInPoints - fontSize) > 0.01f) mainEditor.Font = new Font(EffFont, fontSize);
                 if (epubMode) ApplyEpubFontSize(keepPlace: true); // 글자 크기와 같이, 다시 불러오지 않고 보던 자리에서
                 else ReflowAfterLookChange();
                 break;
-            case "fontsize":
+            case SettingKind.FontSize:
                 ApplyLook();
                 break;
-            case "margin":
+            case SettingKind.Margin:
                 marginBoxesFilled = false;
                 ApplyMargins();
                 ReflowAfterLookChange();
                 break;
-            case "tts":
+            case SettingKind.Tts:
                 tts.Rate = settings.TtsRate;
                 tts.VoiceName = settings.TtsVoice;
                 SyncTtsMenu();
                 break;
-            case "pdf":
+            case SettingKind.Pdf:
                 if (pdfHost.Visible && !string.IsNullOrEmpty(currentPath)) NavigatePdf(currentPath);
                 break;
-            case "imagelayout":
+            case SettingKind.ImageLayout:
                 ApplyImageLayout();
                 break;
-            case "imagemargin":
+            case SettingKind.ImageMargin:
                 marginBoxesFilled = false;
                 ApplyImageMargins();
                 break;
-            case "anim":
+            case SettingKind.Anim:
                 imageCanvas.RestartAnimation();
                 break;
-            case "imagereading":
+            case SettingKind.ImageReading:
                 if (imageMode) SetReadingMode(settings.ImagePageTouch ? ReadingMode.PageTouch : ReadingMode.Page); // 보고 있는 만화에도 바로
                 break;
-            case "txtbreak":
+            case SettingKind.TxtBreak:
                 // 문장 단위 줄바꿈을 켜거나 껐다: 열려 있는 txt 웹 화면을 그 자리에서 다시 만든다.
                 if (shownKind == ContentKind.Txt && txtWeb && !string.IsNullOrEmpty(currentPath)) ShowTxtWeb(txtWebTopOffset);
                 break;
-            case "txtsplit":
+            case SettingKind.TxtSplit:
                 // 열려 있는 txt는 챕터 목록만 다시 나눈다(본문과 읽던 위치는 그대로). 수정 중이거나 zip에서 꺼낸 글은 다시 열 때 적용된다.
                 if (shownKind == ContentKind.Txt && !txtFromZip && mainEditor.ReadOnly && fullText.Length > 0)
                 {
@@ -595,11 +595,10 @@ public partial class MainForm
     // ───────────────────────── 서재 · 끌어놓기 · 설정/도움말 창 ─────────────────────────
 
     // 서재는 이제 프로그램의 시작 화면이라 읽기 창이 소유하지 않는다 — 창을 열고 닫는 건 AppShared가 맡는다.
-    // 서재 안에 들어가 있으면(embedded) 서재 목록 화면으로 돌아가고, 따로 뜬 창이면 서재 창을 앞으로 가져온다.
+    // 볼트 창 안의 탭이면 홈 화면으로 돌아가 달라고 알린다(작은 PIP 창에는 받는 쪽이 없다).
     private void ShowLibrary()
     {
-        if (embedded) BackToLibraryRequested?.Invoke();
-        else AppShared.PickAndOpenVault(this);
+        HomeRequested?.Invoke();
     }
 
     private void ShowSettings() => AppShared.ShowSettings(this);
@@ -625,12 +624,12 @@ public partial class MainForm
         var dirs = paths.Where(Directory.Exists).ToList();
         if (dirs.Count > 0)
         {
-            AppShared.AddFoldersToLibrary(dirs);
+            AppShared.OpenDroppedFolder(dirs);
             return;
         }
 
-        string file = paths.First(File.Exists);
-        OpenPath(file);
+        string? file = paths.FirstOrDefault(File.Exists);
+        if (file != null) OpenPath(file);
     }
 
     // ───────────────────────── 우클릭 메뉴 · 웹 검색 ─────────────────────────
@@ -755,8 +754,8 @@ public partial class MainForm
     /// 메뉴·상태줄·제목표시줄을 숨기고 화면 전체로 본다. FormBorderStyle을 바꾸면 창 핸들이 다시 만들어져서
     /// 안에 든 WebView2(epub·PDF)가 깨질 수 있어, 창 스타일 비트만 직접 바꾸는 방식으로 한다.
     /// </summary>
-    /// <summary>실제 창. 서재 안에 들어가 있으면(embedded) 서재 창, 아니면 이 창 자신 — 몰입 모드 · 활성 여부는 이 창 기준이어야 한다.</summary>
-    private Form HostForm => embedded && TopLevelControl is Form f ? f : this;
+    /// <summary>실제 창. 볼트 창의 탭 · PIP 창 안에 들어가 있으면 그 창, 아니면 이 창 자신 — 몰입 모드 · 활성 여부는 이 창 기준이어야 한다.</summary>
+    private Form HostForm => TopLevelControl is Form f ? f : this;
 
     /// <summary>이 읽기 화면이 들어 있는 창이 지금 앞에 있는지(서재 안에 들어가 있으면 ActiveForm은 서재 창이다).</summary>
     private bool IsHostActive => ActiveForm == HostForm;

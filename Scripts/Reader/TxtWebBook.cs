@@ -20,20 +20,22 @@ public sealed class TxtWebBook
     /// <summary>각 문서가 맡은 전체 글 기준 [Start, End) 구간. Book.Chapters와 같은 순서·개수.</summary>
     public IReadOnlyList<(int Start, int End)> Ranges { get; }
     public int TextLength { get; }
+    /// <summary>문서들을 써 둔 임시 폴더(소설 본문의 복사본이 들어 있다). 다 보고 나면 TempCleanup으로 지운다.</summary>
+    public string Dir { get; }
 
-    private TxtWebBook(EpubBook book, List<(int, int)> ranges, int textLength)
+    private TxtWebBook(EpubBook book, List<(int, int)> ranges, int textLength, string dir)
     {
         Book = book;
         Ranges = ranges;
         TextLength = textLength;
+        Dir = dir;
     }
 
     /// <summary>text는 줄바꿈이 \r\n으로 정리된 전체 글(ShowLoadedText 참고), chapters는 그 글을 나눈 챕터 목록.</summary>
     public static TxtWebBook Build(string text, IReadOnlyList<TxtChapter> chapters, string title, string sourcePath, bool autoBreak = false)
     {
-        string dir = Path.Combine(Path.GetTempPath(), "CafeumTxt",
-            Path.GetFileNameWithoutExtension(sourcePath) + "_" + Math.Abs(sourcePath.GetHashCode()));
-        try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { /* 못 지운 옛 파일은 아래에서 덮어쓴다 */ }
+        // 만들 때마다 새 폴더를 쓴다(같은 글을 두 창에서 열어도, 글꼴을 바꿔 다시 만들어도 서로 지우지 않게). 옛 폴더는 부른 쪽이 지운다.
+        string dir = Path.Combine(Path.GetTempPath(), "CafeumTxt", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
 
         var parts = new List<(string Name, int Start, int End)>();
@@ -66,7 +68,7 @@ public sealed class TxtWebBook
             epubChapters.Add(new EpubChapter(name, file));
             ranges.Add((start, end));
         }
-        return new TxtWebBook(new EpubBook { Title = title, Chapters = epubChapters }, ranges, text.Length);
+        return new TxtWebBook(new EpubBook { Title = title, Chapters = epubChapters }, ranges, text.Length, dir);
     }
 
     /// <summary>offset(전체 글 기준)이 들어 있는 문서 번호.</summary>

@@ -12,6 +12,9 @@ public sealed record EpubChapter(string Name, string FilePath);
 /// </summary>
 public sealed class EpubBook
 {
+    private const int MaxEntries = 50_000;
+    private const long MaxTotalBytes = 4L << 30; // 압축을 푼 뒤 합계 4GB
+
     public string Title { get; init; } = "";
     public List<EpubChapter> Chapters { get; init; } = new();
 
@@ -24,13 +27,19 @@ public sealed class EpubBook
         Directory.CreateDirectory(extractDir);
         try
         {
-            ExtractWithProgress(epubPath, extractDir, progress, cancellationToken);
+            return LoadExtracted(epubPath, extractDir, progress, cancellationToken);
         }
         catch
         {
-            try { Directory.Delete(extractDir, true); } catch { /* 정리 실패는 무시 — 다음에 열 때 어차피 지우고 다시 만든다 */ }
+            // 풀다 만 폴더든, 풀고 나서 epub 형식이 틀렸다고 알게 된 폴더든 남기지 않는다.
+            try { Directory.Delete(extractDir, true); } catch { /* 정리 실패는 무시 — 프로그램을 켤 때 오래된 임시 폴더를 지운다(TempCleanup) */ }
             throw;
         }
+    }
+
+    private static EpubBook LoadExtracted(string epubPath, string extractDir, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
+        ExtractWithProgress(epubPath, extractDir, progress, cancellationToken);
 
         // 1) META-INF/container.xml에서 실제 OPF(패키지 문서) 경로를 찾는다.
         string containerPath = Path.Combine(extractDir, "META-INF", "container.xml");
@@ -43,7 +52,9 @@ public sealed class EpubBook
         if (string.IsNullOrEmpty(opfRelPath))
             throw new InvalidDataException("container.xml에서 OPF 경로를 찾을 수 없습니다.");
 
-        string opfPath = Path.Combine(extractDir, opfRelPath.Replace('/', Path.DirectorySeparatorChar));
+        string? opfPath = ResolveInside(extractDir, extractDir, opfRelPath);
+        if (opfPath == null || !File.Exists(opfPath))
+            throw new InvalidDataException("epub 안의 OPF 경로가 올바르지 않습니다.");
         string opfDir = Path.GetDirectoryName(opfPath) ?? extractDir;
 
         // 2) OPF: manifest(파일 id -> 실제 경로)와 spine(읽는 순서)을 읽는다.
@@ -60,7 +71,9 @@ public sealed class EpubBook
             string? id = item.Attribute("id")?.Value;
             string? href = item.Attribute("href")?.Value;
             if (id == null || href == null) continue;
-            manifest[id] = Path.Combine(opfDir, Uri.UnescapeDataString(href).Replace('/', Path.DirectorySeparatorChar));
+            // 풀어 둔 폴더 밖(../ 나 C:\ 같은 경로)을 가리키는 항목은 쓰지 않는다. 그대로 두면 책이 내 컴퓨터의 아무 파일이나 챕터로 띄우고,
+            // 수정하기를 켰을 때는 그 파일을 덮어쓸 수도 있다.
+            if (ResolveInside(extractDir, opfDir, Uri.UnescapeDataString(href)) is { } inside) manifest[id] = inside;
         }
 
         var chapters = new List<EpubChapter>();
@@ -88,7 +101,10 @@ public sealed class EpubBook
         using var zip = ZipFile.OpenRead(zipPath);
         var entries = zip.Entries.ToList();
         long totalBytes = entries.Sum(e => e.Length);
-        long doneBytes = 0;
+        // 압축 폭탄 방지: 작은 epub이 풀면 수십 GB가 되도록 만든 파일이 임시 폴더 디스크를 채우지 못하게 한도를 둔다.
+        if (entries.Count > MaxEntries || totalBytes > MaxTotalBytes)
+            throw new InvalidDataException("epub이 너무 커서 열지 않았어요(압축을 풀면 4GB가 넘거나 파일이 너무 많아요).");
+        long doneBytes = 0, written = 0;
         string destRoot = Path.GetFullPath(destDir + Path.DirectorySeparatorChar);
 
         foreach (var entry in entries)
@@ -105,12 +121,34 @@ public sealed class EpubBook
             else
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                entry.ExtractToFile(destPath, overwrite: true);
+                // 목록에 적힌 크기를 믿지 않고 실제로 쓴 크기를 센다(거짓 크기를 적은 압축 폭탄 대비).
+                using var src = entry.Open();
+                using var dst = File.Create(destPath);
+                var buffer = new byte[81920];
+                int read;
+                while ((read = src.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    written += read;
+                    if (written > MaxTotalBytes) throw new InvalidDataException("epub이 너무 커서 열지 않았어요(압축을 풀면 4GB가 넘어요).");
+                    dst.Write(buffer, 0, read);
+                }
             }
 
             doneBytes += entry.Length;
             if (totalBytes > 0) progress?.Report((double)doneBytes / totalBytes);
         }
+    }
+
+    /// <summary>baseDir 기준 상대 경로(relative)를 절대 경로로 바꾸되, root 폴더 안이 아니면 null. 이상한 글자가 있어도 null.</summary>
+    private static string? ResolveInside(string root, string baseDir, string relative)
+    {
+        try
+        {
+            string full = Path.GetFullPath(Path.Combine(baseDir, relative.Replace('/', Path.DirectorySeparatorChar)));
+            string rootFull = Path.GetFullPath(root + Path.DirectorySeparatorChar);
+            return full.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase) ? full : null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return null; }
     }
 
     /// <summary>챕터 XHTML의 &lt;title&gt;을 읽어 목록에 조금 더 알아보기 쉬운 이름을 쓴다(실패하면 그냥 null).</summary>

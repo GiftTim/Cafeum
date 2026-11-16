@@ -190,7 +190,7 @@ public partial class MainForm
         ApplyReadBarLayout();
         // 문서 이름(과 그 앞 구분선)은 쓰지 않는다. 도움말 · 설정 버튼은 서재 창(머리 막대)이 따로 들고 있다.
         // 메뉴 · 몰입 · 항상 위 · 도움말 · 설정은 서재 창이 머리 막대 맨 오른쪽에 늘 띄운다(VaultForm).
-        foreach (var k in new[] { "title", "sepC", "settings", "menu", "immersion", "pin", "sep", "sep2", "library", "open" }) toolbarItems[k].Visible = false; // 카페움 오피스에서 안 쓰는 버튼(구분선 · 볼트 열기 · 네비게이션 · 낭독 · 수정 · 파일 열기 · 보기 설정). 머리 막대 구분선은 VaultForm이 따로 들고 있다.
+        foreach (var k in new[] { "title", "sepC", "settings", "menu", "immersion", "pin", "sep", "sep2", "library", "open" }) toolbarItems[k].Visible = false; // Cafeum에서 안 쓰는 버튼(구분선 · 볼트 열기 · 네비게이션 · 낭독 · 수정 · 파일 열기 · 보기 설정). 머리 막대 구분선은 VaultForm이 따로 들고 있다.
         if (refBarActive) SyncRefBarKind(); // 참고 자료 서식창에 가져다 쓴 버튼(항상 위 · 몰입 · 설정)은 다시 보이게
         FitReaderTitle();
         MainMenuStrip?.PerformLayout();
@@ -203,7 +203,7 @@ public partial class MainForm
     internal MenuStrip? DetachToolbar()
     {
         var m = MainMenuStrip;
-        if (!embedded || m == null) return null;
+        if (m == null) return null;
         Controls.Remove(m);
         return m;
     }
@@ -411,7 +411,7 @@ public partial class MainForm
                 if (lookRec != null) { SetLook(r => r.LookLine = value); return; }
                 settings.LineHeight = value;
                 settings.Save();
-                AppShared.NotifySettingsChanged("margin");
+                AppShared.NotifySettingsChanged(SettingKind.Margin);
             }) { Tag = value });
         }
         lineMenu.DropDownOpening += (_, _) =>

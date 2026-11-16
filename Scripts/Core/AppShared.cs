@@ -2,7 +2,7 @@ namespace Cafeum;
 
 /// <summary>
 /// 프로그램 전체가 함께 쓰는 것들: 설정, 읽은 기록, 그리고 볼트 창(VaultForm)·설정 창을 여는 곳.
-/// 카페움 오피스는 볼트(폴더 하나)를 여는 창이 본체이고, 문서마다 읽기 화면(MainForm)이 그 창 안의 탭으로 들어간다.
+/// Cafeum은 볼트(폴더 하나)를 여는 창이 본체이고, 문서마다 읽기 화면(MainForm)이 그 창 안의 탭으로 들어간다.
 /// 창이 여러 개여도 설정과 읽은 기록은 하나를 같이 써야 한다(창마다 따로 읽어 저장하면 서로 덮어쓴다).
 /// </summary>
 internal static class AppShared
@@ -51,8 +51,8 @@ internal static class AppShared
     public static ReaderTheme LibraryTheme =>
         Themes.All.FirstOrDefault(t => t.Name == Settings.LibraryTheme) ?? Themes.Find(Settings.Theme);
 
-    /// <summary>설정이 바뀌었다(종류: theme, font, fontsize, margin, tts, pdf). 열려 있는 읽기 화면들이 각자 반영한다.</summary>
-    public static event Action<string>? SettingsChanged;
+    /// <summary>설정이 바뀌었다(종류는 SettingKind). 열려 있는 읽기 화면들이 각자 반영한다.</summary>
+    public static event Action<SettingKind>? SettingsChanged;
 
     private static SettingsForm? settingsForm;
     private static readonly List<MainForm> readers = new();
@@ -197,7 +197,7 @@ internal static class AppShared
     }
 
     /// <summary>폴더를 끌어다 놓았을 때: 그 폴더를 볼트로 연다.</summary>
-    public static void AddFoldersToLibrary(IEnumerable<string> dirs)
+    public static void OpenDroppedFolder(IEnumerable<string> dirs)
     {
         if (dirs.FirstOrDefault() is string dir) OpenVault(dir);
     }
@@ -220,27 +220,27 @@ internal static class AppShared
     }
 
     /// <summary>설정 값이 바뀐 걸 모든 창에 알린다. 테마면 볼트 · 설정 창의 색도 바꾼다.</summary>
-    public static void NotifySettingsChanged(string kind)
+    public static void NotifySettingsChanged(SettingKind kind)
     {
-        // 볼트 전용 설정(libtheme · libfont)은 볼트 창만 다시 그리면 되고, 읽기 화면들에는 알릴 게 없다.
-        if (kind.StartsWith("lib", StringComparison.Ordinal))
+        // 볼트 전용 설정(LibTheme · LibFont)은 볼트 창만 다시 그리면 되고, 읽기 화면들에는 알릴 게 없다.
+        if (kind is SettingKind.LibTheme or SettingKind.LibFont)
         {
             foreach (var v in vaults.Where(v => !v.IsDisposed))
             {
-                if (kind == "libtheme") v.ApplyTheme(LibraryTheme);
+                if (kind == SettingKind.LibTheme) v.ApplyTheme(LibraryTheme);
                 else v.ApplyVaultSettings();
             }
             return;
         }
 
-        if (kind == "theme")
+        if (kind == SettingKind.Theme)
         {
             var theme = Themes.Find(Settings.Theme);
             ToolStripManager.Renderer = Themes.CreateRenderer(theme);
             foreach (var v in vaults.Where(v => !v.IsDisposed)) v.ApplyTheme(LibraryTheme); // 볼트 전용 색을 골라뒀으면 그대로 유지된다
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.ApplyTheme(theme);
         }
-        if (kind == "toolbar") foreach (var v in vaults.Where(v => !v.IsDisposed)) v.ApplyHeaderButtons();
+        if (kind == SettingKind.Toolbar) foreach (var v in vaults.Where(v => !v.IsDisposed)) v.ApplyHeaderButtons();
         SettingsChanged?.Invoke(kind);
     }
 }

@@ -151,7 +151,7 @@ internal static class WikiStore
         return WikiDoc.Parse(path, text);
     }
 
-    public static void Save(WikiDoc d) => File.WriteAllText(d.Path, d.Serialize(), new UTF8Encoding(false));
+    public static void Save(WikiDoc d) => SafeFile.WriteAllText(d.Path, d.Serialize(), new UTF8Encoding(false));
 
     public static WikiDoc Create(string novelDir, string title, string category, string summary, List<string> tags)
     {

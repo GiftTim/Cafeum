@@ -64,6 +64,7 @@ public partial class MainForm : Form
     private bool epubPendingStartAtLastPage = false; // "이전 챕터"로 넘어갈 때, 새 챕터의 마지막 페이지부터 시작
     private bool epubEditable = false; // epub 수정하기 on/off (document.body.contentEditable)
     private string? epubExtractDir; // epub을 통째로 풀어둔 임시 폴더 — 저장할 때 이걸 다시 zip으로 묶는다
+    private string? txtTempDir; // txt를 웹 화면으로 보려고 만든 문서들(소설 본문 복사본)이 든 임시 폴더 — 창을 닫을 때 지운다
 
     // ── pdf ──
     // WebView2(크로미움 엔진)에 로컬 파일을 그대로 navigate시키면 엣지와 똑같은 내장 PDF 뷰어(페이지 넘기기·
@@ -84,7 +85,8 @@ public partial class MainForm : Form
     private bool imageDouble; // 두쪽 보기 여부(설정 ImageDoublePage와 같은 값)
     private readonly List<ToolStripMenuItem> imageLayoutMenuItems = new();
     private ReadingOrder imageOrder = ReadingOrder.Ltr;
-    private readonly List<(int ItemIndex, ImageHalf Half)> imagePages = new();
+    // 쪽 목록은 고치지 않고 통째로 새 목록으로 바꿔 끼운다(RebuildImagePages). 미리 불러오기 스레드가 읽는 도중 목록이 지워지고 다시 채워지는 일이 없게.
+    private List<(int ItemIndex, ImageHalf Half)> imagePages = new();
     private readonly List<ToolStripMenuItem> imageOrderMenuItems = new();
     private readonly List<ToolStripMenuItem> imageViewModeMenuItems = new();
     private readonly PageScrubberBar pageScrubberBar; // 만화 하단의 위치 막대(꿀뷰처럼 드래그로 페이지 이동)
@@ -147,16 +149,14 @@ public partial class MainForm : Form
     private int txtWebTopOffset; // 웹 화면 맨 위 줄의 원본 위치(QueryTxtTop이 주기적으로 읽어 둔다)
     private int txtFindStart, txtFindEnd; // 웹 화면에서 마지막으로 찾은 구간(찾기 바의 "다음 · 이전" 기준)
 
-    /// <summary>서재 창 안에 넣어 쓰는 읽기 화면인지(LibraryForm.OpenBook). 툴바 맨 앞에 [‹ 서재]가 생기고, 서재로 돌아가기 ·
-    /// 몰입 모드 · 창 활성 여부를 서재 창 기준으로 처리한다.</summary>
-    private readonly bool embedded;
+    /// <summary>
+    /// Ctrl+L · 맨 앞 홈 버튼 — 작품 화면(볼트 창 안의 탭)에서 홈 화면으로 돌아가 달라는 요청. 작은 PIP 창에서는 받는 쪽이 없다.
+    /// (이 읽기 화면은 늘 다른 창 안에 들어가 쓴다: 볼트 창의 탭, 또는 PIP 창. 예전 독립 창 모드는 없어졌다.)
+    /// </summary>
+    public event Action? HomeRequested;
 
-    /// <summary>[‹ 서재] · Ctrl+L — 서재 안에 들어가 있을 때 목록 화면으로 돌아가 달라는 요청.</summary>
-    public event Action? BackToLibraryRequested;
-
-    public MainForm(string? initialPath, bool embedded = false)
+    public MainForm(string? initialPath)
     {
-        this.embedded = embedded;
         AutoScaleMode = AutoScaleMode.None; // DPI 배율에 따른 좌표 재계산으로 컨트롤이 겹치는 걸 방지
         Icon = AppShared.LoadAppIcon(); // exe에 심어둔 아이콘(csproj의 ApplicationIcon)을 그대로 창/작업표시줄에도 사용
         Text = AppShared.AppDisplayName;
@@ -404,7 +404,7 @@ public partial class MainForm : Form
         MainMenuStrip = menu;
         Load += (_, _) => AttachMenuGuards();   // 툴바 · 메뉴의 드롭다운도 밖을 한 번 누르면 닫히게(웹 화면 위여도)
         Shown += (_, _) => AttachMenuGuards();
-        if (embedded) { menu.AutoSize = false; menu.Height = 0; } // 서재 안에서는 메뉴 줄을 안 쓴다(메뉴는 칸 머리의 ⋯로) — 남겨 두면 탭 밑에 빈 띠가 생긴다
+        menu.AutoSize = false; menu.Height = 0; // 이 화면은 메뉴 줄을 안 쓴다(메뉴는 칸 머리의 ⋯로) — 남겨 두면 탭 밑에 빈 띠가 생긴다
 
         SetEditMode(false); // 시작은 항상 읽기 전용
 
@@ -441,7 +441,12 @@ public partial class MainForm : Form
         };
         Resize += (_, _) => RepositionOverlays();
         // 프리페치 캐시에 들고 있던 이미지들이 창을 닫을 때 같이 정리되도록.
-        FormClosed += (_, _) => { loadCts?.Cancel(); imageSet?.Dispose(); ClearImageCache(); StopSlideshow(); mainEditorTapTimer.Dispose(); arrowHoverTimer.Dispose(); };
+        FormClosed += (_, _) =>
+        {
+            loadCts?.Cancel(); imageSet?.Dispose(); ClearImageCache(); StopSlideshow(); mainEditorTapTimer.Dispose(); arrowHoverTimer.Dispose();
+            TempCleanup.DeleteQuietly(epubExtractDir); // 풀어 둔 epub · 소설 본문 복사본은 창을 닫을 때 지운다
+            TempCleanup.DeleteQuietly(txtTempDir);
+        };
 
         if (string.IsNullOrEmpty(initialPath) || !File.Exists(initialPath))
             statusLabel.Text = "파일 > 열기로 .txt / .epub / .pdf 파일을 선택하세요.";
@@ -483,6 +488,12 @@ public partial class MainForm : Form
 
     private async void LoadFile(string path)
     {
+        // 글 파일이 아닌 것(압축 · 문서 · 실행 파일 등)을 글로 열면 깨진 글자가 보이고, 거기서 한 글자라도 고치면 자동 저장이 원본을 덮어써서 망가진다.
+        if (!LooksLikeText(path))
+        {
+            MessageBox.Show(this, "글 파일이 아닌 것 같아서 열지 않았어요.\n(txt · epub · pdf · hwp · zip · 그림 파일을 열 수 있어요.)", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
         string text;
         var cts = new CancellationTokenSource();
         loadCts = cts;
@@ -521,14 +532,12 @@ public partial class MainForm : Form
     /// </summary>
     private void ShowLoadedText(string path, string text, List<TxtChapter>? prepared, bool fromZip)
     {
-        // WinForms TextBox(Win32 Edit 컨트롤)는 줄바꿈을 \r\n으로 넣어야 확실히 인식한다.
-        // 파일이 \n만 쓰는 유닉스/맥 방식이면 그냥 다 붙어 보이므로, 어떤 방식이든 \r\n으로 통일한다.
-        if (prepared == null) text = text.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
+        // 줄바꿈 통일은 아래 두 갈래(편집기 · 웹 화면)가 각자 \n 한 글자로 맞춘다.
         FlushAutoSave(); // 앞서 쓰던 파일에 고친 게 남았으면 먼저 저장
         txtFromZip = fromZip;
         hwpSource = !fromZip && HwpDocument.IsHwpExtension(path);
         if (fromZip || hwpSource) txtSaveEncoding = new UTF8Encoding(false);
-        // 카페움 오피스: 보통 txt는 메모장처럼 바로 쓸 수 있게 텍스트 상자로 연다(zip · 한글 문서에서 뽑은 글은 예전처럼 읽기 화면).
+        // Cafeum: 보통 txt는 메모장처럼 바로 쓸 수 있게 텍스트 상자로 연다(zip · 한글 문서에서 뽑은 글은 예전처럼 읽기 화면).
         // 참고 자료 폴더의 txt는 남의 글이라 바로 고치게 열지 않는다: 읽기 화면으로 열고 [수정하기]를 눌러야 고칠 수 있다.
         directEdit = !fromZip && !hwpSource && !IsReferenceFile(path);
         if (directEdit)
@@ -549,7 +558,7 @@ public partial class MainForm : Form
             Text = $"{Path.GetFileName(path)} — {AppShared.AppDisplayName}";
             statusLabel.Text = $"총 {text.Length:N0}자";
             mainEditor.Text = text;
-            if (directEdit) TryLoadFormatSidecar(text); // 이 글에 입혀 둔 서식이 있으면 불러온다
+            TryLoadFormatSidecar(text); // 이 글에 입혀 둔 서식이 있으면 불러온다
             mainEditor.ApplyParaFormat(EditorPara(), force: true); // 글을 새로 넣으면 문단 서식이 기본으로 돌아가니 다시 건다
             formatDirty = false;
             savedSnapshot = mainEditor.Text;
@@ -590,10 +599,6 @@ public partial class MainForm : Form
         ShowTxtWeb(saved);
     }
 
-    /// <summary>
-    /// txt를 웹 화면으로 띄운다: 글을 문서 여러 개로 나눠 임시 폴더에 쓰고(TxtWebBook) epub과 같은 길로 보여준 뒤 offset 위치로 옮긴다.
-    /// WebView2 런타임이 없는 PC처럼 웹 화면을 못 쓰면 예전처럼 텍스트 상자로 보여준다.
-    /// </summary>
     /// <summary>이 창의 모든 툴바 · 메뉴 줄의 드롭다운에 "밖을 누르면 닫기"를 건다(이미 건 것은 건너뛴다).</summary>
     private void AttachMenuGuards()
     {
@@ -606,6 +611,11 @@ public partial class MainForm : Form
         if (readBar != null) MenuGuard.AttachAll(readBar); // 참고 자료 서식창(읽기 방식 · 보기 모드 …)은 창에 붙기 전에도 걸어 둔다
         if (lookBar != null) MenuGuard.AttachAll(lookBar);
     }
+
+    /// <summary>
+    /// txt를 웹 화면으로 띄운다: 글을 문서 여러 개로 나눠 임시 폴더에 쓰고(TxtWebBook) epub과 같은 길로 보여준 뒤 offset 위치로 옮긴다.
+    /// WebView2 런타임이 없는 PC처럼 웹 화면을 못 쓰면 예전처럼 텍스트 상자로 보여준다.
+    /// </summary>
     private async void ShowTxtWeb(int offset)
     {
         string path = currentPath!;
@@ -616,8 +626,10 @@ public partial class MainForm : Form
             var chs = chapters;
             bool brk = settings.TxtAutoBreak;
             var book = await Task.Run(() => TxtWebBook.Build(text, chs, title, path, brk));
-            if (!txtWeb || currentPath != path) return; // 만드는 사이 다른 파일을 열었거나 수정하기를 켰다
+            if (!txtWeb || currentPath != path) { TempCleanup.DeleteQuietly(book.Dir); return; } // 만드는 사이 다른 파일을 열었거나 수정하기를 켰다
             txtBook = book;
+            if (txtTempDir != null && txtTempDir != book.Dir) TempCleanup.DeleteQuietly(txtTempDir); // 앞서 만든 소설 본문 복사본
+            txtTempDir = book.Dir;
         }
         catch (Exception ex)
         {
@@ -632,6 +644,7 @@ public partial class MainForm : Form
         }
 
         epubBook = txtBook.Book;
+        TempCleanup.DeleteQuietly(epubExtractDir); // 앞서 보던 epub을 풀어 둔 폴더(이제 txt를 보니 필요 없다)
         epubExtractDir = null;
         epubChapterIndex = -1; // 예전 epub의 같은 번호 챕터를 "이미 떠 있는 문서"로 착각하지 않게
         lastEpubTrackedChapter = -1;
@@ -769,7 +782,8 @@ public partial class MainForm : Form
         string content = pageMode || txtWeb ? fullText : mainEditor.Text;
         try
         {
-            File.WriteAllText(path!, ToCrlf(content), txtSaveEncoding);
+            txtSaveEncoding = ChooseSaveEncoding(content);
+            SafeFile.WriteAllText(path!, ToCrlf(content), txtSaveEncoding);
             if (directEdit) savedSnapshot = content;
             currentPath = path;
             txtFromZip = false; // 이제 진짜 txt 파일로 저장됐다
@@ -822,24 +836,27 @@ public partial class MainForm : Form
     /// <summary>풀어둔 epub 폴더를 다시 zip으로 묶는다. epub 규격상 mimetype은 압축 없이 맨 처음 항목이어야 한다.</summary>
     private static void RepackEpub(string extractDir, string targetPath)
     {
-        if (File.Exists(targetPath)) File.Delete(targetPath);
-        using var zip = System.IO.Compression.ZipFile.Open(targetPath, System.IO.Compression.ZipArchiveMode.Create);
-
-        string mimetypePath = Path.Combine(extractDir, "mimetype");
-        if (File.Exists(mimetypePath))
+        // 원본 epub을 먼저 지우고 새로 만들면 만드는 도중 실패했을 때 책이 사라진다 — 임시 파일에 다 만든 뒤 바꿔치기한다.
+        SafeFile.WriteAtomic(targetPath, tmp =>
         {
-            var entry = zip.CreateEntry("mimetype", System.IO.Compression.CompressionLevel.NoCompression);
-            using var entryStream = entry.Open();
-            using var src = File.OpenRead(mimetypePath);
-            src.CopyTo(entryStream);
-        }
+            using var zip = System.IO.Compression.ZipFile.Open(tmp, System.IO.Compression.ZipArchiveMode.Create);
 
-        foreach (var file in Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories))
-        {
-            string rel = Path.GetRelativePath(extractDir, file).Replace('\\', '/');
-            if (rel == "mimetype") continue;
-            zip.CreateEntryFromFile(file, rel, System.IO.Compression.CompressionLevel.Optimal);
-        }
+            string mimetypePath = Path.Combine(extractDir, "mimetype");
+            if (File.Exists(mimetypePath))
+            {
+                var entry = zip.CreateEntry("mimetype", System.IO.Compression.CompressionLevel.NoCompression);
+                using var entryStream = entry.Open();
+                using var src = File.OpenRead(mimetypePath);
+                src.CopyTo(entryStream);
+            }
+
+            foreach (var file in Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories))
+            {
+                string rel = Path.GetRelativePath(extractDir, file).Replace('\\', '/');
+                if (rel == "mimetype") continue;
+                zip.CreateEntryFromFile(file, rel, System.IO.Compression.CompressionLevel.Optimal);
+            }
+        });
     }
 
     // ───────────────────────── 읽기 ↔ 편집 모드 ─────────────────────────
@@ -988,13 +1005,14 @@ public partial class MainForm : Form
         try
         {
             await EnsureEpubViewAsync();
-            epubExtractDir = Path.Combine(Path.GetTempPath(), "CafeumEpub",
-                Path.GetFileNameWithoutExtension(path) + "_" + Math.Abs(path.GetHashCode()));
-            string extractDir = epubExtractDir;
+            // 열 때마다 새 폴더에 푼다(같은 책을 두 창에서 열어도 서로의 폴더를 지우지 않게). 다 읽은 폴더는 지운다(TempCleanup).
+            string extractDir = Path.Combine(Path.GetTempPath(), "CafeumEpub", Guid.NewGuid().ToString("N"));
+            string? previousExtractDir = epubExtractDir;
             var progress = new Progress<double>(loadingOverlay.Report);
             // 이미지가 많이 든 큰 epub은 통째로 풀어두는(EpubBook.Load 안의 압축 해제) 부분이 시간이
             // 걸려서, UI 스레드를 막지 않게 백그라운드에서 돌리고 진행률만 받아온다.
             epubBook = await Task.Run(() => EpubBook.Load(path, extractDir, progress, cts.Token));
+            epubExtractDir = extractDir; // 열기에 성공한 뒤에야 바꾼다(실패하면 앞서 보던 책의 폴더가 그대로 남도록)
             imageSet?.Dispose();
             imageSet = null;
             ClearImageCache();
@@ -1003,6 +1021,7 @@ public partial class MainForm : Form
             SetContentMode(ContentKind.Epub);
             SetEditMode(false); // 새 epub을 열면 항상 읽기 전용으로 시작한다
             ShowEpubChapter(TakeSavedEpubStart(path)); // 읽던 챕터가 있으면 거기부터, 없으면 0
+            TempCleanup.DeleteQuietly(previousExtractDir); // 앞서 보던 epub을 풀어 둔 폴더
 
             Text = $"{epubBook.Title} — {AppShared.AppDisplayName}";
             statusLabel.Text = $"{epubBook.Chapters.Count}개 챕터 (epub)";
@@ -1084,6 +1103,7 @@ public partial class MainForm : Form
         // 항상 밝은 배색으로 강제한다(실제 색은 아래 BuildEpubThemeScript가 테마대로 덮어쓴다).
         epubView.CoreWebView2.Profile.PreferredColorScheme = CoreWebView2PreferredColorScheme.Light;
         epubView.CoreWebView2.Settings.IsZoomControlEnabled = false; // Ctrl+휠 · Ctrl+-/+ 는 브라우저 확대가 아니라 글자 크기로(ZoomBy)
+        EpubWebGuard.Attach(epubView.CoreWebView2, () => ShowToast("책 안의 인터넷 주소는 열지 않아요")); // 책이 외부 서버에 접속하지 못하게
         epubView.CoreWebView2.NavigationCompleted += async (_, _) => await OnEpubNavigationCompleted();
         epubView.CoreWebView2.WebMessageReceived += OnEpubWebMessage;
         HookWebViewKeys(epubView);
@@ -1859,8 +1879,8 @@ public partial class MainForm : Form
     {
         // 페이지 번호 ↔ 실제 이미지 대응이 통째로 바뀌므로, 예전 번호로 채워둔 프리페치 캐시는 여기서 버린다.
         ClearImageCache();
-        imagePages.Clear();
-        if (imageSet == null) return;
+        var pages = new List<(int ItemIndex, ImageHalf Half)>();
+        if (imageSet == null) { imagePages = pages; return; }
         int n = imageSet.Count;
         bool spread = imageOrder is ReadingOrder.LtrSpread or ReadingOrder.RtlSpread;
         bool rtl = imageOrder is ReadingOrder.Rtl or ReadingOrder.RtlSpread;
@@ -1869,28 +1889,29 @@ public partial class MainForm : Form
         {
             for (int i = 0; i < n; i++)
             {
-                if (rtl) { imagePages.Add((i, ImageHalf.Right)); imagePages.Add((i, ImageHalf.Left)); }
-                else { imagePages.Add((i, ImageHalf.Left)); imagePages.Add((i, ImageHalf.Right)); }
+                if (rtl) { pages.Add((i, ImageHalf.Right)); pages.Add((i, ImageHalf.Left)); }
+                else { pages.Add((i, ImageHalf.Left)); pages.Add((i, ImageHalf.Right)); }
             }
         }
         else if (imageDouble)
         {
             // 두쪽 보기: 연속한 두 장을 한 화면으로(좌우 순서는 LoadPageImage에서 읽는 방향대로 이어 붙인다). 홀수 장이면 마지막은 혼자.
             for (int i = 0; i < n; i += 2)
-                imagePages.Add((i, i + 1 < n ? ImageHalf.Pair : ImageHalf.None));
+                pages.Add((i, i + 1 < n ? ImageHalf.Pair : ImageHalf.None));
         }
         else if (rtl)
         {
             for (int i = 0; i < n; i += 2)
             {
-                if (i + 1 < n) { imagePages.Add((i + 1, ImageHalf.None)); imagePages.Add((i, ImageHalf.None)); }
-                else imagePages.Add((i, ImageHalf.None));
+                if (i + 1 < n) { pages.Add((i + 1, ImageHalf.None)); pages.Add((i, ImageHalf.None)); }
+                else pages.Add((i, ImageHalf.None));
             }
         }
         else
         {
-            for (int i = 0; i < n; i++) imagePages.Add((i, ImageHalf.None));
+            for (int i = 0; i < n; i++) pages.Add((i, ImageHalf.None));
         }
+        imagePages = pages; // 다 만든 뒤에 한 번에 바꿔 끼운다
     }
 
     /// <summary>챕터 목록에서 실제 이미지 파일(원래 순서 기준)을 골랐을 때: 지금 순서/나누기 설정에서
@@ -1994,21 +2015,24 @@ public partial class MainForm : Form
     /// 걸리는 디코딩은 락 밖에서 한다 — 그래야 여러 페이지를 동시에(다른 코어에서) 미리 디코딩할 수 있다.</summary>
     private Image LoadPageImage(int pageIndex)
     {
-        var (itemIndex, half) = imagePages[pageIndex];
+        // 미리 불러오기 스레드에서도 불리므로, 쪽 목록과 이미지 묶음은 한 번만 집어 와서 끝까지 같은 것을 쓴다(그사이 다른 책이 열려도 섞이지 않게).
+        var pages = imagePages;
+        var set = imageSet ?? throw new InvalidOperationException("열려 있는 그림이 없어요.");
+        var (itemIndex, half) = pages[pageIndex];
         byte[] bytes;
         lock (imageLoadLock)
         {
-            bytes = imageSet!.LoadRawBytes(itemIndex);
+            bytes = set.LoadRawBytes(itemIndex);
         }
-        Image full = ImageLoader.Decode(bytes, imageSet!.Name(itemIndex));
+        Image full = ImageLoader.Decode(bytes, set.Name(itemIndex));
         if (half == ImageHalf.None) return full;
 
         if (half == ImageHalf.Pair)
         {
             // 두쪽 보기: 다음 그림도 불러와 나란히 이어 붙인다. 오른쪽→왼쪽 읽기면 앞 장이 오른쪽에 온다.
             byte[] bytes2;
-            lock (imageLoadLock) { bytes2 = imageSet.LoadRawBytes(itemIndex + 1); }
-            Image second = ImageLoader.Decode(bytes2, imageSet.Name(itemIndex + 1));
+            lock (imageLoadLock) { bytes2 = set.LoadRawBytes(itemIndex + 1); }
+            Image second = ImageLoader.Decode(bytes2, set.Name(itemIndex + 1));
             bool rtlOrder = imageOrder is ReadingOrder.Rtl or ReadingOrder.RtlSpread;
             return rtlOrder ? ComposePair(second, full) : ComposePair(full, second);
         }
@@ -2017,7 +2041,7 @@ public partial class MainForm : Form
         // 요청받은 쪽만 잘라내고 원본을 버리면, 곧이어(대부분 바로 다음/이전 페이지로) 반대쪽을
         // 불러올 때 같은 원본을 또 디코딩하게 된다. 그래서 여기서 반대쪽도 같이 잘라 캐시에
         // 넣어두고, 원본은 두 쪽을 다 자른 뒤에야 정리한다.
-        int siblingIndex = FindSiblingSpreadPage(pageIndex, itemIndex);
+        int siblingIndex = FindSiblingSpreadPage(pages, pageIndex, itemIndex);
         if (siblingIndex >= 0)
         {
             ImageHalf siblingHalf = half == ImageHalf.Left ? ImageHalf.Right : ImageHalf.Left;
@@ -2034,10 +2058,10 @@ public partial class MainForm : Form
     /// <summary>스프레드 모드에서 지금 페이지(pageIndex)와 같은 원본 이미지(itemIndex)를 공유하는
     /// 반대쪽 반쪽 페이지 번호를 찾는다. RebuildImagePages가 스프레드 페이지 둘을 항상 나란히
     /// 넣어두므로 바로 앞/뒤만 보면 된다. 못 찾으면(예: 목록 맨 끝) -1.</summary>
-    private int FindSiblingSpreadPage(int pageIndex, int itemIndex)
+    private static int FindSiblingSpreadPage(List<(int ItemIndex, ImageHalf Half)> pages, int pageIndex, int itemIndex)
     {
-        if (pageIndex + 1 < imagePages.Count && imagePages[pageIndex + 1].ItemIndex == itemIndex) return pageIndex + 1;
-        if (pageIndex - 1 >= 0 && imagePages[pageIndex - 1].ItemIndex == itemIndex) return pageIndex - 1;
+        if (pageIndex + 1 < pages.Count && pages[pageIndex + 1].ItemIndex == itemIndex) return pageIndex + 1;
+        if (pageIndex - 1 >= 0 && pages[pageIndex - 1].ItemIndex == itemIndex) return pageIndex - 1;
         return -1;
     }
 
@@ -2152,7 +2176,7 @@ public partial class MainForm : Form
     {
         settings.ImageDoublePage = dbl;
         settings.Save();
-        AppShared.NotifySettingsChanged("imagelayout");
+        AppShared.NotifySettingsChanged(SettingKind.ImageLayout);
     }
 
     /// <summary>한쪽/두쪽 보기가 바뀌었을 때: 메뉴 체크를 맞추고, 보던 그림이 있는 화면으로 페이지 목록을 다시 만든다.</summary>

@@ -23,7 +23,7 @@ internal sealed class PipForm : Form
         MinimumSize = new Size(360, 320);
         Size = new Size(720, 860);
 
-        doc = new MainForm(path, embedded: true) { TopLevel = false, FormBorderStyle = FormBorderStyle.None, Dock = DockStyle.Fill, InPip = true };
+        doc = new MainForm(path) { TopLevel = false, FormBorderStyle = FormBorderStyle.None, Dock = DockStyle.Fill, InPip = true };
         AppShared.RegisterReader(doc);
         Controls.Add(doc);
         doc.Show();

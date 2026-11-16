@@ -35,11 +35,24 @@ public sealed class ZipImageSet : IImageSet
     public int Count => entries.Count;
     public string Name(int index) => Path.GetFileName(entries[index].FullName);
 
-    public byte[] LoadRawBytes(int index)
+    public byte[] LoadRawBytes(int index) => ReadEntryLimited(entries[index]);
+
+    /// <summary>그림 한 장이 이보다 크면 열지 않는다(작은 zip이 풀면 수 GB가 되도록 만든 압축 폭탄이 메모리를 다 먹지 않게).</summary>
+    internal const long MaxImageBytes = 256L << 20;
+
+    /// <summary>zip 항목 하나를 메모리로 읽되, 목록에 적힌 크기와 실제로 읽은 크기가 모두 한도 안이어야 한다.</summary>
+    internal static byte[] ReadEntryLimited(ZipArchiveEntry entry)
     {
-        using var s = entries[index].Open();
+        if (entry.Length > MaxImageBytes) throw new InvalidDataException($"그림이 너무 커서 열지 않았어요: {entry.Name}");
+        using var s = entry.Open();
         using var ms = new MemoryStream();
-        s.CopyTo(ms);
+        var buffer = new byte[81920];
+        int read;
+        while ((read = s.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (ms.Length + read > MaxImageBytes) throw new InvalidDataException($"그림이 너무 커서 열지 않았어요: {entry.Name}");
+            ms.Write(buffer, 0, read);
+        }
         return ms.ToArray();
     }
 
@@ -61,6 +74,8 @@ public sealed class NestedZipImageSet : IImageSet
 {
     private readonly List<(ZipArchive innerZip, ZipArchiveEntry entry, string displayName)> pages = new();
 
+    private const long MaxNestedBytes = 3L << 30; // 안쪽 zip들을 메모리에 올릴 수 있는 합계 한도
+
     /// <summary>
     /// progress: 화(내부 zip) 하나를 다 풀 때마다 0.0~1.0 누적 진행률을 보고한다(안쪽 zip들을 통째로
     /// 메모리에 복사하는 게 이 클래스에서 시간이 걸리는 유일한 부분이라, 그 바이트 기준으로 잰다).
@@ -77,6 +92,9 @@ public sealed class NestedZipImageSet : IImageSet
             .ToList();
 
         long totalBytes = episodeEntries.Sum(e => e.Length); // 압축 해제 크기 기준 — 대략치로 충분하다
+        // 안쪽 zip들을 전부 메모리에 올려 두는 방식이라, 합계에 한도를 둔다(넘으면 메모리가 모자라 앱이 멈춘다).
+        if (totalBytes > MaxNestedBytes)
+            throw new InvalidDataException("묶음 zip이 너무 커서 한꺼번에 열 수 없어요. 화별 zip을 나눠서 열어 주세요.");
         long doneBytes = 0;
 
         try
@@ -110,13 +128,7 @@ public sealed class NestedZipImageSet : IImageSet
     public int Count => pages.Count;
     public string Name(int index) => pages[index].displayName;
 
-    public byte[] LoadRawBytes(int index)
-    {
-        using var s = pages[index].entry.Open();
-        using var ms = new MemoryStream();
-        s.CopyTo(ms);
-        return ms.ToArray();
-    }
+    public byte[] LoadRawBytes(int index) => ZipImageSet.ReadEntryLimited(pages[index].entry);
 
     public void Dispose()
     {

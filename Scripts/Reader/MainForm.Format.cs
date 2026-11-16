@@ -203,7 +203,7 @@ public partial class MainForm
         settings.FontFamily = family;
         settings.FontSize = size;
         settings.Save();
-        AppShared.NotifySettingsChanged("font");
-        AppShared.NotifySettingsChanged("fontsize");
+        AppShared.NotifySettingsChanged(SettingKind.Font);
+        AppShared.NotifySettingsChanged(SettingKind.FontSize);
     }
 }

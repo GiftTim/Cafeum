@@ -139,6 +139,32 @@ static partial class Program
             var chs = TxtChapterSplitter.Split(sample, "시험", new TxtSplitOptions());
             var bk = TxtWebBook.Build(sample, chs, "시험", Path.Combine(dir, "sample.txt"), autoBreak: true);
             File.WriteAllText(Path.Combine(dir, "autobreak.html"), File.ReadAllText(bk.Book.Chapters[0].FilePath));
+            TempCleanup.DeleteQuietly(bk.Dir);
+            log.AppendLine($"txtweb temp: dirCleaned={!Directory.Exists(bk.Dir)}");
+        }
+        // 원고 안전 저장(SafeFile) · 저장 인코딩 고르기 · 글 파일 판별(LooksLikeText) 시험 — 모두 실제 앱 코드를 그대로 부른다
+        {
+            string d = Path.Combine(Path.GetTempPath(), "cafeum_safefile_test_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(d);
+            string f = Path.Combine(d, "a.txt"), tmp = f + ".cafeum-tmp";
+            var utf8 = new UTF8Encoding(false);
+            SafeFile.WriteAllText(f, "첫 글", utf8);
+            log.AppendLine($"safefile new: content={File.ReadAllText(f) == "첫 글"} noTmp={!File.Exists(tmp)}");
+            SafeFile.WriteAllText(f, "둘째 글", utf8);
+            log.AppendLine($"safefile overwrite: content={File.ReadAllText(f) == "둘째 글"} noTmp={!File.Exists(tmp)}");
+            try { SafeFile.WriteAtomic(f, t => { File.WriteAllText(t, "반쪽만"); throw new IOException("시험용 실패"); }); } catch (IOException) { }
+            log.AppendLine($"safefile failedWrite: originalKept={File.ReadAllText(f) == "둘째 글"} noTmp={!File.Exists(tmp)}");
+            var cp949 = CodePagesEncodingProvider.Instance.GetEncoding(949)!;
+            log.AppendLine($"pickEncoding: cp949+korean={SafeFile.PickEncoding("가나다 …", cp949).CodePage} cp949+emoji={SafeFile.PickEncoding("가나다 😀", cp949).CodePage} utf8+emoji={SafeFile.PickEncoding("😀", utf8).CodePage}");
+            string textFile = Path.Combine(d, "text.txt"), binFile = Path.Combine(d, "bin.dat"), u16File = Path.Combine(d, "u16.txt");
+            File.WriteAllText(textFile, "일반 글", utf8);
+            File.WriteAllBytes(binFile, new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x00, 0x00, 0x08, 0x00 }); // zip(docx 등)처럼 NUL이 든 파일
+            File.WriteAllText(u16File, "유니코드 글", new UnicodeEncoding(false, true));
+            var looks = typeof(MainForm).GetMethod("LooksLikeText", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+            bool L(string p) => (bool)looks.Invoke(null, new object[] { p })!;
+            log.AppendLine($"looksLikeText: text={L(textFile)} binary={L(binFile)} utf16={L(u16File)} missing={L(Path.Combine(d, "none.txt"))}");
+            log.AppendLine($"epubGuard: file={EpubWebGuard.IsLocal("file:///C:/a.html")} http={EpubWebGuard.IsLocal("http://a.com")}");
+            try { Directory.Delete(d, true); } catch { }
         }
         File.WriteAllText(Path.Combine(dir, "log.txt"), log.ToString());
     }

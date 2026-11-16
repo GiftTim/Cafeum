@@ -14,8 +14,27 @@ namespace Cafeum;
 /// </summary>
 public static class HwpDocument
 {
+    // 한글 문서는 인터넷에서 받은 남의 파일일 수 있고 여기서 형식을 직접 풀기 때문에, 일부러 망가뜨린 파일이 앱을 멈추게 하거나 메모리를 다 쓰게 못 하도록 한도를 둔다.
+    private const long MaxFileBytes = 512L << 20;      // .hwp 파일 하나
+    private const long MaxExpandedBytes = 256L << 20;  // 압축을 푼 본문 구역 · hwpx 안 구역 파일 하나
+    private const int MaxLines = 20_000_000;           // 문단 수
+
     public static bool IsHwpExtension(string path) =>
         Path.GetExtension(path).ToLowerInvariant() is ".hwp" or ".hwpx";
+
+    /// <summary>스트림을 한도(max)까지만 메모리로 읽는다. 넘으면 압축 폭탄으로 보고 거부한다.</summary>
+    private static byte[] ReadLimited(Stream s, long max)
+    {
+        using var ms = new MemoryStream();
+        var buffer = new byte[81920];
+        int read;
+        while ((read = s.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            if (ms.Length + read > max) throw new InvalidDataException("한글 문서가 너무 커서 열지 않았어요.");
+            ms.Write(buffer, 0, read);
+        }
+        return ms.ToArray();
+    }
 
     /// <summary>문단을 \n으로 이은 본문 글.</summary>
     public static string ExtractText(string path) =>
@@ -29,16 +48,19 @@ public static class HwpDocument
         // 구역(섹션) 파일을 순서대로: section0.xml, section1.xml, … (이름의 숫자 순)
         var sections = zip.Entries
             .Where(e => Regex.IsMatch(e.FullName, @"^Contents[/\\]section\d+\.xml$", RegexOptions.IgnoreCase)) // 일부 압축 도구는 경로를 \로 적는다
-            .OrderBy(e => int.Parse(Regex.Match(e.Name, @"\d+").Value))
+            .OrderBy(e => int.TryParse(Regex.Match(e.Name, @"\d+").Value, out int n) ? n : int.MaxValue)
             .ToList();
         if (sections.Count == 0) throw new InvalidDataException("HWPX 안에서 본문(Contents/section*.xml)을 찾지 못했습니다.");
 
         var lines = new List<string>();
         foreach (var entry in sections)
         {
+            if (entry.Length > MaxExpandedBytes) throw new InvalidDataException("한글 문서가 너무 커서 열지 않았어요.");
             using var s = entry.Open();
-            var doc = XDocument.Load(s);
+            using var xml = new MemoryStream(ReadLimited(s, MaxExpandedBytes)); // 목록에 적힌 크기를 믿지 않고 실제로 읽은 크기를 센다
+            var doc = XDocument.Load(xml);
             if (doc.Root != null) CollectHwpxParagraphs(doc.Root, lines);
+            if (lines.Count > MaxLines) throw new InvalidDataException("한글 문서가 너무 커서 열지 않았어요.");
         }
         return string.Join("\n", lines);
     }
@@ -95,6 +117,7 @@ public static class HwpDocument
 
     private static string ExtractHwp(string path)
     {
+        if (new FileInfo(path).Length > MaxFileBytes) throw new InvalidDataException("한글 문서가 너무 커서 열지 않았어요.");
         var cfb = new CompoundFile(File.ReadAllBytes(path));
         byte[] header = cfb.ReadStream("FileHeader") ?? throw new InvalidDataException("한글(HWP) 문서가 아닌 것 같습니다(FileHeader 없음).");
         if (header.Length < 40 || !Encoding.ASCII.GetString(header, 0, 17).StartsWith("HWP Document File"))
@@ -120,9 +143,7 @@ public static class HwpDocument
     {
         using var input = new MemoryStream(raw);
         using var deflate = new DeflateStream(input, CompressionMode.Decompress); // 한글은 zlib 머리 없는 raw deflate
-        using var output = new MemoryStream();
-        deflate.CopyTo(output);
-        return output.ToArray();
+        return ReadLimited(deflate, MaxExpandedBytes); // 작은 파일이 수십 GB로 풀리는 압축 폭탄 방지
     }
 
     /// <summary>레코드: 머리 4바이트(태그 10비트 · 깊이 10비트 · 크기 12비트, 크기가 0xFFF면 뒤 4바이트가 진짜 크기) + 내용.
@@ -136,26 +157,28 @@ public static class HwpDocument
             uint h = BitConverter.ToUInt32(data, pos);
             pos += 4;
             int tag = (int)(h & 0x3FF);
-            int size = (int)(h >> 20);
+            long size = h >> 20; // long으로 계산한다: 일부러 큰 값을 적은 파일이 int 계산을 넘쳐 엉뚱한 자리를 읽지 못하게
             if (size == 0xFFF)
             {
                 if (pos + 4 > data.Length) break;
-                size = BitConverter.ToInt32(data, pos);
+                size = BitConverter.ToUInt32(data, pos);
                 pos += 4;
             }
-            if (size < 0 || pos + size > data.Length) break;
+            if (pos + size > data.Length) break;
+            int len = (int)size;
 
             if (tag == TagParaHeader)
             {
+                if (lines.Count >= MaxLines) throw new InvalidDataException("한글 문서가 너무 커서 열지 않았어요.");
                 lines.Add("");
                 pendingLine = lines.Count - 1;
             }
             else if (tag == TagParaText && pendingLine is int line)
             {
-                lines[line] = DecodeParaText(data, pos, size);
+                lines[line] = DecodeParaText(data, pos, len);
                 pendingLine = null;
             }
-            pos += size;
+            pos += len;
         }
     }
 
@@ -192,7 +215,7 @@ public static class HwpDocument
     private sealed class CompoundFile
     {
         private readonly byte[] file;
-        private readonly int sectorSize, miniSectorSize;
+        private readonly int sectorSize, miniSectorSize, maxSectors;
         private readonly uint miniCutoff;
         private readonly List<uint> fat = new();
         private readonly List<uint> miniFat = new();
@@ -208,8 +231,13 @@ public static class HwpDocument
             file = bytes;
             if (bytes.Length < 512 || BitConverter.ToUInt64(bytes, 0) != 0xE11AB1A1E011CFD0)
                 throw new InvalidDataException("한글(HWP) 문서가 아닌 것 같습니다(복합 문서 머리가 없음).");
-            sectorSize = 1 << BitConverter.ToUInt16(bytes, 0x1E);
-            miniSectorSize = 1 << BitConverter.ToUInt16(bytes, 0x20);
+            // 섹터 크기는 규격상 512(2^9) 또는 4096(2^12), 작은 섹터는 64(2^6)뿐이다. 다른 값은 망가진 파일이다.
+            int sectorShift = BitConverter.ToUInt16(bytes, 0x1E), miniShift = BitConverter.ToUInt16(bytes, 0x20);
+            if ((sectorShift != 9 && sectorShift != 12) || miniShift != 6)
+                throw new InvalidDataException("한글(HWP) 문서가 망가진 것 같습니다(복합 문서 섹터 크기가 올바르지 않음).");
+            sectorSize = 1 << sectorShift;
+            miniSectorSize = 1 << miniShift;
+            maxSectors = bytes.Length / sectorSize + 2; // 사슬이 파일보다 길 수는 없다 — 이걸 넘으면 같은 자리를 빙빙 도는 것
             uint firstDir = BitConverter.ToUInt32(bytes, 0x30);
             miniCutoff = BitConverter.ToUInt32(bytes, 0x38);
             uint firstMiniFat = BitConverter.ToUInt32(bytes, 0x3C);
@@ -224,8 +252,10 @@ public static class HwpDocument
                 if (s != FreeSect) fatSectors.Add(s);
             }
             uint d = firstDifat;
-            for (int n = 0; n < difatCount && d < EndOfChain; n++)
+            var seenDifat = new HashSet<uint>();
+            for (int n = 0; n < difatCount && n < maxSectors && d < EndOfChain; n++)
             {
+                if (!seenDifat.Add(d)) throw new InvalidDataException("한글(HWP) 문서가 망가진 것 같습니다(섹터 사슬이 돌고 있음).");
                 int off = SectorOffset(d);
                 int per = sectorSize / 4 - 1;
                 for (int i = 0; i < per; i++)
@@ -264,7 +294,7 @@ public static class HwpDocument
             using var ms = new MemoryStream();
             uint s = start;
             int guard = 0;
-            while (s < EndOfChain && guard++ < 1_000_000)
+            while (s < EndOfChain && guard++ < maxSectors)
             {
                 int off = SectorOffset(s);
                 if (off >= file.Length) break;
@@ -282,7 +312,8 @@ public static class HwpDocument
             using var ms = new MemoryStream();
             uint s = start;
             int guard = 0;
-            while (s < EndOfChain && ms.Length < size && guard++ < 1_000_000)
+            int maxMini = miniStream.Length / miniSectorSize + 2;
+            while (s < EndOfChain && ms.Length < size && guard++ < maxMini)
             {
                 long off = (long)s * miniSectorSize;
                 if (off >= miniStream.Length) break;

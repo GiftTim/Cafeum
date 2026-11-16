@@ -19,8 +19,8 @@ public partial class MainForm
         if (lookRec != null) SetLook(r => r.LookLine = dlg.LineHeight); // 이 파일만의 줄 간격이 있으면 그쪽에
         else settings.LineHeight = dlg.LineHeight;
         settings.Save();
-        AppShared.NotifySettingsChanged("margin");              // 줄 간격 · 문단 간격
-        if (breakChanged) AppShared.NotifySettingsChanged("txtbreak"); // 문장 단위 줄바꿈: 글을 다시 나눠 만든다
+        AppShared.NotifySettingsChanged(SettingKind.Margin);              // 줄 간격 · 문단 간격
+        if (breakChanged) AppShared.NotifySettingsChanged(SettingKind.TxtBreak); // 문장 단위 줄바꿈: 글을 다시 나눠 만든다
     }
 }
 

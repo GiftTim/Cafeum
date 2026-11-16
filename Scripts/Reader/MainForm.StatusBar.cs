@@ -14,7 +14,7 @@ public partial class MainForm
 
     private void InitStatusSegments()
     {
-        statusSegments = new StatusSegments { Dock = DockStyle.Right, Visible = false, Separators = !embedded };
+        statusSegments = new StatusSegments { Dock = DockStyle.Right, Visible = false, Separators = false };
         statusLabel.Controls.Add(statusSegments);
         statusLabel.AutoEllipsis = true; // 안내 글이 길어도 오른쪽 칸 밑으로 들어가지 않게 말줄임
         statusTimer.Tick += (_, _) => RefreshStatusSegments();
@@ -30,7 +30,7 @@ public partial class MainForm
     {
         if (statusSegments == null || IsDisposed) return;
         SyncReadBarLabels();
-        bool hideBar = embedded && !IsReferenceFile(currentPath); // 에피소드 · 위키 문서에는 맨 아래 상태 줄을 두지 않는다
+        bool hideBar = !IsReferenceFile(currentPath); // 에피소드 · 위키 문서에는 맨 아래 상태 줄을 두지 않는다
         if (statusLabel.Visible == hideBar) statusLabel.Visible = !hideBar;
         bool show = shownKind == ContentKind.Txt && editorHost.Visible && Visible;
         if (show != statusSegments.Visible)

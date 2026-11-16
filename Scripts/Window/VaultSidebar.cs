@@ -485,7 +485,13 @@ internal sealed class VaultSidebar : Panel
     {
         Directory.CreateDirectory(to);
         foreach (var file in Directory.GetFiles(from)) File.Copy(file, Path.Combine(to, Path.GetFileName(file)));
-        foreach (var dir in Directory.GetDirectories(from)) CopyDirectory(dir, Path.Combine(to, Path.GetFileName(dir)));
+        foreach (var dir in Directory.GetDirectories(from))
+        {
+            // 바로가기 폴더(정션 · 심볼릭 링크)는 따라가지 않는다: 위쪽 폴더를 가리키고 있으면 끝없이 복사돼 디스크를 채운다.
+            // (OneDrive 같은 클라우드 폴더는 링크가 아니라서 그대로 복사된다.)
+            if (new DirectoryInfo(dir).LinkTarget != null) continue;
+            CopyDirectory(dir, Path.Combine(to, Path.GetFileName(dir)));
+        }
     }
 
     private TreeNode? dropHot;
@@ -540,7 +546,10 @@ internal sealed class VaultSidebar : Panel
         if (SelectedEntry is not { } entry) return;
         string name = Path.GetFileName(entry.Path);
         string what = entry.IsDir ? $"폴더 '{name}'과(와) 그 안의 모든 것을" : $"'{name}'을(를)";
-        if (MessageBox.Show(FindForm(), $"{what} 휴지통으로 보낼까요?", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        // 휴지통이 없는 위치(USB 같은 이동식 드라이브, 네트워크 폴더)에서는 "휴지통으로 보내기"가 그대로 영구 삭제가 된다 — 그럴 땐 솔직히 알린다.
+        bool recycle = CanRecycle(entry.Path);
+        string question = recycle ? $"{what} 휴지통으로 보낼까요?" : $"{what} 영구히 삭제할까요?\n(이 위치에는 휴지통이 없어서 되돌릴 수 없어요.)";
+        if (MessageBox.Show(FindForm(), question, AppShared.AppDisplayName, MessageBoxButtons.YesNo, recycle ? MessageBoxIcon.Question : MessageBoxIcon.Warning) != DialogResult.Yes) return;
         try
         {
             PathAboutToChange?.Invoke(entry.Path);
@@ -554,6 +563,18 @@ internal sealed class VaultSidebar : Panel
         }
         RemoveBookmarksUnder(entry.Path);
         RefreshTree();
+    }
+
+    /// <summary>이 경로의 파일을 지우면 휴지통으로 가는가. 내 컴퓨터의 고정 드라이브만 휴지통이 있다(USB · 네트워크는 바로 지워진다).</summary>
+    private static bool CanRecycle(string path)
+    {
+        try
+        {
+            string? root = Path.GetPathRoot(Path.GetFullPath(path));
+            if (string.IsNullOrEmpty(root) || root.StartsWith(@"\\")) return false; // 네트워크 경로
+            return new DriveInfo(root).DriveType == DriveType.Fixed;
+        }
+        catch { return true; } // 알 수 없으면 지금까지처럼 휴지통으로 안내
     }
 
     private static void Reveal(string path)
@@ -613,7 +634,7 @@ internal sealed class VaultSidebar : Panel
             var info = new DirectoryInfo(stack.Pop());
             try
             {
-                foreach (var d in info.EnumerateDirectories().Where(IsShown)) stack.Push(d.FullName);
+                foreach (var d in info.EnumerateDirectories().Where(d => IsShown(d) && d.LinkTarget == null)) stack.Push(d.FullName); // 바로가기 폴더는 따라가지 않는다(자기 자신을 가리키면 끝없이 돈다)
                 foreach (var f in info.EnumerateFiles().Where(f => IsShown(f) && TreeExtensions.Contains(f.Extension)))
                     if (words.All(w => f.Name.Contains(w, StringComparison.CurrentCultureIgnoreCase))) { result.Add(f.FullName); if (result.Count >= limit) break; }
             }

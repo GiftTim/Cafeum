@@ -58,7 +58,7 @@ public partial class MainForm
     }
 
     /// <summary>에피소드(회차)를 쓰는 중인가: 쓰는 화면에는 네비게이션 바가 필요 없어서 숨긴다.</summary>
-    private bool WritingEpisode => embedded && directEdit && shownKind == ContentKind.Txt;
+    private bool WritingEpisode => directEdit && shownKind == ContentKind.Txt;
 
     private bool NavBarOn => settings.NavBarEnabled && navHasContent && !WritingEpisode;
 

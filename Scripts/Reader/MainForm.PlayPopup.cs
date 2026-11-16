@@ -72,7 +72,7 @@ public partial class MainForm
                     if (voiceBox.SelectedItem is not string name) return;
                     settings.TtsVoice = name;
                     settings.Save();
-                    AppShared.NotifySettingsChanged("tts");
+                    AppShared.NotifySettingsChanged(SettingKind.Tts);
                 };
             }
             AddRow("목소리", voiceBox);
@@ -90,7 +90,7 @@ public partial class MainForm
                 ShowRate();
                 settings.TtsRate = rate.Value;
                 settings.Save();
-                AppShared.NotifySettingsChanged("tts");
+                AppShared.NotifySettingsChanged(SettingKind.Tts);
             };
             // 왼쪽 끝이 느리게, 오른쪽 끝이 빠르게. 가운데 현재 값은 슬라이더 밑에 보인다.
             var rateRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };

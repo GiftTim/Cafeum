@@ -1001,8 +1001,8 @@ internal sealed class DocPane : PaneFrame
     /// <summary>문서(MainForm) 하나를 만든다. 칸 안에 끼워 넣을 모양(TopLevel 없음 · 테두리 없음 · 꽉 채움)으로.</summary>
     private MainForm CreateDoc(string path)
     {
-        var m = new MainForm(path, embedded: true) { TopLevel = false, FormBorderStyle = FormBorderStyle.None, Dock = DockStyle.Fill };
-        m.BackToLibraryRequested += () => HomeRequested?.Invoke();
+        var m = new MainForm(path) { TopLevel = false, FormBorderStyle = FormBorderStyle.None, Dock = DockStyle.Fill };
+        m.HomeRequested += () => HomeRequested?.Invoke();
         m.SavedStateChanged += s => { if (doc == m) { savedDot = s; UpdateDot(); } };
         m.EpisodeMetaChanged += () => m.BeginInvoke(() => owner.Tree.Reload());
         m.TitleRenameRequested += (p, t) => m.BeginInvoke(() => owner.Tree.RenameEpisodeTo(p, t));

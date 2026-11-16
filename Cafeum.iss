@@ -1,11 +1,11 @@
-﻿; 카페움 오피스 설치 프로그램 스크립트 (Inno Setup)
+﻿; Cafeum 설치 프로그램 스크립트 (Inno Setup)
 ; publish 폴더의 self-contained 단일 exe를 그대로 배포한다. 관리자 권한 없이(현재 사용자 전용) 설치된다.
 ; 커피뷰어(CoffeeViewer.iss)와는 별개 프로그램이라 AppId · 설치 폴더 · 바로가기가 모두 따로다.
 ; 탐색기 우클릭 "Cafeum으로 보기"(클래식 메뉴)는 등록한다. 윈도우 11 새 우클릭 메뉴 직접 노출은 아직 넣지 않았다.
 
 #define MyAppName "Cafeum"
 #define MyAppDisplayName "Cafeum"
-#define MyAppVersion "1.1.10"
+#define MyAppVersion "1.1.11"
 #define MyAppPublisher "JuneSilver"
 #define MyAppExeName "Cafeum.exe"
 
