@@ -9,7 +9,7 @@ internal static class GoalCounter
 {
     public static readonly string[] UnitNames = { "글자 수", "단어 수", "문장 수", "용량" };
     private static readonly Regex Words = new(@"\S+", RegexOptions.Compiled);
-    private static readonly Regex Sentences = new(@"[^.!?…。！？\r\n]*[\p{L}\p{N}][^.!?…。！？\r\n]*[.!?…。！？]*", RegexOptions.Compiled);
+    private static readonly Regex Sentences = new(@"[^.!?…。！？\r\n]*[\p{L}\p{N}][^.!?…。！？\r\n]*[.!?…。！？]*", RegexOptions.Compiled, TimeSpan.FromSeconds(2)); // 글자 없이 기호만 아주 길게 이어진 줄에서 오래 걸리지 않게
 
     public static string UnitLabel(AppSettings s) => s.GoalUnit switch { 1 => "단어", 2 => "문장", 3 => "바이트", _ => "자" };
 
@@ -18,7 +18,9 @@ internal static class GoalCounter
         switch (s.GoalUnit)
         {
             case 1: return Words.Matches(text).Count;
-            case 2: return Sentences.Matches(text).Count;
+            case 2:
+                try { return Sentences.Matches(text).Count; }
+                catch (RegexMatchTimeoutException) { return 0; } // 세지 못하면 0으로 둔다(화면이 멈추는 것보다 낫다)
             case 3: return Encoding.UTF8.GetByteCount(text.Replace("\r", ""));
         }
         long n = 0;
