@@ -1044,7 +1044,7 @@ public partial class MainForm
 
             string spoken = TtsText.Clean(fullText.Substring(start, length));
             if (!TtsText.HasSpeakable(spoken)) continue; // "* * *" 같은 구분선은 건너뛴다
-            tts.Speak(spoken);
+            if (!tts.Speak(spoken)) FinishTts("낭독을 시작할 수 없습니다");
             return;
         }
     }
@@ -1101,7 +1101,7 @@ public partial class MainForm
 
             string spoken = TtsText.Clean(ttsEpubText.Substring(start, length));
             if (!TtsText.HasSpeakable(spoken)) continue;
-            tts.Speak(spoken);
+            if (!tts.Speak(spoken)) FinishTts("낭독을 시작할 수 없습니다");
             return;
         }
     }

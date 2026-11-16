@@ -185,6 +185,18 @@ public static class TxtChapterSplitter
         return false;
     }
 
+    /// <summary>from부터 end 전까지에서 빈 줄(줄바꿈 두 번, 윈도우 줄바꿈 포함)이 시작되는 자리. 없으면 -1.</summary>
+    private static int FindParagraphBreak(string text, int from, int end)
+    {
+        for (int i = text.IndexOf('\n', from, end - from); i != -1 && i < end; i = text.IndexOf('\n', i + 1, end - i - 1))
+        {
+            int j = i + 1;
+            if (j < end && text[j] == '\r') j++;
+            if (j < end && text[j] == '\n') return i;
+        }
+        return -1;
+    }
+
     /// <summary>[start, end) 구간을 chunk 글자 안팎으로, 가까운 빈 줄(문단 경계)에서 끊어 result에 덧붙인다.</summary>
     private static void AddBySize(List<TxtChapter> result, string text, int start, int end, string name, int chunk)
     {
@@ -194,6 +206,7 @@ public static class TxtChapterSplitter
             return;
         }
 
+        chunk = Math.Max(chunk, TxtSplitOptions.MinChunkSize); // 0 이하면 제자리에서 끝나지 않는다
         var subs = new List<(int Start, int End)>();
         int pos = start;
         while (pos < end)
@@ -201,9 +214,11 @@ public static class TxtChapterSplitter
             int chunkEnd = Math.Min(pos + chunk, end);
             if (chunkEnd < end)
             {
-                int nextParagraph = text.IndexOf("\n\n", chunkEnd, StringComparison.Ordinal);
-                if (nextParagraph != -1 && nextParagraph < end && nextParagraph - chunkEnd < chunk / 3)
+                int nextParagraph = FindParagraphBreak(text, chunkEnd, end);
+                if (nextParagraph != -1 && nextParagraph - chunkEnd < chunk / 3)
                     chunkEnd = nextParagraph;
+                else if (char.IsHighSurrogate(text[chunkEnd - 1]))
+                    chunkEnd++; // 이모지 같은 두 칸짜리 글자의 가운데서 끊지 않는다
             }
             subs.Add((pos, chunkEnd));
             pos = chunkEnd;

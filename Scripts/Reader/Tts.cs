@@ -13,6 +13,7 @@ public sealed class TtsEngine : IDisposable
     private SpeechSynthesizer? synth;
     private Prompt? current;
     private string? appliedVoice;
+    private List<string>? voiceCache; // 문장마다 음성 목록을 새로 읽으면 매번 느려지므로 처음 말할 때 한 번만 읽는다
     private SynchronizationContext? ui; // 필드 초기화 시점엔 아직 윈폼 컨텍스트가 없을 수 있어서, 처음 말할 때(UI 스레드) 잡는다
 
     public event Action? SentenceFinished;
@@ -57,20 +58,37 @@ public sealed class TtsEngine : IDisposable
         return synth;
     }
 
-    public void Speak(string text)
+    /// <summary>문장 하나를 읽기 시작한다. 소리 장치가 없는 등 시작할 수 없으면 false.</summary>
+    public bool Speak(string text)
     {
-        var s = Ensure();
-        s.SpeakAsyncCancelAll();
+        SpeechSynthesizer s;
+        try { s = Ensure(); }
+        catch
+        {
+            synth?.Dispose();
+            synth = null;
+            return false;
+        }
+        try { s.SpeakAsyncCancelAll(); } catch { }
         try
         {
             // 저장된 음성이 목록에 없으면(예전에 영어 음성을 골라둔 경우, 삭제된 음성) 한국어 음성으로 대신 읽는다.
-            var allowed = InstalledVoices();
+            var allowed = voiceCache ??= InstalledVoices();
             string? voice = !string.IsNullOrEmpty(VoiceName) && allowed.Contains(VoiceName) ? VoiceName : allowed.FirstOrDefault();
             if (voice != null && voice != appliedVoice) { s.SelectVoice(voice); appliedVoice = voice; }
         }
         catch { /* 없어진 음성이면 기본 음성으로 그냥 읽는다 */ }
-        s.Rate = Math.Clamp(Rate, -10, 10);
-        current = s.SpeakAsync(text);
+        try
+        {
+            s.Rate = Math.Clamp(Rate, -10, 10);
+            current = s.SpeakAsync(text);
+            return true;
+        }
+        catch
+        {
+            current = null;
+            return false;
+        }
     }
 
     public void Stop()
