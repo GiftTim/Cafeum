@@ -201,11 +201,17 @@ internal static class Pomodoro
         if (State == PomoState.Idle) Reset(); else StateChanged?.Invoke();
     }
 
+    // 볼륨 슬라이더를 끄는 동안 값이 바뀔 때마다 파일에 쓰지 않도록, 마지막 변화 0.4초 뒤에 한 번만 저장한다
+    private static readonly System.Windows.Forms.Timer volumeSave = new() { Interval = 400 };
+    private static void FlushVolume(object? sender, EventArgs e) { volumeSave.Stop(); Save(); }
+    static Pomodoro() { volumeSave.Tick += FlushVolume; }
+
     public static void SetVolume(double v)
     {
-        S.Volume = Math.Clamp(v, 0, 1);
+        S.Volume = Math.Clamp(double.IsNaN(v) ? 1 : v, 0, 1);
         audio.Volume = S.Volume;
-        Save();
+        volumeSave.Stop();
+        volumeSave.Start();
     }
 
     private static void OnTick()
