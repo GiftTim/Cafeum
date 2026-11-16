@@ -1,0 +1,22 @@
+MainForm.Zip.cs (222줄, MainForm의 일부)
+
+zip 파일을 열 때 안을 보고 소설인지 만화인지 정하는 파일이에요.
+그림이 많으면 만화로, txt가 있으면 이름 순서(2화, 10화)로 이어 붙여 한 권의 소설로, epub이나 pdf가 있으면 임시 폴더에 꺼내서 그 뷰어로 열어요.
+글 파일의 인코딩(UTF-8, UTF-16, 한글 CP949)을 알아내는 DecodeText도 여기 있어요.
+OneDrive처럼 클라우드에만 있는 파일을 못 읽을 때는 zip이 깨졌다고 나오는 대신 진짜 이유를 알려 줘요.
+작은 zip이 풀면 아주 커지는 파일을 막으려고 txt와 epub·pdf의 크기에 한도를 둬요.
+
+1~3	도구함(zip, 해시, 글자)
+5~13	설명과 partial class 선언
+15~16	txtFromZip: 지금 보는 글이 zip 안에서 꺼낸 것인지(그러면 저장은 항상 다른 이름으로)
+18	ZipKind: 만화, txt 소설, epub, pdf
+20~22	크기 한도: zip 안 txt 한 파일 512MB, 이어 붙인 글 6억 자, 꺼내는 epub·pdf 4GB
+24~41	LoadZip: 안을 보고 알맞은 열기 방식으로 보내기
+43~50	ShowZipOpenError: zip 열기 실패 안내
+52~83	CloudFileProblem: 클라우드(OneDrive)에만 있어 읽을 수 없는 파일이면 진짜 이유와 드라이브 여유 공간 알려 주기
+85~86	IsIgnoredZipEntry: 맥에서 생긴 __MACOSX, ._ 파일은 무시
+88~108	ClassifyZip: 파일 목록만 보고 소설인지 만화인지 판단(그림이 글 파일 수보다 훨씬 많으면 만화)
+110~147	LoadZipNovel: zip 안의 txt들을 백그라운드에서 읽어 한 권으로 이어 붙이기(진행률, 취소)
+149~181	ReadZipNovel: 이름 순서로 txt를 읽어 줄바꿈을 맞추고 챕터를 나눠 이어 붙이기
+183~194	DecodeText: BOM이 있으면 그대로, 없으면 UTF-8로 읽어 보고 깨지면 한글 CP949로
+196~221	OpenFromZip: zip 안의 epub·pdf 하나를 임시 폴더에 꺼내 그 뷰어로 열기(이름만 써서 폴더 밖으로 못 나가게)

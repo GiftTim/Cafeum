@@ -1,0 +1,18 @@
+MainForm.ReadMargin.cs (208줄, MainForm의 일부)
+
+epub·만화 읽기 전용 서식창의 [여백 상 하 좌 우] 칸과, 지금 보기 모드를 글자로 보여 주는 [페이지] 버튼을 맡는 파일이에요.
+여백 값은 설정(AppSettings)에 따로 저장하고, 비어 있으면 설정창의 상하·좌우 값을 그대로 써요. 칸을 고치면 0.35초 쉰 뒤에 한 번만 적용해요.
+만화는 바로 반영하고, epub은 지금 자리에서 다시 배치해요. 만화와 epub은 여백 값을 따로 저장해요.
+
+1	이름 칸
+3~7	설명과 partial class 선언
+9~14	여백 입력 칸 네 개, 칸을 담는 부품, 적용 타이머(0.35초), 칸 채우는 중 깃발
+16~23	WebMargins: 웹 화면(epub, 웹으로 보는 txt)의 여백(px). epub만 서식창 값을 따름
+25~28	ImageMargins: 만화 여백(px)
+30~34	ApplyImageMargins: 만화 캔버스에 여백 적용
+36~76	InitMarginBar: [여백 상 하 좌 우] 칸을 만들어 도구 막대 항목으로 등록
+78~95	CommitMargins: 칸의 값을 설정에 저장하고 화면에 반영(만화는 바로, epub은 지금 자리에서 다시 배치)
+97~116	SyncMarginBoxes: 지금 보는 종류(만화/epub)에 맞는 값을 칸에 채우기
+118~172	SyncReadBarLabels: [보기 모드] 버튼에 지금 모드 이름 적기(만화는 원본 크기·꽉차게 등을 그림 또는 글자로, epub은 스크롤·페이지·페이지 터치)
+177~196	LoadReadImage: exe에 넣어 둔 그림(OnePage.png 등)을 서식창 버튼 크기(약 22px)로 읽기
+198~207	OnViewLayoutClick: 만화에서 [보기 방식] 버튼을 누르면 한쪽 ↔ 두쪽 바꾸기

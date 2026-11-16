@@ -1,0 +1,21 @@
+AppShared.cs
+
+프로그램 전체가 함께 쓰는 관리실이에요.
+설정(Settings)과 읽은 기록(Library)을 하나만 두고, 볼트 창·PIP 창·설정 창을 열고 닫는 일을 맡아요.
+시작할 때 무엇을 열지 정하고, 다른 실행이 넘긴 파일이나 폴더를 처리하고, 열린 창이 모두 닫히면 앱을 끝내요.
+설정이 바뀌면 열려 있는 모든 창에 알려서 각자 다시 그리게 해요.
+
+1~8	파일 설명, AppShared 클래스 선언
+10~28	LoadScaledImage: exe에 박힌 그림을 정사각형 칸에 비율 맞춰 읽기
+30~40	LoadAppIcon: 창 아이콘 읽기
+42~61	공용 상태: 앱 이름, Settings, Library, LibraryTheme, SettingsChanged 이벤트, 열린 창 목록
+54~55	SettingsChanged: 설정이 바뀌었다는 신호(종류는 SettingKind). 열려 있는 읽기 화면들이 각자 받아서 반영한다
+63~96	Start: 시작할 때 무엇을 열지 결정
+98~106	OpenPips: 파일을 작은 PIP 창으로 열기
+108~125	HandleExternal: 다른 실행이 파이프로 보낸 인자 처리
+127~135	Track: 창을 세어서 다 닫히면 앱 종료
+139~160	읽기 화면 등록·조회
+164~203	볼트 창: OpenVault, 폴더 선택, 폴더 끌어놓기
+199~203	OpenDroppedFolder: 끌어다 놓은 폴더를 볼트로 열기
+207~220	ShowSettings: 설정창 열기
+222~245	NotifySettingsChanged: 설정 변경을 모든 창에 알리기. 볼트 전용 설정(LibTheme, LibFont)은 볼트 창만, 테마는 메뉴·볼트·설정 창의 색까지 바꾸고, 도구 막대는 볼트 머리 버튼을 다시 맞춘다
