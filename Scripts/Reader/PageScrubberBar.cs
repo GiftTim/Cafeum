@@ -23,6 +23,7 @@ public class PageScrubberBar : Panel
         MouseDown += OnMouseDown;
         MouseMove += OnMouseMove;
         MouseUp += (_, _) => dragging = false;
+        MouseCaptureChanged += (_, _) => dragging = false; // 마우스를 뗀 신호 없이 붙잡기가 풀려도 끌기가 남지 않게
         MouseLeave += (_, _) => { hoverX = -1; Invalidate(); };
     }
 
