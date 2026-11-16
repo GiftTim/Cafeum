@@ -108,7 +108,7 @@ public partial class MainForm
     private string? FormatSidecarPath()
     {
         if (string.IsNullOrEmpty(currentPath) || Path.GetDirectoryName(currentPath) is not string dir) return null;
-        return Path.Combine(dir, ".caffeum-fmt", Path.GetFileName(currentPath) + ".rtf");
+        return Path.Combine(NovelFiles.PathOf(dir, NovelFiles.FormatDirName), Path.GetFileName(currentPath) + ".rtf");
     }
 
     private static readonly System.Text.RegularExpressions.Regex HasFormatRegex =

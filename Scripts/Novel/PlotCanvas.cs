@@ -132,11 +132,10 @@ internal static class CanvasStore
         get
         {
             if (prefs != null) return prefs;
-            try { if (File.Exists(PrefsPath)) prefs = JsonSerializer.Deserialize<Prefs>(File.ReadAllText(PrefsPath)); } catch { }
-            return prefs ??= new Prefs();
+            return prefs ??= JsonFile.Load<Prefs>(PrefsPath) ?? new Prefs();
         }
     }
-    private static void SavePrefs() { try { Directory.CreateDirectory(AppSettings.DataDir); File.WriteAllText(PrefsPath, JsonSerializer.Serialize(P)); } catch { } }
+    private static void SavePrefs() => JsonFile.Save(PrefsPath, P);
 
     /// <summary>정렬 가이드 스냅: 노드를 옮길 때 다른 노드의 가장자리 · 가운데에 맞춤선을 보이고 달라붙는다(기본 켬).</summary>
     public static bool Snap { get => P.Snap; set { P.Snap = value; SavePrefs(); } }

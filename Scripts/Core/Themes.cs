@@ -13,6 +13,8 @@ public sealed class ReaderTheme
     public required Color ChromeFore { get; init; }
     public required Color Link { get; init; }
     public bool Dark { get; init; }
+    /// <summary>윈도우 기본 모양 그대로 쓰는 테마(메뉴 · 입력칸 · 버튼에 색을 따로 입히지 않는다). 이름이 아니라 이 표시로 구분한다.</summary>
+    public bool SystemLook { get; init; }
 }
 
 public static class Themes
@@ -22,7 +24,7 @@ public static class Themes
         // Cafeum 기본: Muvel처럼 여백 많고 깨끗한 바탕에, 커피 · 캐러멜 강조색.
         new() { Name = "카페 라이트", Back = Color.FromArgb(0xFD, 0xFC, 0xFA), Fore = Color.FromArgb(0x2B, 0x26, 0x22), Chrome = Color.FromArgb(0xF4, 0xF1, 0xEC), ChromeFore = Color.FromArgb(0x3A, 0x33, 0x2D), Link = Color.FromArgb(0x9C, 0x63, 0x3A) },
         new() { Name = "카페 다크", Back = Color.FromArgb(0x1C, 0x1A, 0x18), Fore = Color.FromArgb(0xE4, 0xDF, 0xD9), Chrome = Color.FromArgb(0x26, 0x23, 0x20), ChromeFore = Color.FromArgb(0xE4, 0xDF, 0xD9), Link = Color.FromArgb(0xD8, 0xA0, 0x6E), Dark = true },
-        new() { Name = "라이트", Back = Color.White, Fore = Color.Black, Chrome = SystemColors.Control, ChromeFore = SystemColors.ControlText, Link = Color.FromArgb(0x06, 0x45, 0xad) },
+        new() { Name = "라이트", Back = Color.White, Fore = Color.Black, Chrome = SystemColors.Control, ChromeFore = SystemColors.ControlText, Link = Color.FromArgb(0x06, 0x45, 0xad), SystemLook = true },
         new() { Name = "세피아", Back = Color.FromArgb(0xF4, 0xEC, 0xD8), Fore = Color.FromArgb(0x5B, 0x46, 0x36), Chrome = Color.FromArgb(0xE6, 0xDB, 0xBE), ChromeFore = Color.FromArgb(0x4A, 0x39, 0x2B), Link = Color.FromArgb(0x8A, 0x4B, 0x1D) },
         new() { Name = "눈 편한 초록", Back = Color.FromArgb(0xCB, 0xE8, 0xCF), Fore = Color.FromArgb(0x1F, 0x3A, 0x24), Chrome = Color.FromArgb(0xB4, 0xD5, 0xB8), ChromeFore = Color.FromArgb(0x1A, 0x30, 0x1E), Link = Color.FromArgb(0x0B, 0x5D, 0x2A) },
         new() { Name = "다크", Back = Color.FromArgb(0x1E, 0x1E, 0x1E), Fore = Color.FromArgb(0xD4, 0xD4, 0xD4), Chrome = Color.FromArgb(0x2B, 0x2B, 0x2B), ChromeFore = Color.FromArgb(0xE0, 0xE0, 0xE0), Link = Color.FromArgb(0x6C, 0xB6, 0xFF), Dark = true },
@@ -38,7 +40,7 @@ public static class Themes
 
     /// <summary>라이트 테마는 원래 윈도우 모양 그대로 두고, 나머지 테마만 색을 입힌 메뉴 렌더러를 쓴다.</summary>
     public static ToolStripRenderer CreateRenderer(ReaderTheme t) =>
-        t.Name == "라이트" ? new ToolStripProfessionalRenderer() : new ThemeRenderer(t);
+        t.SystemLook ? new ToolStripProfessionalRenderer() : new ThemeRenderer(t);
 
     // ───────────────────────── 창/컨트롤에 테마 입히기 ─────────────────────────
 
@@ -67,21 +69,21 @@ public static class Themes
         {
             case TextBox or ListBox or ListView or TreeView or ComboBox or NumericUpDown:
                 // 입력칸·목록은 주변 바탕보다 살짝 다르게(라이트는 흰색, 다크는 더 어둡게, 나머지는 더 밝게).
-                c.BackColor = t.Name == "라이트" ? Color.White
+                c.BackColor = t.SystemLook ? Color.White
                     : t.Dark ? Blend(t.Chrome, Color.Black, 0.25f)
                     : Blend(t.Chrome, Color.White, 0.5f);
                 if (c.IsHandleCreated) SetScrollbarTheme(c, t.Dark); else c.HandleCreated += (_, _) => SetScrollbarTheme(c, t.Dark);
                 // 콤보박스는 기본(3D) 모양이면 배경색을 무시해서 다크에서 혼자 흰색으로 남는다.
-                if (c is ComboBox combo) combo.FlatStyle = t.Name == "라이트" ? FlatStyle.Standard : FlatStyle.Flat;
+                if (c is ComboBox combo) combo.FlatStyle = t.SystemLook ? FlatStyle.Standard : FlatStyle.Flat;
                 break;
             case Panel { AutoScroll: true }:
                 // 스크롤되는 영역(설정창)도 스크롤바가 다크에서 혼자 밝게 남지 않게.
                 if (c.IsHandleCreated) SetScrollbarTheme(c, t.Dark); else c.HandleCreated += (_, _) => SetScrollbarTheme(c, t.Dark);
                 break;
             case Button b:
-                b.FlatStyle = t.Name == "라이트" ? FlatStyle.Standard : FlatStyle.Flat;
-                b.UseVisualStyleBackColor = t.Name == "라이트";
-                if (t.Name != "라이트")
+                b.FlatStyle = t.SystemLook ? FlatStyle.Standard : FlatStyle.Flat;
+                b.UseVisualStyleBackColor = t.SystemLook;
+                if (!t.SystemLook)
                 {
                     b.FlatAppearance.BorderColor = Blend(t.Chrome, t.ChromeFore, 0.35f);
                     b.BackColor = Blend(t.Chrome, t.ChromeFore, 0.1f);

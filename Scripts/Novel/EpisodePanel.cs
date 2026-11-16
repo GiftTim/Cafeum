@@ -578,7 +578,7 @@ internal sealed class NovelTreeView : Control
         Font = new Font(NovelStore.UiFontFamily, 9.5f);
         Controls.Add(scroll);
         scroll.ValueChanged += (_, _) => Invalidate();
-        if (Environment.GetEnvironmentVariable("CAFFEUM_TEST_COLLAPSE") is { Length: > 0 } tc) foreach (var k in tc.Split(',')) collapsed.Add(k); // 시험용: 접어 둘 묶음(sec:wiki 등)
+        if (Environment.GetEnvironmentVariable("CAFEUM_TEST_COLLAPSE") is { Length: > 0 } tc) foreach (var k in tc.Split(',')) collapsed.Add(k); // 시험용: 접어 둘 묶음(sec:wiki 등)
         AllowDrop = true;
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
         DragDrop += (_, e) => { if (e.Data?.GetData(DataFormats.FileDrop) is string[] files) FilesDropped?.Invoke(files); };
@@ -1138,7 +1138,7 @@ internal sealed class EpisodeList : Control
         Invalidate();
     }
 
-    /// <summary>파일 이름 → 유형 표(.caffeum.json)를 받아 둔다. 없으면 일반.</summary>
+    /// <summary>파일 이름 → 유형 표(.cafeum.json)를 받아 둔다. 없으면 일반.</summary>
     public void SetTypes(string novelDir, Dictionary<string, string>? map)
     {
         types.Clear();
@@ -2420,7 +2420,7 @@ internal sealed class RefList : Control
 
     public void SetPalette(LibraryPalette p) { palette = p; BackColor = p.Main; Invalidate(); }
 
-    /// <summary>독서상태 · 즐겨찾기 표(.caffeum.json)를 받아 둔다(파일 이름 기준).</summary>
+    /// <summary>독서상태 · 즐겨찾기 표(.cafeum.json)를 받아 둔다(파일 이름 기준).</summary>
     public void SetMeta(Dictionary<string, string>? stateMap, List<string>? favorites)
     {
         states.Clear();

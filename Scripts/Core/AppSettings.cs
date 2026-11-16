@@ -81,7 +81,8 @@ public sealed class AppSettings
     public bool EpubDoublePage { get; set; } = false;
     /// <summary>소설(txt · epub)을 열 때의 읽기 방식. 예전 기본 동작(스크롤)과 같게 시작한다.</summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public NovelReadingMode NovelReadingMode { get; set; } = NovelReadingMode.Scroll;    /// <summary>폴더의 마지막 파일 끝(첫 파일 앞)에서 더 넘기려 할 때의 동작. 만화 zip · 소설 페이지 방식에 적용된다.</summary>
+    public NovelReadingMode NovelReadingMode { get; set; } = NovelReadingMode.Scroll;
+    /// <summary>폴더의 마지막 파일 끝(첫 파일 앞)에서 더 넘기려 할 때의 동작. 만화 zip · 소설 페이지 방식에 적용된다.</summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public EdgeFileAction EdgeFileAction { get; set; } = EdgeFileAction.Ask;
 
@@ -212,26 +213,8 @@ public sealed class AppSettings
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // 경로·글꼴 이름의 한글이 \uXXXX로 안 바뀌게
     };
 
-    public static AppSettings Load()
-    {
-        try
-        {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JsonOptions) ?? new AppSettings();
-        }
-        catch { /* 깨진 설정 파일은 무시하고 기본값으로 */ }
-        return new AppSettings();
-    }
+    /// <summary>설정 파일이 없거나 깨졌으면(백업에서도 못 살리면) 기본값으로 시작한다. 읽기 · 쓰기 방식은 JsonFile 참고.</summary>
+    public static AppSettings Load() => JsonFile.Load<AppSettings>(FilePath, JsonOptions) ?? new AppSettings();
 
-    public void Save()
-    {
-        try
-        {
-            Directory.CreateDirectory(DataDir);
-            string tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(this, JsonOptions));
-            File.Move(tmp, FilePath, overwrite: true); // 쓰다 죽어도 기존 파일이 반쪽으로 남지 않게 임시 파일 → 교체
-        }
-        catch { /* 저장 실패가 읽기를 막으면 안 된다 */ }
-    }
+    public void Save() => JsonFile.Save(FilePath, this, JsonOptions);
 }

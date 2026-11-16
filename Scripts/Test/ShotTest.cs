@@ -6,7 +6,7 @@ namespace Cafeum;
 #if DEBUG
 static partial class Program
 {
-    /// <summary>개발용 점검: 스케줄러 화면과 팝업을 실제로 그려서 PNG로 저장한다(CAFFEUM_SHOT=저장 폴더).</summary>
+    /// <summary>개발용 점검: 스케줄러 화면과 팝업을 실제로 그려서 PNG로 저장한다(CAFEUM_SHOT=저장 폴더).</summary>
     private static void ShotTest(string dir)
     {
         Directory.CreateDirectory(dir);
@@ -110,7 +110,7 @@ static partial class Program
             th.Close();
         }
         {   // 실제 PIP 읽기 창의 [읽기 방식] 팝업이 밖을 눌러 닫히는지(마우스는 흉내만 낸다)
-            string sampleFile = Path.Combine(Path.GetTempPath(), "caffeum_pip_test", "pip1.txt");
+            string sampleFile = Path.Combine(Path.GetTempPath(), "cafeum_pip_test", "pip1.txt");
             Directory.CreateDirectory(Path.GetDirectoryName(sampleFile)!);
             File.WriteAllText(sampleFile, "읽기 방식 시험", new UTF8Encoding(false));
             var pip = new PipForm(sampleFile) { StartPosition = FormStartPosition.Manual, Location = new Point(80, 80) };

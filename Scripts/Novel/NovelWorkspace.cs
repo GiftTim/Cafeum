@@ -9,7 +9,7 @@ namespace Cafeum;
 ///  · 파일 트리 칸: EpisodePanel(작품 카드 · 에피소드 · 위키 문서).
 ///  · 문서 칸: 머리(아이콘 · 이름 · ⋯ · ×) + 회차(MainForm) · 위키(WikiPage) · 비어 있으면 작품 화면(NovelOverview).
 ///    파일 트리에서 누르면 지금 고른 칸에, Ctrl+누르면 옆 칸에 나눠 연다. 칸마다 문서 하나(탭 없음).
-/// 열어 둔 칸들은 작품마다 기억했다가(.caffeum.json의 Panes) 다음에 들어오면 그대로 연다.
+/// 열어 둔 칸들은 작품마다 기억했다가(.cafeum.json의 Panes) 다음에 들어오면 그대로 연다.
 /// </summary>
 internal sealed class NovelWorkspace : Panel
 {

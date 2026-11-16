@@ -27,7 +27,7 @@ static partial class Program
         ApplicationConfiguration.Initialize();
 
 #if     DEBUG // 개발용(Scripts/Test/ShotTest.cs): 화면을 그려서 그림 파일로 저장하고 끝낸다
-        if (Environment.GetEnvironmentVariable("CAFFEUM_SHOT") is { Length: > 0 } shotDir) { ShotTest(shotDir); return; } 
+        if (Environment.GetEnvironmentVariable("CAFEUM_SHOT") is { Length: > 0 } shotDir) { ShotTest(shotDir); return; } 
 #endif
 
         string? initialPath = args.Length > 0 ? args[0] : null;

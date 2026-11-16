@@ -104,22 +104,10 @@ internal static class Pomodoro
     // ── 저장 ──
     private static PomoSettings Load()
     {
-        PomoSettings? s = null;
-        try { if (File.Exists(FilePath)) s = JsonSerializer.Deserialize<PomoSettings>(File.ReadAllText(FilePath), Opts); } catch { }
-        return Normalize(s ?? new PomoSettings());
+        return Normalize(JsonFile.Load<PomoSettings>(FilePath, Opts) ?? new PomoSettings());
     }
 
-    public static void Save()
-    {
-        try
-        {
-            Directory.CreateDirectory(AppSettings.DataDir);
-            var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(S, Opts));
-            File.Move(tmp, FilePath, true);
-        }
-        catch { }
-    }
+    public static void Save() => JsonFile.Save(FilePath, S, Opts);
 
     private static PomoSettings Normalize(PomoSettings s)
     {

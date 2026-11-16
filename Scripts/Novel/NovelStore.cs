@@ -5,13 +5,11 @@ namespace Cafeum;
 
 /// <summary>
 /// Muvel식 작품 · 회차 구조. 볼트 바로 아래 폴더 하나 = 작품, 그 폴더 바로 안의 .txt 하나 = 회차.
-/// 회차 순서와 작품 소개는 작품 폴더의 숨김 파일 <c>.caffeum.json</c>에 둔다(파일 트리에는 점으로 시작하는 이름이 안 보인다).
+/// 회차 순서와 작품 소개는 작품 폴더의 숨김 파일 <c>.cafeum.json</c>에 둔다(파일 트리에는 점으로 시작하는 이름이 안 보인다).
 /// 순서 목록에 없는 txt는 이름의 자연 순서로 뒤에 붙는다 — 탐색기에서 넣은 파일도 그대로 회차가 된다.
 /// </summary>
 internal static class NovelStore
 {
-    public const string MetaFileName = ".caffeum.json";
-
     internal sealed class Meta
     {
         public string? Description { get; set; }
@@ -325,28 +323,12 @@ internal static class NovelStore
 
     public static DateTime LastEdited(string novelDir) => LastEdited(new DirectoryInfo(novelDir));
 
-    public static Meta LoadMeta(string novelDir)
-    {
-        try
-        {
-            string p = Path.Combine(novelDir, MetaFileName);
-            if (File.Exists(p)) return JsonSerializer.Deserialize<Meta>(File.ReadAllText(p), JsonOpts) ?? new Meta();
-        }
-        catch { }
-        return new Meta();
-    }
+    /// <summary>작품 폴더의 .cafeum.json을 읽는다. 없거나 깨졌으면(백업에서도 못 살리면) 빈 값. 읽기 · 백업은 JsonFile 참고.</summary>
+    public static Meta LoadMeta(string novelDir) =>
+        JsonFile.Load<Meta>(NovelFiles.PathOf(novelDir, NovelFiles.MetaFileName), JsonOpts) ?? new Meta();
 
-    public static void SaveMeta(string novelDir, Meta meta)
-    {
-        string p = Path.Combine(novelDir, MetaFileName);
-        try
-        {
-            if (File.Exists(p)) File.SetAttributes(p, FileAttributes.Normal); // 숨김 파일은 덮어쓰기가 막힐 때가 있다
-            File.WriteAllText(p, JsonSerializer.Serialize(meta, JsonOpts), new UTF8Encoding(false));
-            File.SetAttributes(p, FileAttributes.Hidden);
-        }
-        catch { }
-    }
+    public static void SaveMeta(string novelDir, Meta meta) =>
+        JsonFile.Save(NovelFiles.PathOf(novelDir, NovelFiles.MetaFileName), meta, JsonOpts, hidden: true);
 
     /// <summary>회차(작품 폴더 바로 안의 txt) — 저장해 둔 순서대로, 나머지는 이름 순으로 뒤에.</summary>
     public static List<string> Episodes(string novelDir)
@@ -414,10 +396,11 @@ internal static class NovelStore
         if (oldGroup != null) { SetEpisodeGroup(path, null); SetEpisodeGroup(target, oldGroup); } // 그룹도 이름을 따라가게
         var oldProps = GetProps(path);
         if (!oldProps.IsEmpty) { SaveProps(path, new EpisodeProps()); SaveProps(target, oldProps); } // 상세 정보 속성도 이름을 따라가게
-        // 글자 서식 보관 파일(.caffeum-fmt\이름.rtf)도 새 이름으로 따라가게
+        // 글자 서식 보관 파일(.cafeum-fmt\이름.rtf)도 새 이름으로 따라가게
         try
         {
-            string fmtOld = Path.Combine(dir, ".caffeum-fmt", Path.GetFileName(path) + ".rtf"), fmtNew = Path.Combine(dir, ".caffeum-fmt", Path.GetFileName(target) + ".rtf");
+            string fmtDir = NovelFiles.PathOf(dir, NovelFiles.FormatDirName);
+            string fmtOld = Path.Combine(fmtDir, Path.GetFileName(path) + ".rtf"), fmtNew = Path.Combine(fmtDir, Path.GetFileName(target) + ".rtf");
             if (File.Exists(fmtOld)) { if (File.Exists(fmtNew)) File.Delete(fmtNew); File.Move(fmtOld, fmtNew); }
         }
         catch { }

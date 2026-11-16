@@ -10,7 +10,7 @@ namespace Cafeum;
 // 윈도우 스티커 메모를 본뜬 메모 기능.
 // 사이드바 [메모] → 파일 트리 자리에 메모 목록(검색 · 카드). 카드를 누르면 메모 한 장이 따로 뜨는 작은 창으로 열린다.
 // 메모 창: 위쪽 줄 [+ 새 메모] ··· [··· 메모 목록 · 삭제] [색] [압정 = 항상 위] [×] / 이름(진하게) + 본문 / 아래쪽 줄 [B I U S 글머리 체크] ··· [투명도].
-// ×는 창만 숨긴다(목록에 남는다). 완전히 없애는 건 [메모 삭제]로만. 작품마다 따로 저장된다(.caffeum-memo.json).
+// ×는 창만 숨긴다(목록에 남는다). 완전히 없애는 건 [메모 삭제]로만. 작품마다 따로 저장된다(.cafeum-memo.json).
 
 /// <summary>메모 한 장: 이름 · 본문(RTF) · 색 · 투명도 · 창 위치.</summary>
 public sealed class MemoNote
@@ -63,10 +63,9 @@ internal static class StickyColors
     public static Color Dim(int i) => IsDark(i) ? Color.FromArgb(205, 205, 205) : Color.FromArgb(110, 110, 110);
 }
 
-/// <summary>작품 폴더의 .caffeum-memo.json에 메모들을 담는다(작품마다 따로). 목록과 메모 창들이 같은 목록을 함께 쓴다.</summary>
+/// <summary>작품 폴더의 .cafeum-memo.json에 메모들을 담는다(작품마다 따로). 목록과 메모 창들이 같은 목록을 함께 쓴다.</summary>
 internal static class MemoStore
 {
-    private const string FileName = ".caffeum-memo.json";
     private static readonly JsonSerializerOptions Opt = new()
     {
         WriteIndented = true,
@@ -94,13 +93,7 @@ internal static class MemoStore
 
     private static List<MemoNote> Load(string novelDir)
     {
-        var list = new List<MemoNote>();
-        try
-        {
-            string p = Path.Combine(novelDir, FileName);
-            if (File.Exists(p)) list = JsonSerializer.Deserialize<List<MemoNote>>(File.ReadAllText(p, Encoding.UTF8), Opt) ?? new();
-        }
-        catch { }
+        var list = JsonFile.Load<List<MemoNote>>(NovelFiles.PathOf(novelDir, NovelFiles.MemoFileName), Opt) ?? new();
         if (list.Any(n => n.Format < MemoNote.CurrentFormat))
         {
             foreach (var n in list.Where(n => n.Format < MemoNote.CurrentFormat)) Upgrade(n);
@@ -125,43 +118,25 @@ internal static class MemoStore
         n.Format = MemoNote.CurrentFormat;
     }
 
-    private static void Write(string novelDir, List<MemoNote> notes) => WriteHidden(Path.Combine(novelDir, FileName), JsonSerializer.Serialize(notes, Opt));
+    /// <summary>숨김 파일은 덮어쓰기가 막히던 문제(첫 저장 뒤로는 저장이 조용히 실패했다)는 JsonFile이 풀어 주고 다시 숨긴다.</summary>
+    private static void Write(string novelDir, List<MemoNote> notes) => JsonFile.Save(NovelFiles.PathOf(novelDir, NovelFiles.MemoFileName), notes, Opt, hidden: true);
 
-    private static void WriteHidden(string p, string json)
-    {
-        try
-        {
-            if (File.Exists(p)) File.SetAttributes(p, FileAttributes.Normal); // 숨김 파일은 덮어쓰기가 막혀서(첫 저장 뒤로는 저장이 조용히 실패했다) 먼저 풀어 둔다
-            File.WriteAllText(p, json, Encoding.UTF8);
-            var fi = new FileInfo(p);
-            if ((fi.Attributes & FileAttributes.Hidden) == 0) fi.Attributes |= FileAttributes.Hidden;
-        }
-        catch { }
-    }
+    // ───────── 메모 그룹(에피소드 그룹처럼: 이름 순서는 .cafeum-memo-groups.json, 메모마다 Group) ─────────
 
-    // ───────── 메모 그룹(에피소드 그룹처럼: 이름 순서는 .caffeum-memo-groups.json, 메모마다 Group) ─────────
-
-    private const string GroupFile = ".caffeum-memo-groups.json";
     public const string DefaultGroupName = "새 메모 그룹";
     private static readonly Dictionary<string, List<string>> GroupCache = new(StringComparer.OrdinalIgnoreCase);
 
     public static List<string> Groups(string novelDir)
     {
         if (GroupCache.TryGetValue(novelDir, out var list)) return list;
-        list = new();
-        try
-        {
-            string p = Path.Combine(novelDir, GroupFile);
-            if (File.Exists(p)) list = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(p, Encoding.UTF8), Opt) ?? new();
-        }
-        catch { }
+        list = JsonFile.Load<List<string>>(NovelFiles.PathOf(novelDir, NovelFiles.MemoGroupFileName), Opt) ?? new();
         GroupCache[novelDir] = list;
         return list;
     }
 
     private static void SaveGroups(string novelDir)
     {
-        WriteHidden(Path.Combine(novelDir, GroupFile), JsonSerializer.Serialize(Groups(novelDir), Opt));
+        JsonFile.Save(NovelFiles.PathOf(novelDir, NovelFiles.MemoGroupFileName), Groups(novelDir), Opt, hidden: true);
         Save(novelDir);
     }
 

@@ -57,17 +57,9 @@ internal static class ScheduleStore
         get
         {
             if (data != null) return data;
-            try
-            {
-                if (File.Exists(FilePath))
-                {
-                    string json = File.ReadAllText(FilePath);
-                    if (json.TrimStart().StartsWith("[")) // 예전 형식(일정 목록만)
-                        data = new Data { Entries = JsonSerializer.Deserialize<List<ScheduleEntry>>(json, Opts) ?? new() };
-                    else data = JsonSerializer.Deserialize<Data>(json, Opts);
-                }
-            }
-            catch { }
+            data = JsonFile.LoadWith<Data>(FilePath, json => json.TrimStart().StartsWith("[") // 예전 형식(일정 목록만)도 읽는다
+                ? new Data { Entries = JsonSerializer.Deserialize<List<ScheduleEntry>>(json, Opts) ?? new() }
+                : JsonSerializer.Deserialize<Data>(json, Opts));
             data ??= new();
             data.Calendars ??= new();
             data.Entries ??= new();
@@ -157,14 +149,7 @@ internal static class ScheduleStore
 
     public static void Save()
     {
-        try
-        {
-            Directory.CreateDirectory(AppSettings.DataDir);
-            var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(D, Opts));
-            File.Move(tmp, FilePath, true);
-        }
-        catch { }
+        JsonFile.Save(FilePath, D, Opts);
         Changed?.Invoke();
     }
 }

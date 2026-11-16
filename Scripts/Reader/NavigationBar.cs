@@ -162,7 +162,7 @@ public sealed class NavigationBar : ToolStrip
             BorderStyle = BorderStyle.None,
             Width = 380,
             Height = 440,
-            BackColor = theme.Name == "라이트" ? Color.White : theme.Dark ? Themes.Blend(theme.Chrome, Color.Black, 0.25f) : Themes.Blend(theme.Chrome, Color.White, 0.5f),
+            BackColor = theme.SystemLook ? Color.White : theme.Dark ? Themes.Blend(theme.Chrome, Color.Black, 0.25f) : Themes.Blend(theme.Chrome, Color.White, 0.5f),
             ForeColor = theme.ChromeFore,
             Font = Font,
         };

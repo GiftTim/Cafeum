@@ -1,7 +1,7 @@
 namespace Cafeum;
 
 /// <summary>
-/// 회차 상세 정보에 붙이는 속성들(요약 · 작가의 말 · 줄바꿈 · 태그 · 수위 · 시점 · 등장). 소설 폴더의 .caffeum.json에 회차 파일 이름별로 저장된다.
+/// 회차 상세 정보에 붙이는 속성들(요약 · 작가의 말 · 줄바꿈 · 태그 · 수위 · 시점 · 등장). 소설 폴더의 .cafeum.json에 회차 파일 이름별로 저장된다.
 /// [속성 추가하기]로 추가한 속성만 상세 정보에 보인다(Added).
 /// </summary>
 internal sealed class EpisodeProps

@@ -22,8 +22,8 @@ internal sealed class VaultForm : Form
 
     public string VaultPath => vaultPath;
 
-    /// <summary>시험용(CAFFEUM_TEST_NOACTIVATE): 창이 떠도 앞으로 나오지 않게 — 화면 캡처로 확인하는 동안 사용자가 치는 키가 시험 창으로 들어가지 않게 한다.</summary>
-    protected override bool ShowWithoutActivation => Environment.GetEnvironmentVariable("CAFFEUM_TEST_NOACTIVATE") == "1";
+    /// <summary>시험용(CAFEUM_TEST_NOACTIVATE): 창이 떠도 앞으로 나오지 않게 — 화면 캡처로 확인하는 동안 사용자가 치는 키가 시험 창으로 들어가지 않게 한다.</summary>
+    protected override bool ShowWithoutActivation => Environment.GetEnvironmentVariable("CAFEUM_TEST_NOACTIVATE") == "1";
 
     /// <summary>시험용: 키보드 · 마우스 입력을 모두 버린다. 창이 앞으로 나와도 사용자가 치던 글이나 누른 자리가 시험 창에 들어가지 않게.</summary>
     private sealed class DropKeyboardFilter : IMessageFilter
@@ -143,7 +143,7 @@ internal sealed class VaultForm : Form
         Icon = AppShared.LoadAppIcon();
         AllowDrop = true;
         KeyPreview = true;
-        if (Environment.GetEnvironmentVariable("CAFFEUM_TEST_NOACTIVATE") == "1" && !keyboardFilterAdded) { keyboardFilterAdded = true; Application.AddMessageFilter(new DropKeyboardFilter()); }
+        if (Environment.GetEnvironmentVariable("CAFEUM_TEST_NOACTIVATE") == "1" && !keyboardFilterAdded) { keyboardFilterAdded = true; Application.AddMessageFilter(new DropKeyboardFilter()); }
         Load += (_, _) =>
         {
             var wa = Screen.FromControl(this).WorkingArea;
@@ -202,12 +202,12 @@ internal sealed class VaultForm : Form
         ApplyTheme(AppShared.LibraryTheme);
         ApplyVaultSettings();
         ShowHome();
-        // 시험용: 작품 폴더(CAFFEUM_TEST_NOVEL)로 시작하고, CAFFEUM_TEST_WIKI가 파일이면 그 문서를 연다(화면 캡처로 확인할 때만 쓴다).
-        if (Environment.GetEnvironmentVariable("CAFFEUM_TEST_NOVEL") is { Length: > 0 } testNovel && Directory.Exists(testNovel))
+        // 시험용: 작품 폴더(CAFEUM_TEST_NOVEL)로 시작하고, CAFEUM_TEST_WIKI가 파일이면 그 문서를 연다(화면 캡처로 확인할 때만 쓴다).
+        if (Environment.GetEnvironmentVariable("CAFEUM_TEST_NOVEL") is { Length: > 0 } testNovel && Directory.Exists(testNovel))
         {
             EnterNovel(testNovel);
-            if (Environment.GetEnvironmentVariable("CAFFEUM_TEST_WIKI") is { Length: > 0 } tw && File.Exists(tw)) workspace.Open(tw, split: false);
-            if (Environment.GetEnvironmentVariable("CAFFEUM_TEST_SPLIT") is { Length: > 0 } ts && File.Exists(ts)) workspace.Open(ts, split: true);
+            if (Environment.GetEnvironmentVariable("CAFEUM_TEST_WIKI") is { Length: > 0 } tw && File.Exists(tw)) workspace.Open(tw, split: false);
+            if (Environment.GetEnvironmentVariable("CAFEUM_TEST_SPLIT") is { Length: > 0 } ts && File.Exists(ts)) workspace.Open(ts, split: true);
         }
     }
 

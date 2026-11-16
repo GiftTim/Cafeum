@@ -6,14 +6,13 @@ namespace Cafeum;
 /// 팝업 메뉴가 열려 있는 동안 메뉴 밖을 한 번 누르면 닫는다. WinForms 기본 동작은 웹 화면(WebView) 위를 누를 때처럼
 /// 다른 창이 클릭을 받으면 메뉴를 닫지 못하는 경우가 있어서, 마우스 단추가 새로 눌리는 순간을 직접 지켜본다.
 /// </summary>
-internal static class MenuGuard
+internal static partial class MenuGuard
 {
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
 
-    /// <summary>시험용: 마우스 단추 · 위치를 흉내 낼 때만 채운다(평소에는 null).</summary>
-    internal static Func<bool>? ButtonDownOverride;
-    internal static Func<Point>? PositionOverride;
-    private static bool AnyButtonDown() => ButtonDownOverride?.Invoke() ?? ((GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0 || (GetAsyncKeyState(0x04) & 0x8000) != 0);
+    // 시험할 때 마우스를 흉내 내는 부분(TestButtonDown · TestPosition)은 Scripts/Test/MenuGuard.Test.cs에 있다. 배포판에서는 항상 null이다.
+    private static bool AnyButtonDown() => TestButtonDown() ?? ((GetAsyncKeyState(0x01) & 0x8000) != 0 || (GetAsyncKeyState(0x02) & 0x8000) != 0 || (GetAsyncKeyState(0x04) & 0x8000) != 0);
+    private static Point MousePosition() => TestPosition() ?? Cursor.Position;
 
     private static bool Inside(ToolStripDropDown dd, Point p)
     {
@@ -53,19 +52,31 @@ internal static class MenuGuard
         }
         foreach (ToolStripItem child in d.DropDownItems) AttachItem(child);
     }
+
     public static void CloseOnOutsideClick(ToolStripDropDown menu)
     {
         var timer = new System.Windows.Forms.Timer { Interval = 30 };
         bool wasDown = AnyButtonDown(); // 메뉴를 연 그 클릭이 아직 눌려 있어도 닫지 않게
-        void Stop() { if (timer.Enabled) timer.Stop(); }
+        bool stopped = false;
+        ToolStripDropDownClosedEventHandler? onClosed = null;
+        void Stop() // 감시를 끝낸다. 메뉴가 열릴 때마다 처리기가 하나씩 쌓이지 않도록 걸어 둔 닫힘 처리기도 뺀다
+        {
+            if (stopped) return;
+            stopped = true;
+            if (onClosed != null) menu.Closed -= onClosed;
+            timer.Stop();
+            timer.Dispose();
+        }
+        onClosed = (_, _) => Stop();
         timer.Tick += (_, _) =>
         {
-            if (!menu.Visible) { Stop(); timer.Dispose(); return; }
+            if (stopped) return;
+            if (!menu.Visible) { Stop(); return; }
             bool down = AnyButtonDown();
-            if (down && !wasDown && !Inside(menu, PositionOverride?.Invoke() ?? Cursor.Position)) menu.Close(ToolStripDropDownCloseReason.AppClicked);
+            if (down && !wasDown && !Inside(menu, MousePosition())) menu.Close(ToolStripDropDownCloseReason.AppClicked);
             wasDown = down;
         };
-        menu.Closed += (_, _) => Stop();
+        menu.Closed += onClosed;
         timer.Start();
     }
 }

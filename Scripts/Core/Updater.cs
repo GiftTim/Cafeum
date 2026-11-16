@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Cafeum;
@@ -8,6 +9,7 @@ namespace Cafeum;
 /// 업데이트 확인: GitHub 저장소의 최신 릴리스(Releases)를 보고, 지금보다 새 버전이면 설치 파일(Setup.exe)을 내려받아
 /// 조용히 설치한다(설치가 끝나면 Cafeum이 다시 열린다).
 /// 새 버전을 낼 때: 저장소에 v1.0.2 같은 태그로 릴리스를 만들고 Install\Cafeum-Setup-1.0.2.exe를 첨부한다.
+/// 안전장치: 주소는 코드에 고정(github.com, https만), 받은 파일은 GitHub이 알려 주는 SHA-256과 맞는지 확인한 뒤에만 실행한다.
 /// </summary>
 internal static class Updater
 {
@@ -28,10 +30,13 @@ internal static class Updater
                 if (Version.TryParse(v, out var ver) && ver <= Current) File.Delete(f);
             }
         }
-        catch { }
+        catch (Exception ex) { AppLog.Write("옛 설치 파일을 지우지 못했어요", ex); }
     }
 
-    public static Version Current => Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0);
+    /// <summary>1.1.9와 1.1.9.0이 다르게 비교되지 않도록 항상 네 자리로 맞춘다.</summary>
+    private static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0), Math.Max(v.Revision, 0));
+
+    public static Version Current => Normalize(Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0));
 
     private static readonly HttpClient http = CreateClient();
 
@@ -43,7 +48,12 @@ internal static class Updater
         return c;
     }
 
-    private sealed record Release(Version Version, string Tag, string AssetUrl, string AssetName, long Size, string Notes);
+    /// <param name="Sha256">GitHub이 알려 주는 설치 파일의 SHA-256(16진수). 응답에 없으면 null.</param>
+    private sealed record Release(Version Version, string Tag, string AssetUrl, string AssetName, long Size, string? Sha256, string Notes);
+
+    /// <summary>다운로드 주소가 github.com의 https 주소인지(응답이 이상한 주소를 가리켜도 거기서는 받지 않는다).</summary>
+    private static bool IsGitHubUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps && u.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase);
 
     public static async Task CheckAsync(IWin32Window? owner)
     {
@@ -89,20 +99,24 @@ internal static class Updater
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
         var root = doc.RootElement;
         string tag = root.GetProperty("tag_name").GetString() ?? "";
-        if (!Version.TryParse(tag.TrimStart('v', 'V'), out var ver)) return null;
+        if (!Version.TryParse(tag.TrimStart('v', 'V'), out var parsed)) return null;
+        var ver = Normalize(parsed);
         string notes = root.TryGetProperty("body", out var b) ? (b.GetString() ?? "").Trim() : "";
         foreach (var a in root.GetProperty("assets").EnumerateArray())
         {
             string name = a.GetProperty("name").GetString() ?? "";
             if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || !name.Contains("Setup", StringComparison.OrdinalIgnoreCase)) continue;
-            return new Release(ver, tag, a.GetProperty("browser_download_url").GetString() ?? "", name, a.GetProperty("size").GetInt64(), notes);
+            string url = a.GetProperty("browser_download_url").GetString() ?? "";
+            if (!IsGitHubUrl(url)) { AppLog.Write($"업데이트 파일 주소가 github.com의 https 주소가 아니라서 건너뛰었어요: {url}"); continue; }
+            string? sha = a.TryGetProperty("digest", out var d) && d.GetString() is { } s && s.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) ? s["sha256:".Length..] : null;
+            return new Release(ver, tag, url, name, a.GetProperty("size").GetInt64(), sha, notes);
         }
         return null;
     }
 
     private static async Task DownloadAndInstallAsync(IWin32Window? owner, Release rel)
     {
-        string path = Path.Combine(Path.GetTempPath(), rel.AssetName);
+        string path = Path.Combine(Path.GetTempPath(), Path.GetFileName(rel.AssetName)); // 이름만 쓴다(폴더 표시가 섞여 있어도 임시 폴더 밖에는 안 쓰도록)
         using var dlg = new Form
         {
             Text = "업데이트 내려받는 중", FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
@@ -133,9 +147,18 @@ internal static class Updater
                 }
             }
             if (new FileInfo(path).Length < 1_000_000) throw new IOException("내려받은 파일이 너무 작아요.");
+            if (rel.Sha256 != null)
+            {
+                label.Text = "내려받은 파일 확인 중…";
+                string actual;
+                await using (var fs = File.OpenRead(path)) actual = Convert.ToHexString(await SHA256.HashDataAsync(fs));
+                if (!actual.Equals(rel.Sha256, StringComparison.OrdinalIgnoreCase)) throw new IOException("내려받은 파일이 GitHub에 올라온 파일과 달라요(내려받다 손상됐을 수 있어요). 다시 시도해 주세요.");
+            }
+            else AppLog.Write("릴리스에 SHA-256 값이 없어 내려받은 파일 확인을 건너뛰었어요");
         }
         catch (Exception ex)
         {
+            AppLog.Write("업데이트를 내려받지 못했어요", ex);
             dlg.Close();
             try { File.Delete(path); } catch { }
             MessageBox.Show(owner, "내려받지 못했어요.\n\n" + ex.Message, "업데이트", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -149,6 +172,7 @@ internal static class Updater
         }
         catch (Exception ex)
         {
+            AppLog.Write("설치 프로그램을 실행하지 못했어요", ex);
             MessageBox.Show(owner, "설치 프로그램을 실행하지 못했어요.\n\n" + ex.Message, "업데이트", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
