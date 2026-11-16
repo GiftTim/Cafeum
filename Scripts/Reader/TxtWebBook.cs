@@ -50,6 +50,7 @@ public sealed class TxtWebBook
                     // 글자 수 한도 안쪽의 마지막 줄바꿈에서 자른다(줄 중간에서 끊기지 않게). 한 줄이 한도보다 길면 그냥 한도에서.
                     int nl = text.LastIndexOf('\n', start + MaxChunk - 1, MaxChunk);
                     end = nl > start ? nl + 1 : start + MaxChunk;
+                    if (end < ch.End && char.IsHighSurrogate(text[end - 1])) end++; // 이모지 같은 두 칸짜리 글자의 가운데서 끊지 않는다
                 }
                 parts.Add((part == 1 ? ch.Name : $"{ch.Name} ({part})", start, end));
                 start = end;
@@ -60,13 +61,21 @@ public sealed class TxtWebBook
 
         var epubChapters = new List<EpubChapter>();
         var ranges = new List<(int, int)>();
-        for (int i = 0; i < parts.Count; i++)
+        try
         {
-            var (name, start, end) = parts[i];
-            string file = Path.Combine(dir, $"{i + 1:D4}.html");
-            File.WriteAllText(file, BuildHtml(text, start, end, name, autoBreak), new UTF8Encoding(false));
-            epubChapters.Add(new EpubChapter(name, file));
-            ranges.Add((start, end));
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var (name, start, end) = parts[i];
+                string file = Path.Combine(dir, $"{i + 1:D4}.html");
+                File.WriteAllText(file, BuildHtml(text, start, end, name, autoBreak), new UTF8Encoding(false));
+                epubChapters.Add(new EpubChapter(name, file));
+                ranges.Add((start, end));
+            }
+        }
+        catch
+        {
+            TempCleanup.DeleteQuietly(dir); // 디스크가 가득 찬 경우 등 — 쓰다 만 본문 복사본을 임시 폴더에 남기지 않는다
+            throw;
         }
         return new TxtWebBook(new EpubBook { Title = title, Chapters = epubChapters }, ranges, text.Length, dir);
     }

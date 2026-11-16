@@ -1,0 +1,16 @@
+EpubBook.cs (168줄)
+
+epub(zip 안에 OPF와 XHTML로 이루어진 전자책) 파일을 열어 챕터 목록을 뽑아요. 통째로 임시 폴더에 풀어 두고 그 안의 XHTML 파일을 WebView2로 그대로 보여 주기 때문에, 이미지와 스타일의 상대 경로가 디스크 파일 경로로 자연스럽게 풀려요. 열기는 META-INF/container.xml에서 OPF 위치를 찾고, OPF의 manifest(파일 id와 경로)와 spine(읽는 순서)으로 챕터를 만들어요. 압축을 풀 때는 폴더 밖으로 나가는 경로(zip slip)를 막고, 항목이 5만 개를 넘거나 풀면 4GB를 넘으면 열지 않으며(적힌 크기를 믿지 않고 실제로 쓴 크기도 세요), 풀어 둔 폴더 밖을 가리키는 manifest 항목은 쓰지 않아요. 열기에 실패하거나 취소하면 풀다 만 폴더를 지워요.
+
+1~2	도구함
+4	네임스페이스
+6	EpubChapter: 챕터 이름과 파일 경로
+8~13	설명과 EpubBook 선언
+15~16	항목 수와 압축 해제 합계 한도
+18~19	Title, Chapters
+21~38	Load: 풀고 읽기, 실패하면 폴더 지우기
+40~93	LoadExtracted: container.xml, OPF, manifest, spine에서 챕터 만들기
+95~140	ExtractWithProgress: 한도와 경로를 확인하며 하나씩 풀고 진행률 보고
+142~152	ResolveInside: 폴더 밖이면 null
+154~167	TryGetHtmlTitle: 챕터의 title로 이름 붙이기
+168	클래스 끝
