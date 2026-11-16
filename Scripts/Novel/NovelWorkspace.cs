@@ -9,7 +9,7 @@ namespace Cafeum;
 ///  · 파일 트리 칸: EpisodePanel(작품 카드 · 에피소드 · 위키 문서).
 ///  · 문서 칸: 머리(아이콘 · 이름 · ⋯ · ×) + 회차(MainForm) · 위키(WikiPage) · 비어 있으면 작품 화면(NovelOverview).
 ///    파일 트리에서 누르면 지금 고른 칸에, Ctrl+누르면 옆 칸에 나눠 연다. 칸마다 문서 하나(탭 없음).
-/// 열어 둔 칸들은 작품마다 기억했다가(.cafeum.json의 Panes) 다음에 들어오면 그대로 연다.
+/// 작품에 들어오면 늘 소설 메인에서 시작한다(열어 둔 칸은 기억하지 않는다).
 /// </summary>
 internal sealed class NovelWorkspace : Panel
 {
@@ -47,8 +47,12 @@ internal sealed class NovelWorkspace : Panel
         markTimer.Tick -= MarkTick; markTimer.Tick += MarkTick; markTimer.Start();
     }
     private void MarkTick(object? s, EventArgs e) { if (!IsDisposed) SyncWidgetMarks(); }
+    private Control? sizedHost; // 위젯 자리를 다시 잡으려고 SizeChanged를 구독한 창(없앨 때 구독을 풀기 위해 기억)
+    private void HostSizeChanged(object? s, EventArgs e) { if (pomo is { Visible: true }) PlacePomodoro(); }
+
     protected override void Dispose(bool disposing)
     {
+        if (disposing && sizedHost != null) { sizedHost.SizeChanged -= HostSizeChanged; sizedHost = null; }
         if (disposing) markTimer.Dispose();
         if (disposing && pomo != null) { pomo.Parent?.Controls.Remove(pomo); pomo.Dispose(); pomo = null; }
         base.Dispose(disposing);
@@ -87,7 +91,8 @@ internal sealed class NovelWorkspace : Panel
             pomo.CloseRequested += () => { Pomodoro.S.WidgetShown = false; Pomodoro.Save(); SyncPomodoro(); };
             pomo.ModeChanged += PlacePomodoro;
             pomo.Moved += () => { Pomodoro.S.PosX = pomo.Left; Pomodoro.S.PosY = pomo.Top; Pomodoro.Save(); };
-            host!.SizeChanged += (_, _) => { if (pomo is { Visible: true }) PlacePomodoro(); };
+            sizedHost = host!;
+            sizedHost.SizeChanged += HostSizeChanged;
         }
         else pomo.SetPalette(pal);
         if (pomo.Parent != host) { pomo.Parent?.Controls.Remove(pomo); host!.Controls.Add(pomo); }
@@ -130,7 +135,7 @@ internal sealed class NovelWorkspace : Panel
         DoubleBuffered = true;
         Tree = new EpisodePanel(vaultFiles) { Dock = DockStyle.Fill };
         Tree.BackRequested += () => HomeRequested?.Invoke();
-        Tree.OverviewRequested += () => { focused.ShowOverview(); BackToMain(); FocusPane(focused); SaveLayout(); }; // 작품 카드를 누르면 소설 메인 화면으로
+        Tree.OverviewRequested += () => { focused.ShowOverview(); BackToMain(); FocusPane(focused); }; // 작품 카드를 누르면 소설 메인 화면으로
         Tree.OpenRequested += p => Open(p, split: false);
         Tree.OpenSplitRequested += p => Open(p, split: true);
         Tree.PipRequested += p => OpenPip(p);
@@ -142,7 +147,7 @@ internal sealed class NovelWorkspace : Panel
         Tree.WikiAboutToChange += p => CloseDocsUnder(p);
         var renamedPanes = new List<DocPane>();
         Tree.PathAboutToChange += p => { renamedPanes.Clear(); renamedPanes.AddRange(CloseDocsUnder(p)); };
-        Tree.EpisodeRenamed += (_, np) => { foreach (var pane in renamedPanes) pane.Open(np); renamedPanes.Clear(); SaveLayout(); };
+        Tree.EpisodeRenamed += (_, np) => { foreach (var pane in renamedPanes) pane.Open(np); renamedPanes.Clear(); };
 
         treeFrame = new PaneFrame("", "파일 트리") { Dock = DockStyle.Fill };
         treeFrame.Body.Controls.Add(Tree);
@@ -166,7 +171,6 @@ internal sealed class NovelWorkspace : Panel
                 if (!restoring && leftHadDoc && !has) BackToMain(); // 문서가 닫혀 소설 메인으로 돌아왔다(위키의 [뒤로] · 문서 창 닫힘 등)
                 leftHadDoc = has;
                 SyncFocusVisuals();
-                SaveLayout();
             };
             pane.HomeRequested += () => HomeRequested?.Invoke();
         }
@@ -220,22 +224,9 @@ internal sealed class NovelWorkspace : Panel
     /// <summary>열린 문서를 모두 저장하고 닫는다(작품 목록으로 나갈 때 · 창을 닫을 때).</summary>
     public void CloseAll()
     {
-        SaveLayout();
         restoring = true;
         try { left.CloseContent(); right.CloseContent(); }
         finally { restoring = false; }
-    }
-
-    private void SaveLayout()
-    {
-        if (restoring || NovelPath is not string dir) return;
-        var list = new List<string>();
-        foreach (var pane in inner.Panel2Collapsed ? new[] { left } : new[] { left, right })
-            if (pane.DocPath is string p && !NovelStore.IsReferencePath(p)) list.Add(Path.GetRelativePath(dir, p));
-        var meta = NovelStore.LoadMeta(dir);
-        if ((meta.Panes ?? new()).SequenceEqual(list)) return;
-        meta.Panes = list;
-        NovelStore.SaveMeta(dir, meta);
     }
 
     /// <summary>문서를 연다. 이미 어느 칸에 열려 있으면 그 칸을 고른다. split이면 옆 칸에.</summary>
@@ -258,7 +249,6 @@ internal sealed class NovelWorkspace : Panel
         }
         target.Open(full);
         FocusPane(target);
-        SaveLayout();
     }
 
     // ───────── 끌어서 열기(창 스냅처럼) ─────────
@@ -316,13 +306,11 @@ internal sealed class NovelWorkspace : Panel
                 leftHadDoc = left.DocPath != null;
                 SyncFocusVisuals();
                 FocusPane(target);
-                SaveLayout();
                 return;
             }
             if (!inner.Panel2Collapsed && Same(other.DocPath)) { FocusPane(other); return; }
             if (!Same(target.DocPath)) target.Open(full);
             FocusPane(target);
-            SaveLayout();
             return;
         }
         // 한 칸에 문서가 열려 있다: 둘로 나눠 놓은 쪽에 열고, 있던 문서는 반대쪽으로
@@ -343,7 +331,6 @@ internal sealed class NovelWorkspace : Panel
         }
         SyncFocusVisuals();
         FocusPane(target);
-        SaveLayout();
     }
 
     private void CenterSplit()
@@ -393,7 +380,7 @@ internal sealed class NovelWorkspace : Panel
     /// <summary>칸의 × : 옆 칸이 있으면 이 칸을 없애고(오른쪽 칸 문서는 왼쪽으로), 하나뿐이면 작품 화면으로.</summary>
     private void ClosePane(DocPane pane)
     {
-        if (inner.Panel2Collapsed) { left.ShowOverview(); BackToMain(); FocusPane(left); SaveLayout(); return; }
+        if (inner.Panel2Collapsed) { left.ShowOverview(); BackToMain(); FocusPane(left); return; }
         if (pane == left)
         {
             string? moving = right.DocPath;
@@ -403,7 +390,6 @@ internal sealed class NovelWorkspace : Panel
         else right.CloseContent();
         inner.Panel2Collapsed = true;
         FocusPane(left);
-        SaveLayout();
     }
 
     /// <summary>참고 자료를 항상 위에 뜨는 작은 창(PIP)으로 옮긴다. 칸의 탭은 닫는다.</summary>
@@ -442,7 +428,7 @@ internal sealed class NovelWorkspace : Panel
         switch (key)
         {
             case "library": HomeRequested?.Invoke(); break; // 서재 아이콘: 작품 목록으로
-            case "novel": focused.ShowOverview(); BackToMain(); FocusPane(focused); SaveLayout(); break; // 책 아이콘: 소설 메인으로
+            case "novel": focused.ShowOverview(); BackToMain(); FocusPane(focused); break; // 책 아이콘: 소설 메인으로
             case "back": HomeRequested?.Invoke(); break;
             case "memo": // 파일 트리를 닫고 그 자리에 메모 목록을 띄운다(다시 누르면 닫는다)
                 if (outer.Panel1Collapsed || !memoShown) { ShowMemo(true); SetTreeVisible(true); }
@@ -505,7 +491,9 @@ internal sealed class NovelWorkspace : Panel
     private void BackToMain()
     {
         leftHadDoc = false;
-        if (inner.Panel2Collapsed && !chromeHidden) SetTreeVisible(false);
+        if (!inner.Panel2Collapsed) return;
+        if (chromeHidden) treeClosedBeforeChromeHid = true; // 몰입 모드 중이면 몰입을 끝낼 때 닫힌 채로 돌아온다
+        else SetTreeVisible(false);
     }
 
     private bool treeWidthPending = true;
@@ -549,12 +537,15 @@ internal sealed class NovelWorkspace : Panel
     public void SetChromeVisible(bool v)
     {
         if (chromeHidden == !v) return;
+        if (!v) treeClosedBeforeChromeHid = outer.Panel1Collapsed; // 몰입 모드에 들어가기 전의 파일 트리 상태를 기억해 둔다
         chromeHidden = !v;
         UpdateChrome();
         ChromeVisibilityChanged?.Invoke(v);
-        outer.Panel1Collapsed = !v || outer.Panel1Collapsed && !v;
+        outer.Panel1Collapsed = v ? treeClosedBeforeChromeHid : true;
         if (v) SyncRail();
     }
+
+    private bool treeClosedBeforeChromeHid;
 
     // ───────── 테마 ─────────
 
@@ -595,10 +586,10 @@ internal sealed class WorkspaceRail : Control
         ("settings", "", "설정 (Ctrl+,)"),
     };
 
-    /// <summary>설정에 저장된 순서(모르는 키는 빼고, 빠진 항목은 기본 자리 근처에 끼워 넣는다).</summary>
     /// <summary>사용자가 직접 넣은 항목: 구분선(sepX1 …) · 빈 아이콘(blankX1 …).</summary>
     public static bool IsCustom(string k) => k.StartsWith("sepX") || k.StartsWith("blankX");
 
+    /// <summary>설정에 저장된 순서(모르는 키는 빼고, 빠진 항목은 기본 자리 근처에 끼워 넣는다).</summary>
     public static List<string> OrderFor(AppSettings s)
     {
         var known = Catalog.Select(c => c.Key).ToList();
@@ -627,12 +618,12 @@ internal sealed class WorkspaceRail : Control
         ApplySettings(AppShared.Settings);
     }
 
-    /// <summary>설정의 순서 · 숨김을 반영한다.</summary>
     private bool docMode;
     /// <summary>문서 안인지(파일 트리 · 메모 · 검색 아이콘은 문서 안에서만 보인다).</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool DocMode { get => docMode; set { if (docMode == value) return; docMode = value; ApplySettings(AppShared.Settings); } }
 
+    /// <summary>설정의 순서 · 숨김을 반영한다.</summary>
     public void ApplySettings(AppSettings s)
     {
         var list = new List<(string, string, string, bool)>();

@@ -432,7 +432,12 @@ internal sealed class EpisodePanel : Panel
             Reload();
             EpisodeRenamed?.Invoke(path, np);
         }
-        catch (Exception ex) { Warn($"이름을 바꾸지 못했어요: {ex.Message}"); Reload(); }
+        catch (Exception ex)
+        {
+            if (File.Exists(path)) EpisodeRenamed?.Invoke(path, path); // 이름을 바꾸기 전에 닫아 둔 문서 칸을 원래 이름으로 다시 연다
+            Warn($"이름을 바꾸지 못했어요: {ex.Message}");
+            Reload();
+        }
     }
 
     private void Delete(string path)

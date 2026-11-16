@@ -1,88 +1,88 @@
-NovelStore.cs (707줄)
+NovelStore.cs (709줄)
 
 작품과 회차의 구조를 다루는 파일이에요. 볼트 바로 아래 폴더 하나가 작품이고, 그 폴더 바로 안의 txt 하나가 회차예요.
 회차 순서, 작품 소개, 태그, 메모, 회차 상태·유형·그룹·상세 속성, 참고 자료의 독서상태는 작품 폴더의 숨김 파일 .cafeum.json 하나에 모아 두고(읽고 쓰는 일은 JsonFile이 맡아요), 표지는 .cover.png, 글자 서식은 .cafeum-fmt 폴더의 .rtf에 따로 둬요. 순서 목록에 없는 txt는 이름의 자연 순서로 뒤에 붙어서, 탐색기에서 넣은 파일도 그대로 회차가 돼요.
 회차에 관한 값은 파일 이름을 열쇠로 기억해요. 그래서 회차 이름을 바꿀 때는 상태, 유형, 그룹, 속성, 순서, 글자 서식 파일을 새 이름으로 한꺼번에 옮겨 적고, 새 회차를 만들 때는 같은 이름으로 남아 있던 옛 기록을 비워요.
 회차 목록을 그릴 때는 회차마다 상태와 유형을 물어보므로, 읽기만 하는 질문은 .cafeum.json의 크기와 고친 시각이 같으면 다시 읽지 않고 담아 둔 값을 써요. 글자 수도 파일 크기와 고친 시각이 같으면 다시 세지 않아요.
-이름이 점으로 시작하면 숨김으로 보여 목록에서 사라지고 윈도우 예약어(CON, NUL …)는 파일로 만들 수 없어서, 이런 이름은 쓸 수 없는 이름으로 봐요.
+이름이 점으로 시작하면 숨김으로 보여 목록에서 사라지고 윈도우 예약어(CON, NUL …)는 파일로 만들 수 없어서, 이런 이름은 쓸 수 없는 이름으로 봐요. 이름을 다듬은 결과가 비면 이름 바꾸기를 거부해요.
 맨 뒤의 NovelInputDialog는 작품 만들기, 이름 바꾸기, 소개 고치기에서 이름과 소개를 묻는 작은 창이에요.
 
 1~2	도구함
 4	네임스페이스
 6~11	설명과 NovelStore 클래스 선언
-13~37	Meta: .cafeum.json에 담기는 값들(소개, 순서, 열어 둔 칸, 태그, 메모, 회차 상태·유형·상세 속성·그룹, 참고 자료 독서상태·즐겨찾기)
-39~40	DefaultDescription: 소개를 비워 새 작품을 만들 때 적어 두는 안내 문구
-42	구분 주석(표지)
-44~46	표지 크기(400 × 600 px)와 파일 크기 상한(20MB)
-48	CoverFile: 표지 파일 경로(.cover.png)
-50~54	DeleteCover: 저장된 표지 지우기
-56~57	IsCoverSize: 표지 크기와 정확히 같은지
-59~71	LoadCover: 저장된 표지 읽기(파일을 잡고 있지 않게 복사본을 돌려줌)
-73~91	SaveCover: 고른 이미지를 400 × 600 PNG로 임시 파일을 거쳐 저장
-93~100	SaveRefState: 참고 자료의 독서상태 정하기
-102~110	ToggleRefFavorite: 참고 자료 즐겨찾기 켜고 끄기
-112~118	SaveTags: 작품 태그 저장
-120~125	SaveMemo: 작품 메모 저장
-127~137	SaveStatus: 회차 상태 정하기(null이면 자동으로 되돌림)
-139	구분 주석(에피소드 그룹)
-141	DefaultGroupName: 새 그룹의 기본 이름
-143	Groups: 그룹 이름들(보이는 순서)
-145~152	GroupOfEpisode: 회차가 속한 그룹(없는 그룹을 가리키면 그룹 밖)
-154~165	CreateGroup: 새 그룹 만들기(이름이 겹치면 뒤에 숫자)
-167~180	RenameGroup: 그룹 이름 바꾸기(속한 회차도 따라감)
-182~191	DeleteGroup: 그룹 지우기(속한 회차는 그룹 밖으로 나옴)
-193~203	SetEpisodeGroup: 회차를 그룹에 넣거나 빼기
-205~217	SyncPrologueGroup: 유형이 프롤로그인데 그룹이 없는 회차를 "프롤로그" 그룹에 넣기
-219	구분 주석(회차 상세 정보)
-221~225	EpisodeTypes(회차 유형), WriteStatusNames(집필 상태 이름), StatusKeys(저장되는 값)
-227~233	GetEpisodeType: 회차 유형(정한 적이 없으면 "일반")
-235~254	SaveEpisodeType: 회차 유형 저장(프롤로그면 "프롤로그" 그룹 맨 앞에 넣고, 다른 유형으로 바꾸면 그 그룹에서 뺌)
-256~262	GetProps: 회차 상세 속성의 복사본
-264~273	SaveProps: 회차 상세 속성 저장(비었으면 지움)
-275~285	GetWriteStatus: 집필 상태 이름(정한 적이 없으면 글이 비었으면 예정, 아니면 집필 중)
-287~291	SaveWriteStatus: 집필 상태 저장
-293~303	ContainsText: 회차 글에 이 말이 들어 있는지(작품 안 검색용)
-305	JsonOpts: 들여쓰기하고 한글을 그대로 적는 JSON 설정
-307~308	IsShown: 점으로 시작하거나 숨김·시스템 표시가 있으면 목록에서 뺌
-310~319	ListNovels: 볼트 안의 작품 폴더들(최근에 고친 작품이 앞)
-321~326	LastEdited: 폴더와 그 안 txt 중 가장 나중에 고친 시각
-328	LastEdited: 작품 경로로 부르는 쪽
-330~332	LoadMeta: .cafeum.json 읽기(없거나 못 살리면 빈 값)
-334~339	SaveMeta: .cafeum.json 저장(담아 둔 값도 버림)
-341~342	metaCache, metaGate: 읽기 전용 메타를 담아 두는 곳
-344~364	ReadOnlyMeta: 읽기만 할 때 쓰는 메타(크기와 고친 시각이 같으면 다시 읽지 않음, 읽지 못한 빈 값은 담지 않음)
-366~379	Episodes: 회차 경로들(저장한 순서대로, 나머지는 이름 순으로 뒤에)
-381~386	SaveOrder: 회차 순서 저장
-388~393	SaveDescription: 작품 소개 저장
-395~404	CreateNovel: 새 작품 폴더 만들기(같은 이름이 있으면 뒤에 숫자)
-406~416	AddEpisode: 맨 뒤에 "새 에피소드.txt" 만들기
-418~439	ForgetEpisode: 이 이름의 회차에 남은 기록(상태, 유형, 그룹, 속성, 서식 파일) 비우기
-441~442	FormatFile: 글자 서식 파일 경로(.cafeum-fmt\이름.rtf)
-444~448	DeleteFormatFile: 글자 서식 파일 지우기
-450~458	MoveKey: 이름 열쇠로 된 기록을 새 이름으로 옮기기
-460~495	RenameEpisode: 회차 이름 바꾸기(기록은 한 번에 옮기고, 글자 서식 파일도 따라감)
-497~504	RenameNovel: 작품 폴더 이름 바꾸기
-506~508	InvalidNameMessage: 쓸 수 없는 이름일 때 보여 줄 안내
-510~515	ValidName: 이름으로 쓸 수 있는지(빈 이름, 금지 글자, 앞의 점, 예약어는 안 됨)
-517~520	ReservedNames: 윈도우 예약어 목록
-522~527	IsReservedName: 예약어인지(CON.txt처럼 확장자가 붙어도 마찬가지)
-529~535	SafeName: 폴더·파일 이름으로 쓰도록 다듬기(금지 글자는 공백으로, 앞뒤 점은 떼고, 예약어는 뒤에 _)
-537~542	Unique: 같은 이름이 있으면 뒤에 (2), (3) 붙이기
-544	구분 주석(참고 자료)
-546~548	ReferenceFolder("참고 자료"), ReferenceExtensions(참고 자료로 넣을 수 있는 확장자)
-550~552	IsReferencePath: 참고 자료 폴더 안의 파일인지
-554	ReferenceDir: 참고 자료 폴더 경로
-556~566	References: 참고 자료 파일들(이름의 자연 순서)
-568~583	AddReferences: 파일들을 참고 자료 폴더로 복사
-585~592	ReferenceGlyph: 참고 자료 종류별 아이콘
-594	구분 주석(글자 수)
-596	charCache: 파일별로 센 글자 수를 담아 두는 곳
-598~604	ListCountWithSpaces: 목록의 글자 수에 공백을 넣을지(바꾸면 센 값을 모두 버림)
-606~629	CountChars: 회차의 글자 수(크기와 고친 시각이 같으면 담아 둔 값을 씀)
-631~639	Ago: "방금", "N분 전", "N일 전" 같은 표시
-641~651	UiFontFamily: 화면 글꼴(Noto Sans KR이 있으면 그것, 없으면 맑은 고딕)
-652	NovelStore 클래스 끝
-654~655	NovelInputDialog 설명과 클래스 선언
-657~658	필드: 첫째 칸(이름), 둘째 칸(소개, 없을 수 있음)
-660~661	FirstValue, SecondValue: 입력한 값(앞뒤 공백 뺌)
-663~706	생성자: 창 모양, 입력 칸과 확인·취소 버튼, 이름이 쓸 수 없는 이름이면 안내하고 닫지 않기, 테마 입히기
+13~35	Meta: .cafeum.json에 담기는 값들(소개, 순서, 태그, 메모, 회차 상태·유형·상세 속성·그룹, 참고 자료 독서상태·즐겨찾기)
+37~38	DefaultDescription: 소개를 비워 새 작품을 만들 때 적어 두는 안내 문구
+40	구분 주석(표지)
+42~44	표지 크기(400 × 600 px)와 파일 크기 상한(20MB)
+46	CoverFile: 표지 파일 경로(.cover.png)
+48~52	DeleteCover: 저장된 표지 지우기
+54~55	IsCoverSize: 표지 크기와 정확히 같은지
+57~69	LoadCover: 저장된 표지 읽기(파일을 잡고 있지 않게 복사본을 돌려줌)
+71~89	SaveCover: 고른 이미지를 400 × 600 PNG로 임시 파일을 거쳐 저장
+91~98	SaveRefState: 참고 자료의 독서상태 정하기
+100~108	ToggleRefFavorite: 참고 자료 즐겨찾기 켜고 끄기
+110~116	SaveTags: 작품 태그 저장
+118~123	SaveMemo: 작품 메모 저장
+125~135	SaveStatus: 회차 상태 정하기(null이면 자동으로 되돌림)
+137	구분 주석(에피소드 그룹)
+139	DefaultGroupName: 새 그룹의 기본 이름
+141	Groups: 그룹 이름들(보이는 순서)
+143~150	GroupOfEpisode: 회차가 속한 그룹(없는 그룹을 가리키면 그룹 밖)
+152~163	CreateGroup: 새 그룹 만들기(이름이 겹치면 뒤에 숫자)
+165~178	RenameGroup: 그룹 이름 바꾸기(속한 회차도 따라감)
+180~189	DeleteGroup: 그룹 지우기(속한 회차는 그룹 밖으로 나옴)
+191~201	SetEpisodeGroup: 회차를 그룹에 넣거나 빼기
+203~215	SyncPrologueGroup: 유형이 프롤로그인데 그룹이 없는 회차를 "프롤로그" 그룹에 넣기
+217	구분 주석(회차 상세 정보)
+219~223	EpisodeTypes(회차 유형), WriteStatusNames(집필 상태 이름), StatusKeys(저장되는 값)
+225~231	GetEpisodeType: 회차 유형(정한 적이 없으면 "일반")
+233~252	SaveEpisodeType: 회차 유형 저장(프롤로그면 "프롤로그" 그룹 맨 앞에 넣고, 다른 유형으로 바꾸면 그 그룹에서 뺌)
+254~260	GetProps: 회차 상세 속성의 복사본
+262~271	SaveProps: 회차 상세 속성 저장(비었으면 지움)
+273~283	GetWriteStatus: 집필 상태 이름(정한 적이 없으면 글이 비었으면 예정, 아니면 집필 중)
+285~289	SaveWriteStatus: 집필 상태 저장
+291~301	ContainsText: 회차 글에 이 말이 들어 있는지(작품 안 검색용)
+303	JsonOpts: 들여쓰기하고 한글을 그대로 적는 JSON 설정
+305~306	IsShown: 점으로 시작하거나 숨김·시스템 표시가 있으면 목록에서 뺌
+308~317	ListNovels: 볼트 안의 작품 폴더들(최근에 고친 작품이 앞)
+319~324	LastEdited: 폴더와 그 안 txt 중 가장 나중에 고친 시각
+326	LastEdited: 작품 경로로 부르는 쪽
+328~330	LoadMeta: .cafeum.json 읽기(없거나 못 살리면 빈 값)
+332~337	SaveMeta: .cafeum.json 저장(담아 둔 값도 버림)
+339~340	metaCache, metaGate: 읽기 전용 메타를 담아 두는 곳
+342~362	ReadOnlyMeta: 읽기만 할 때 쓰는 메타(크기와 고친 시각이 같으면 다시 읽지 않음, 읽지 못한 빈 값은 담지 않음)
+364~377	Episodes: 회차 경로들(저장한 순서대로, 나머지는 이름 순으로 뒤에)
+379~384	SaveOrder: 회차 순서 저장
+386~391	SaveDescription: 작품 소개 저장
+393~402	CreateNovel: 새 작품 폴더 만들기(같은 이름이 있으면 뒤에 숫자)
+404~414	AddEpisode: 맨 뒤에 "새 에피소드.txt" 만들기
+416~437	ForgetEpisode: 이 이름의 회차에 남은 기록(상태, 유형, 그룹, 속성, 서식 파일) 비우기
+439~440	FormatFile: 글자 서식 파일 경로(.cafeum-fmt\이름.rtf)
+442~446	DeleteFormatFile: 글자 서식 파일 지우기
+448~456	MoveKey: 이름 열쇠로 된 기록을 새 이름으로 옮기기
+458~495	RenameEpisode: 회차 이름 바꾸기(이름이 비면 거부, 기록은 한 번에 옮기고, 글자 서식 파일도 따라감)
+497~506	RenameNovel: 작품 폴더 이름 바꾸기(이름이 비면 거부)
+508~510	InvalidNameMessage: 쓸 수 없는 이름일 때 보여 줄 안내
+512~517	ValidName: 이름으로 쓸 수 있는지(빈 이름, 금지 글자, 앞의 점, 예약어는 안 됨)
+519~522	ReservedNames: 윈도우 예약어 목록
+524~529	IsReservedName: 예약어인지(CON.txt처럼 확장자가 붙어도 마찬가지)
+531~537	SafeName: 폴더·파일 이름으로 쓰도록 다듬기(금지 글자는 공백으로, 앞뒤 점은 떼고, 예약어는 뒤에 _)
+539~544	Unique: 같은 이름이 있으면 뒤에 (2), (3) 붙이기
+546	구분 주석(참고 자료)
+548~550	ReferenceFolder("참고 자료"), ReferenceExtensions(참고 자료로 넣을 수 있는 확장자)
+552~554	IsReferencePath: 참고 자료 폴더 안의 파일인지
+556	ReferenceDir: 참고 자료 폴더 경로
+558~568	References: 참고 자료 파일들(이름의 자연 순서)
+570~585	AddReferences: 파일들을 참고 자료 폴더로 복사
+587~594	ReferenceGlyph: 참고 자료 종류별 아이콘
+596	구분 주석(글자 수)
+598	charCache: 파일별로 센 글자 수를 담아 두는 곳
+600~606	ListCountWithSpaces: 목록의 글자 수에 공백을 넣을지(바꾸면 센 값을 모두 버림)
+608~631	CountChars: 회차의 글자 수(크기와 고친 시각이 같으면 담아 둔 값을 씀)
+633~641	Ago: "방금", "N분 전", "N일 전" 같은 표시
+643~653	UiFontFamily: 화면 글꼴(Noto Sans KR이 있으면 그것, 없으면 맑은 고딕)
+654	NovelStore 클래스 끝
+656~657	NovelInputDialog 설명과 클래스 선언
+659~660	필드: 첫째 칸(이름), 둘째 칸(소개, 없을 수 있음)
+662~663	FirstValue, SecondValue: 입력한 값(앞뒤 공백 뺌)
+665~708	생성자: 창 모양, 입력 칸과 확인·취소 버튼, 이름이 쓸 수 없는 이름이면 안내하고 닫지 않기, 테마 입히기

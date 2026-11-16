@@ -14,8 +14,6 @@ internal static class NovelStore
     {
         public string? Description { get; set; }
         public List<string> Order { get; set; } = new();
-        /// <summary>워크스페이스에 열어 둔 칸들(작품 폴더 기준 상대 경로, 왼쪽 칸부터).</summary>
-        public List<string>? Panes { get; set; }
         /// <summary>작품 화면에 붙이는 태그.</summary>
         public List<string>? Tags { get; set; }
         /// <summary>작품 화면 [메모] 탭의 글.</summary>
@@ -461,7 +459,9 @@ internal static class NovelStore
     public static string RenameEpisode(string path, string newTitle)
     {
         string dir = Path.GetDirectoryName(path)!;
-        string target = Path.Combine(dir, SafeName(newTitle) + ".txt");
+        string safe = SafeName(newTitle);
+        if (safe.Length == 0) throw new IOException("이름이 비어 있어요."); // ".txt"라는 숨김 파일이 되어 목록에서 사라지는 것을 막는다
+        string target = Path.Combine(dir, safe + ".txt");
         if (string.Equals(target, path, StringComparison.Ordinal)) return path;
         bool sameFile = string.Equals(target, path, StringComparison.OrdinalIgnoreCase); // 대소문자만 바꾸는 경우
         if (!sameFile && File.Exists(target)) throw new IOException($"같은 이름이 이미 있어요: {Path.GetFileName(target)}");
@@ -496,7 +496,9 @@ internal static class NovelStore
 
     public static string RenameNovel(string novelDir, string newTitle)
     {
-        string target = Path.Combine(Path.GetDirectoryName(novelDir)!, SafeName(newTitle));
+        string safe = SafeName(newTitle);
+        if (safe.Length == 0) throw new IOException("이름이 비어 있어요.");
+        string target = Path.Combine(Path.GetDirectoryName(novelDir)!, safe);
         if (string.Equals(target, novelDir, StringComparison.Ordinal)) return novelDir;
         if (!string.Equals(target, novelDir, StringComparison.OrdinalIgnoreCase) && Directory.Exists(target)) throw new IOException($"같은 이름의 작품이 이미 있어요: {Path.GetFileName(target)}");
         Directory.Move(novelDir, target);

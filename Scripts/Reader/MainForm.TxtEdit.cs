@@ -74,12 +74,12 @@ public partial class MainForm
         };
         mainEditor.SelectionChanged += (_, _) => SyncCharButtons(); // 서식 버튼이 커서 자리의 서식대로 눌려 보이게
         mainEditor.KeyUp += (_, e) => { if (e.Control && e.KeyCode is Keys.B or Keys.I or Keys.U) MarkFormatDirty(); }; // 단축키(Ctrl+B/I/U)로 바꾼 서식도 저장 대상
-        FormClosing += (_, _) => FlushAutoSave();
+        FormClosing += (_, _) => FlushAutoSave(closing: true);
         FormClosed += (_, _) => { autoSaveTimer.Dispose(); autoSaveMaxTimer.Dispose(); };
     }
 
-    /// <summary>고친 글이 있으면 지금 바로 파일에 쓴다(실패하면 상태 줄에 알리고 다음 기회에 다시 시도).</summary>
-    private void FlushAutoSave()
+    /// <summary>고친 글이 있으면 지금 바로 파일에 쓴다(실패하면 상태 줄에 알리고 다음 기회에 다시 시도, 닫는 중이면 복구 사본을 남긴다).</summary>
+    private void FlushAutoSave(bool closing = false)
     {
         autoSaveTimer.Stop();
         autoSaveMaxTimer.Stop();
@@ -105,7 +105,28 @@ public partial class MainForm
         {
             AppLog.Write($"자동 저장에 실패했어요: {currentPath}", ex);
             statusLabel.Text = $"저장하지 못했어요: {ex.Message}";
+            if (closing && textChanged) SaveRescueCopy(content, ex);
         }
+    }
+
+    /// <summary>닫는 중에 저장하지 못했으면 글을 잃지 않게 복구 폴더에 사본을 남기고 알린다(닫고 나면 상태 줄을 볼 수 없으므로).</summary>
+    private void SaveRescueCopy(string content, Exception cause)
+    {
+        string? copy = null;
+        try
+        {
+            string dir = Path.Combine(AppSettings.DataDir, "recover");
+            Directory.CreateDirectory(dir);
+            copy = Path.Combine(dir, $"{Path.GetFileNameWithoutExtension(currentPath)}-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+            File.WriteAllText(copy, ToCrlf(content), new UTF8Encoding(false));
+            AppLog.Write($"저장하지 못한 글을 복구 폴더에 남겼어요: {copy}");
+        }
+        catch (Exception ex) { AppLog.Write("복구 사본도 만들지 못했어요", ex); copy = null; }
+        string name = Path.GetFileName(currentPath ?? "");
+        string msg = copy != null
+            ? $"'{name}'을(를) 저장하지 못했어요. ({cause.Message})\n\n쓰던 글은 여기에 따로 남겨 두었어요:\n{copy}"
+            : $"'{name}'을(를) 저장하지 못했고, 복구 사본도 만들지 못했어요. ({cause.Message})";
+        try { MessageBox.Show(this, msg, AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); } catch { }
     }
 
     /// <summary>파일 맨 앞의 BOM과 글자 모양으로 인코딩을 고른다. BOM이 없고 UTF-8로 읽으면 깨지면 한글 윈도우 기본(CP949)으로 본다.</summary>
