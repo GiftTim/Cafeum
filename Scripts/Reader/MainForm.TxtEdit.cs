@@ -112,16 +112,7 @@ public partial class MainForm
     /// <summary>닫는 중에 저장하지 못했으면 글을 잃지 않게 복구 폴더에 사본을 남기고 알린다(닫고 나면 상태 줄을 볼 수 없으므로).</summary>
     private void SaveRescueCopy(string content, Exception cause)
     {
-        string? copy = null;
-        try
-        {
-            string dir = Path.Combine(AppSettings.DataDir, "recover");
-            Directory.CreateDirectory(dir);
-            copy = Path.Combine(dir, $"{Path.GetFileNameWithoutExtension(currentPath)}-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
-            File.WriteAllText(copy, ToCrlf(content), new UTF8Encoding(false));
-            AppLog.Write($"저장하지 못한 글을 복구 폴더에 남겼어요: {copy}");
-        }
-        catch (Exception ex) { AppLog.Write("복구 사본도 만들지 못했어요", ex); copy = null; }
+        string? copy = SafeFile.WriteRescueCopy($"{Path.GetFileNameWithoutExtension(currentPath)}-{DateTime.Now:yyyyMMdd-HHmmss}.txt", ToCrlf(content));
         string name = Path.GetFileName(currentPath ?? "");
         string msg = copy != null
             ? $"'{name}'을(를) 저장하지 못했어요. ({cause.Message})\n\n쓰던 글은 여기에 따로 남겨 두었어요:\n{copy}"

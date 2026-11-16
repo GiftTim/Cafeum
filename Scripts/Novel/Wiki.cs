@@ -53,6 +53,8 @@ internal sealed class WikiDoc
                 int c = raw.IndexOfAny(new[] { ':', '：' });
                 if (c <= 0) continue;
                 string key = raw[..c].Trim(), val = raw[(c + 1)..].Trim();
+                // 고정 속성 이름과 겹치는 사용자 속성은 저장할 때 이름 뒤에 공백을 붙여 둔다(Serialize) — 그런 줄은 속성 상자 항목으로 읽는다
+                if (FixedKeys.Contains(key) && raw[..c].EndsWith(' ')) { d.Attributes.Add((key, val)); continue; }
                 switch (key)
                 {
                     case "카테고리": d.Category = WikiCategory.Find(val).Key; break;
@@ -158,6 +160,7 @@ internal static class WikiStore
         string dir = Dir(novelDir);
         Directory.CreateDirectory(dir);
         string name = title.Trim();
+        if (!NovelStore.ValidName(name)) throw new IOException(NovelStore.InvalidNameMessage("제목")); // 점으로 시작하는 이름은 숨김 파일이 되어 목록에서 사라진다
         string path = Path.Combine(dir, name + ".txt");
         if (File.Exists(path)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {name}");
         var d = new WikiDoc { Path = path, Category = category, Summary = summary.Trim(), Tags = tags };
@@ -167,7 +170,9 @@ internal static class WikiStore
 
     public static string Rename(WikiDoc d, string newTitle)
     {
-        string target = Path.Combine(Path.GetDirectoryName(d.Path)!, newTitle.Trim() + ".txt");
+        string title = newTitle.Trim();
+        if (!NovelStore.ValidName(title)) throw new IOException(NovelStore.InvalidNameMessage("제목"));
+        string target = Path.Combine(Path.GetDirectoryName(d.Path)!, title + ".txt");
         if (string.Equals(target, d.Path, StringComparison.Ordinal)) return d.Path;
         if (!string.Equals(target, d.Path, StringComparison.OrdinalIgnoreCase) && File.Exists(target)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {newTitle}");
         File.Move(d.Path, target);

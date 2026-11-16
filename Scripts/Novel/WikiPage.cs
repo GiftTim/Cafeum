@@ -254,22 +254,36 @@ internal sealed class WikiPage : Panel
 
     private void SaveSoon() { saveTimer.Stop(); saveTimer.Start(); }
 
-    /// <summary>고친 내용을 파일에 쓴다.</summary>
+    /// <summary>고친 내용을 파일에 쓴다(저장하지 못하면 쓰던 내용을 복구 폴더에 남기고 알린다).</summary>
     public void Save()
     {
         saveTimer.Stop();
         if (doc == null || loading) return;
+        string? now = null;
         try
         {
             doc.Body = body.ToText(out var heads);
             SetToc(heads);
-            string now = doc.Serialize();
+            now = doc.Serialize();
             string? old = File.Exists(doc.Path) ? File.ReadAllText(doc.Path) : null;
             if (old == now) return;
             WikiStore.Save(doc);
             Changed?.Invoke();
         }
-        catch { }
+        catch (Exception ex) { ReportSaveFailure(ex, now); }
+    }
+
+    private DateTime lastSaveFailNotice;
+
+    private void ReportSaveFailure(Exception ex, string? content)
+    {
+        AppLog.Write($"위키 문서를 저장하지 못했어요: {doc?.Path}", ex);
+        // 쓰던 내용은 매번 복구 폴더에 덮어써 두고(닫아 버려도 남도록), 안내창은 1분에 한 번만 띄운다
+        string? copy = content == null || doc == null ? null : SafeFile.WriteRescueCopy($"위키-{doc.Title}-저장실패.txt", content);
+        if (DateTime.UtcNow - lastSaveFailNotice < TimeSpan.FromMinutes(1)) return;
+        lastSaveFailNotice = DateTime.UtcNow;
+        string msg = $"'{doc?.Title}' 위키 문서를 저장하지 못했어요. ({ex.Message})" + (copy != null ? $"\n\n쓰던 내용은 여기에 따로 남겨 두었어요:\n{copy}" : "");
+        try { MessageBox.Show(FindForm(), msg, AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); } catch { }
     }
 
     private void EditAttribute(int index)

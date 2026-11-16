@@ -33,6 +33,26 @@ internal static class SafeFile
     }
 
     /// <summary>
+    /// 저장하지 못한 글을 데이터 폴더의 recover 폴더에 따로 남긴다(같은 이름이면 덮어쓴다). 성공하면 그 경로, 못 하면 null.
+    /// 닫는 중이나 닫은 뒤에는 저장 실패를 화면에서 볼 수 없으므로, 쓰던 글이 통째로 사라지지 않게 하는 마지막 안전장치다.
+    /// </summary>
+    public static string? WriteRescueCopy(string fileName, string content)
+    {
+        try
+        {
+            string dir = Path.Combine(AppSettings.DataDir, "recover");
+            Directory.CreateDirectory(dir);
+            var bad = Path.GetInvalidFileNameChars();
+            string safe = new(fileName.Select(c => bad.Contains(c) ? '_' : c).ToArray());
+            string path = Path.Combine(dir, safe);
+            File.WriteAllText(path, content, new UTF8Encoding(false));
+            AppLog.Write($"저장하지 못한 글을 복구 폴더에 남겼어요: {path}");
+            return path;
+        }
+        catch (Exception ex) { AppLog.Write("복구 사본도 만들지 못했어요", ex); return null; }
+    }
+
+    /// <summary>
     /// preferred 인코딩으로 content를 글자 하나 잃지 않고 저장할 수 있으면 그대로, 못 하면 UTF-8(BOM 없음).
     /// 예전 한글 txt(CP949)에 이모지처럼 그 인코딩에 없는 글자를 쓰면, 그냥 저장할 때 조용히 '?'로 바뀌어 글자가 사라지기 때문이다.
     /// </summary>

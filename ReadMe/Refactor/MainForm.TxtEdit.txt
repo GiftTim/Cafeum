@@ -1,4 +1,4 @@
-MainForm.TxtEdit.cs (152줄, MainForm의 일부)
+MainForm.TxtEdit.cs (143줄, MainForm의 일부)
 
 txt를 메모장처럼 바로 쓰는 부분이에요.
 파일을 열면 곧바로 고칠 수 있고, 아무것도 안 치고 일정 시간(기본 10초)이 지나면, 계속 쳐도 일정 간격(기본 60초)마다 자동으로 저장해요.
@@ -17,5 +17,5 @@ txt를 메모장처럼 바로 쓰는 부분이에요.
 47~60	LooksLikeText: 앞부분에 NUL(0) 바이트가 있으면 글 파일이 아님(UTF-16은 BOM으로 알아봄)
 62~79	InitTxtEdit: 글이 바뀔 때마다 타이머를 다시 재고, 창을 닫을 때 저장하도록 연결
 81~110	FlushAutoSave: 고친 글이 있으면 지금 저장(실패하면 상태 줄에 알리고 기록, 다음 기회에 다시. 닫는 중이면 복구 사본도 남김)
-112~130	SaveRescueCopy: 닫는 중에 저장하지 못한 글을 recover 폴더에 사본으로 쓰고 안내창으로 알리기
-132~151	ReadTextDetectEncoding: BOM 또는 UTF-8로 읽어 보고 깨지면 CP949로 판단해 읽기
+112~121	SaveRescueCopy: 닫는 중에 저장하지 못한 글을 recover 폴더에 사본으로 남기고(SafeFile.WriteRescueCopy) 안내창으로 알리기
+123~142	ReadTextDetectEncoding: BOM 또는 UTF-8로 읽어 보고 깨지면 CP949로 판단해 읽기
