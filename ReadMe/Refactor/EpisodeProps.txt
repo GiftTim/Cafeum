@@ -1,0 +1,17 @@
+EpisodeProps.cs (83줄)
+
+회차 상세 정보에 붙이는 속성들이에요: 요약, 작가의 말, 줄바꿈 방식, 태그, 수위, 시점, 등장(위키 문서 제목). 작품 폴더의 .cafeum.json에 회차 파일 이름별로 저장돼요. [속성 추가하기]로 추가한 속성만 상세 정보에 보여요(Added).
+TextEditDialog는 요약과 작가의 말처럼 여러 줄 글을 고치는 작은 창이에요.
+
+1	네임스페이스
+3~7	설명과 EpisodeProps 클래스 선언
+9~18	값: 요약, 작가의 말, 줄바꿈, 수위, 시점, 태그, 등장, 추가한 속성 키들
+20~22	IsEmpty: 아무 값도 없는지
+24~28	Clone: 복사본
+30~39	Defs: 속성 정의(키, 이름, 아이콘, [속성 추가하기] 목록의 순서)
+41~46	LineBreakOptions, RatingOptions, PovOptions: 줄바꿈, 수위, 시점의 고르는 값들
+47	EpisodeProps 클래스 끝
+49~50	TextEditDialog 설명과 클래스 선언
+52~53	입력칸과 Value
+55~82	생성자: 창 모양, 입력칸과 버튼
+83	TextEditDialog 클래스 끝

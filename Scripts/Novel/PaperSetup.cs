@@ -61,6 +61,10 @@ internal sealed class PaperForm : Form
 
     private static NumericUpDown Mm(int min, int max) => new() { Minimum = min, Maximum = max, DecimalPlaces = 1, Increment = 1, Width = 80 };
 
+    /// <summary>저장돼 있던 값을 입력칸에 넣는다. 범위를 벗어났거나 숫자가 아닌 값(옛 파일 · 손으로 고친 파일)이어도 창이 멈추지 않게 범위 안으로 맞춘다.</summary>
+    private static void SetMm(NumericUpDown n, double v) =>
+        n.Value = double.IsFinite(v) ? (decimal)Math.Clamp(v, (double)n.Minimum, (double)n.Maximum) : n.Minimum;
+
     public PaperForm(PaperSetup? current)
     {
         Text = "편집 용지";
@@ -139,10 +143,10 @@ internal sealed class PaperForm : Form
             int idx = Array.FindIndex(Presets, p => p.Name == cur.Name);
             kind.SelectedIndex = idx >= 0 ? idx + 1 : kind.Items.Count - 1;
         }
-        width.Value = (decimal)cur.Width; height.Value = (decimal)cur.Height;
+        SetMm(width, cur.Width); SetMm(height, cur.Height);
         (cur.Landscape ? landscape : portrait).Checked = true;
-        top.Value = (decimal)cur.Top; bottom.Value = (decimal)cur.Bottom; left.Value = (decimal)cur.Left; right.Value = (decimal)cur.Right;
-        header.Value = (decimal)cur.Header; footer.Value = (decimal)cur.Footer; gutter.Value = (decimal)cur.Gutter;
+        SetMm(top, cur.Top); SetMm(bottom, cur.Bottom); SetMm(left, cur.Left); SetMm(right, cur.Right);
+        SetMm(header, cur.Header); SetMm(footer, cur.Footer); SetMm(gutter, cur.Gutter);
         loading = false;
         UpdateEnabled();
 

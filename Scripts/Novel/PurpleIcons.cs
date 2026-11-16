@@ -124,7 +124,8 @@ internal static class PurpleIcons
         using var numPen = new Pen(color, Math.Max(0.6f, s / 55f)) { LineJoin = LineJoin.Round };
         using var numPath = new GraphicsPath();
         var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-        numPath.AddString("123", new FontFamily("Segoe UI"), (int)FontStyle.Regular, 0.25f * s, new RectangleF(0.12f * s, 0.62f * s, 0.62f * s, 0.26f * s), sf);
+        using var segoe = new FontFamily("Segoe UI"); // 그릴 때마다 만들어지므로 쓰고 나면 바로 놓아 준다
+        numPath.AddString("123", segoe, (int)FontStyle.Regular, 0.25f * s, new RectangleF(0.12f * s, 0.62f * s, 0.62f * s, 0.26f * s), sf);
         g.FillPath(b, numPath);
         g.DrawPath(numPen, numPath);
         return bmp;

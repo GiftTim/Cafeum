@@ -76,7 +76,7 @@ internal sealed class ParagraphDialog : Form
         firstNormal = Radio("보통", 350, Y + 34, v.FirstMode == 0, () => v.FirstMode = 0);
         firstIndent = Radio("들여쓰기", 350, Y + 70, v.FirstMode == 1, () => v.FirstMode = 1);
         firstOutdent = Radio("내어쓰기", 350, Y + 106, v.FirstMode == 2, () => v.FirstMode = 2);
-        firstPt = new UnitUpDown { Unit = "pt", Location = new Point(480, Y + 90), Width = 130, DecimalPlaces = 1, Minimum = 0, Maximum = 500, Increment = 1, Value = (decimal)v.FirstPt };
+        firstPt = new UnitUpDown { Unit = "pt", Location = new Point(480, Y + 90), Width = 130, DecimalPlaces = 1, Minimum = 0, Maximum = 500, Increment = 1, Value = (decimal)Math.Clamp(double.IsFinite(v.FirstPt) ? v.FirstPt : 0, 0, 500) };
         firstPt.ValueChanged += (_, _) => { v.FirstPt = (double)firstPt.Value; preview.Invalidate(); };
         Controls.Add(firstPt);
         void SyncFirst() { firstPt.Enabled = v.FirstMode != 0; }
