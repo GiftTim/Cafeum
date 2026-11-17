@@ -15,7 +15,7 @@ ScheduleView.cs (2067줄)
 71~94	LoadData: 파일 읽기(옛 형식도 받음), 기본 스케줄과 맨 위 [새 스케줄] 보장, 날짜를 못 읽는 일정은 기록하고 뺌
 96~105	Calendars, All, 공휴일 색과 보이기, CalOf
 107~114	Key, CalIndex, IsMulti, Covers, TryParse: 날짜 글자와 기간 도우미
-116~123	Add: 일정 추가(여러 날이면 시간 없이)
+116~123	Add: 일정 추가(여러 날이면 하루종일)
 125	Remove
 127~139	RemoveDay: 며칠짜리 일정에서 하루만 지우기(가장자리면 줄이고 중간이면 둘로 가름)
 141~142	FreeColors: 아직 안 쓴 색

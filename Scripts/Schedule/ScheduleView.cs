@@ -1628,7 +1628,7 @@ internal sealed class ScheduleEntryDialog : Form
         ShowLen();
 
         datePick = new DateTimePicker { Format = DateTimePickerFormat.Custom, CustomFormat = "M월 d일 (ddd)", Value = date.Date };
-        allDay = new CheckBox { Text = "시간 없이", ForeColor = p.Fore, Checked = startMin < 0, AutoSize = false };
+        allDay = new CheckBox { Text = "하루종일", ForeColor = p.Fore, Checked = startMin < 0, AutoSize = false };
         allDay.CheckedChanged += (_, _) => { startPick.Enabled = endPick.Enabled = !allDay.Checked; };
         startPick.Enabled = endPick.Enabled = !allDay.Checked;
 
