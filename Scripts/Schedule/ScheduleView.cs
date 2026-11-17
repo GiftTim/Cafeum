@@ -1005,12 +1005,12 @@ internal sealed class ScheduleView : Panel
             return $"{s / 60:00}:{s % 60:00} – {f / 60 % 24:00}:{f % 60:00}";
         }
 
-        /// <summary>오늘과의 차이: 오늘 · 3일 후 · 2일 전.</summary>
         /// <summary>고른 날이 공휴일이면 그 이름(휴일 캘린더를 보이게 해 둔 경우만).</summary>
         private string? HolidayName() => ScheduleStore.HolidaysVisible ? KoreanHolidays.NameOn(day) : null;
-        /// <summary>머리 영역 높이: 휴일이면 날짜 밑에 휴일 이름 줄이 하나 더 들어간다.</summary>
+        /// <summary>머리 영역 높이(오늘과의 차이 · 날짜 · 요일 · 휴일 이름이 들어가는 칸). 이 아래부터 일정 줄이다.</summary>
         private int HeadH() => S(86);
 
+        /// <summary>오늘과의 차이: 오늘 · 3일 후 · 2일 전.</summary>
         private string Relative()
         {
             int diff = (int)(day - DateTime.Today).TotalDays;
