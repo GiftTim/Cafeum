@@ -8,6 +8,7 @@ public partial class MainForm
 {
     private BookRecord? lookRec;
     private ToolStrip? lookBar;
+    private GroupOverflow? lookOverflow; // 줄이 좁아지면 구분선 묶음 단위로 가린다
     private ToolStripComboBox? lookLangBox, lookFontBox, lookLineBox;
     private NumericUpDown? lookSizeNum;
     private ToolStripControlHost? lookSizeHost;
@@ -15,11 +16,12 @@ public partial class MainForm
     private readonly List<ToolStripItem> lookFormatItems = new();
     private readonly List<ToolStripSeparator> lookSeps = new();
     private readonly Dictionary<string, List<ToolStripItem>> formatGroups = new();
-    private ToolStripButton? lookPaper, lookLeft, lookCenter, lookRight, lookJustify, lookUndo, lookRedo, lookNav, lookTts, lookPara;
+    private ToolStripButton? lookPaper, lookLeft, lookCenter, lookRight, lookJustify, lookUndo, lookRedo, lookTts, lookPara;
     private ToolStripButton? lookDistribute, lookDivide, lookBold, lookItalic, lookUnderline, lookStrike, lookColor;
     private NumericUpDown? lookLineNum;
     private ToolStripControlHost? lookLineHost;
     private ToolStripLabel? lookLineUnit;
+    private GroupOverflow? readOverflow; // 읽기줄 · 참고자료 줄도 좁아지면 구분선 묶음 단위로 가린다
     private ToolStrip? readBar; // epub · 만화용 읽기 전용 서식창(네비게이션 | 수정하기 | 보기 설정 | 자동 재생)
     private bool undone;
     private bool syncingLook;
@@ -157,12 +159,9 @@ public partial class MainForm
         Disposed += (_, _) => emoji.Dispose();
         MakeAlignIcons();
 
-        // 네비게이션 바 열기/닫기 — 서식창 맨 앞(뒤에 구분선). 머리 막대 목차 버튼과 같은 메뉴 항목을 누른다.
+        // 낭독 버튼에 쓰는 아이콘 글꼴.
         var navIconFont = new Font(IconFontName(), 12f);
         Disposed += (_, _) => navIconFont.Dispose();
-        lookNav = Btn(GlyphToc, "네비게이션 바 열기/닫기", () => navMenuItem?.PerformClick());
-        lookNav.Font = navIconFont;
-        lookNav.Checked = settings.NavBarEnabled;
         { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); }
         { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); } // 낭독 앞 구분선(sepF5)
         { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); } // 정렬 뒤 구분선(sepF6)
@@ -191,10 +190,10 @@ public partial class MainForm
         formatGroups["align"] = new() { lookJustify!, lookLeft!, lookCenter!, lookRight!, lookDistribute!, lookDivide! };
         formatGroups["chars"] = new() { lookBold!, lookItalic!, lookUnderline!, lookStrike!, lookColor! };
         formatGroups["para"] = new() { lookPara! };
-        formatGroups["fnav"] = new() { lookNav! };
         formatGroups["tts"] = new() { lookTts! };
         for (int i = 0; i < lookSeps.Count && i < 6; i++) formatGroups["sepF" + (i + 1)] = new() { lookSeps[i] };
         lookFormatItems.AddRange(lookBar.Items.Cast<ToolStripItem>());
+        lookOverflow = new GroupOverflow(lookBar, () => LogicalToDeviceUnits(16), () => LogicalToDeviceUnits(30));
         ApplyLookBarLayout();
         lookBar.Resize += (_, _) => CenterLookBar();
         lookBar.VisibleChanged += (_, _) => CenterLookBar();
@@ -209,9 +208,11 @@ public partial class MainForm
         centeringLook = true;
         try
         {
-            int items = lookBar.Items.Cast<ToolStripItem>().Where(i => i.Available).Sum(i => i.Width + i.Margin.Horizontal);
+            lookOverflow?.Update();
+            int items = lookBar.Items.Cast<ToolStripItem>().Where(i => i.Available && !GroupOverflow.IsHidden(i)).Sum(i => i.Width + i.Margin.Horizontal);
             int min = LogicalToDeviceUnits(16);
-            int left = Math.Max(min, (lookBar.ClientSize.Width - items) / 2);
+            // 가려진 묶음이 있으면 넘침 버튼이 오른쪽 끝을 차지하므로 가운데로 모으지 않고 왼쪽부터 놓는다.
+            int left = lookOverflow?.IsOverflowing == true ? min : Math.Max(min, (lookBar.ClientSize.Width - items) / 2);
             if (lookBar.Padding.Left != left) lookBar.Padding = new Padding(left, lookBar.Padding.Top, lookBar.Padding.Right, lookBar.Padding.Bottom);
         }
         finally { centeringLook = false; }
@@ -250,6 +251,7 @@ public partial class MainForm
         readBar.Padding = new Padding(LogicalToDeviceUnits(16), 3, 6, 3);
         foreach (var key in new[] { "nav", "edit", "look", "play" })
             if (toolbarItems.TryGetValue(key, out var it)) it.Owner?.Items.Remove(it); // 머리 막대 메뉴에서 떼어 낸다
+        readOverflow = new GroupOverflow(readBar, () => LogicalToDeviceUnits(16), () => LogicalToDeviceUnits(30));
         readBar.Resize += (_, _) => CenterReadBar();
         readBar.VisibleChanged += (_, _) => CenterReadBar();
         MenuGuard.AttachAll(readBar); // 이 서식창은 나중에 만들어지므로 여기서 건다: 읽기 방식 · 보기 모드 팝업이 밖을 누르면 닫히게
@@ -265,6 +267,7 @@ public partial class MainForm
     private void ApplyReadBarLayout()
     {
         if (readBar == null) return;
+        readOverflow?.Close(); // 펼침 창에 옮겨 둔 항목을 먼저 줄로 돌려놓는다
         if (refBarActive) { ApplyRefBarLayout(); return; }
         if (toolbarViewMode != null) toolbarViewMode.Enabled = true; // 참고 자료 서식창에서 회색으로 뒀던 걸 되돌린다
         readBar.SuspendLayout();
@@ -294,8 +297,9 @@ public partial class MainForm
         centeringRead = true;
         try
         {
-            int items = readBar.Items.Cast<ToolStripItem>().Where(i => i.Available).Sum(i => i.Width + i.Margin.Horizontal);
-            int left = Math.Max(LogicalToDeviceUnits(16), (readBar.ClientSize.Width - items) / 2);
+            readOverflow?.Update();
+            int items = readBar.Items.Cast<ToolStripItem>().Where(i => i.Available && !GroupOverflow.IsHidden(i)).Sum(i => i.Width + i.Margin.Horizontal);
+            int left = readOverflow?.IsOverflowing == true ? LogicalToDeviceUnits(16) : Math.Max(LogicalToDeviceUnits(16), (readBar.ClientSize.Width - items) / 2);
             if (readBar.Padding.Left != left) readBar.Padding = new Padding(left, readBar.Padding.Top, readBar.Padding.Right, readBar.Padding.Bottom);
         }
         finally { centeringRead = false; }
@@ -305,6 +309,7 @@ public partial class MainForm
     private void ApplyLookBarLayout()
     {
         if (lookBar == null || formatGroups.Count == 0) return;
+        lookOverflow?.Close(); // 펼침 창에 옮겨 둔 항목을 먼저 줄로 돌려놓는다
         lookBar.SuspendLayout();
         int at = 0;
         var order = ToolbarLeftOrder(settings);

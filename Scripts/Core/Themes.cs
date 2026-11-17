@@ -40,7 +40,7 @@ public static class Themes
 
     /// <summary>라이트 테마는 원래 윈도우 모양 그대로 두고, 나머지 테마만 색을 입힌 메뉴 렌더러를 쓴다.</summary>
     public static ToolStripRenderer CreateRenderer(ReaderTheme t) =>
-        t.SystemLook ? new ToolStripProfessionalRenderer() : new ThemeRenderer(t);
+        t.SystemLook ? new SystemLookRenderer() : new ThemeRenderer(t);
 
     // ───────────────────────── 창/컨트롤에 테마 입히기 ─────────────────────────
 
@@ -160,6 +160,37 @@ internal sealed class ThemeColorTable : ProfessionalColorTable
     public override Color CheckPressedBackground => hover;
 }
 
+/// <summary>넘침 버튼(⌄⌄) 그리기. 테마 렌더러와 윈도우 기본 모양 렌더러가 같이 쓴다.</summary>
+internal static class OverflowButtonPainter
+{
+    public static void Draw(ToolStripItemRenderEventArgs e, Color chrome, Color fore)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        float s = e.Item.Owner?.DeviceDpi / 96f ?? 1f;
+        float bh = Math.Min(e.Item.Height - 6 * s, 24 * s);
+        var box = new RectangleF(1 * s, (e.Item.Height - bh) / 2f, e.Item.Width - 6 * s, bh); // 오른쪽 끝에 붙지 않게 조금 띄운다
+        bool open = e.Item.Tag is "open"; // 펼침 창이 열려 있는 동안은 눌린 채로
+        bool active = e.Item.Selected || e.Item.Pressed;
+        using (var fill = new SolidBrush(open ? Themes.Blend(chrome, fore, 0.26f) : active ? Themes.Blend(chrome, fore, 0.16f) : chrome)) g.FillRectangle(fill, box);
+        using (var border = new Pen(Themes.Blend(chrome, fore, 0.3f))) g.DrawRectangle(border, box.X, box.Y, box.Width, box.Height);
+        float cx = box.X + box.Width / 2f, cy = box.Y + box.Height / 2f, w = 3.2f * s, h = 2.4f * s, gap = 3.2f * s;
+        using var pen = new Pen(fore, Math.Max(1.4f, 1.5f * s)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
+        for (int k = 0; k < 2; k++)
+        {
+            float y = cy - gap / 2f - h / 2f + k * gap;
+            g.DrawLines(pen, new[] { new PointF(cx - w, y), new PointF(cx, y + h), new PointF(cx + w, y) });
+        }
+    }
+}
+
+/// <summary>라이트(윈도우 기본 모양) 테마용: 메뉴 모양은 그대로 두고 넘침 버튼만 새 모양으로.</summary>
+internal sealed class SystemLookRenderer : ToolStripProfessionalRenderer
+{
+    protected override void OnRenderOverflowButtonBackground(ToolStripItemRenderEventArgs e) =>
+        OverflowButtonPainter.Draw(e, SystemColors.Control, SystemColors.ControlText);
+}
+
 internal sealed class ThemeRenderer : ToolStripProfessionalRenderer
 {
     private readonly ReaderTheme t;
@@ -181,6 +212,10 @@ internal sealed class ThemeRenderer : ToolStripProfessionalRenderer
         e.ArrowColor = t.ChromeFore;
         base.OnRenderArrow(e);
     }
+
+    // 줄이 좁아져 항목이 가려졌을 때의 넘침 버튼: 얇은 테두리 상자 안에 아래로 향한 겹쳐진 꺾쇠(⌄⌄).
+    protected override void OnRenderOverflowButtonBackground(ToolStripItemRenderEventArgs e) =>
+        OverflowButtonPainter.Draw(e, t.Chrome, t.ChromeFore);
 
     // 기본 체크 표시는 검은색이라 어두운 바탕에서 안 보인다 — 글자색으로 직접 그린다.
     protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)

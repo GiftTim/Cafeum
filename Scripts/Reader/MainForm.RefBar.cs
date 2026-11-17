@@ -122,6 +122,7 @@ public partial class MainForm
     private void ApplyRefBarLayout()
     {
         if (readBar == null) return;
+        readOverflow?.Close();
         EnsureRefItems();
         readBar.SuspendLayout();
         foreach (var old in readBar.Items.Cast<ToolStripItem>().ToList()) readBar.Items.Remove(old);
