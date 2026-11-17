@@ -13,22 +13,22 @@ epub·만화용 읽기 전용 서식창(네비게이션, 수정하기, 보기 �
 32~40	PaperCss: 웹 화면에서 글이 놓이는 칸을 용지 폭·위아래 여백대로 만드는 CSS
 42~50	OpenPaperSetup: 편집 용지 창 열기(기본값으로 저장 선택 가능)
 52~57	지금 쓸 값들: 글꼴, 글자 크기, 줄 간격, 영어 글꼴, 정렬, 줄바꿈(파일별 값이 없으면 설정 기본값)
-59~201	InitLookBar: 서식 줄 만들기(용지, 되돌리기, 언어, 글꼴, 크기, 줄 간격, 정렬, 문단·글자 서식 버튼 등)
-203~217	CenterLookBar: 서식 줄을 가운데에 놓기
-219~232	ApplyLookBarShown: 글(txt, epub)이고 설정에서 켜 두었을 때만 서식 줄 보이기
-234~259	EnsureReadBar: epub·만화용 읽기 전용 서식창 만들기
-261~286	ApplyReadBarLayout: 설정에서 정한 순서대로 읽기 전용 서식창 항목 늘어놓기
-290~301	CenterReadBar: 읽기 전용 서식창을 가운데에
-303~332	ApplyLookBarLayout: 설정에서 정한 순서대로 서식 항목 다시 늘어놓기
-334~335	구분 주석(화면 배율)과 설명
-337~338	ZoomSteps(50~300% 단계), ViewZoom(이 파일의 화면 배율)
-340~345	ViewZoomBy: 한 단계 키우거나 줄이기
-347	ViewZoomReset: 100%로
-349~356	SetViewZoom: 화면 배율 정하기(이 파일에 기억)
-358~366	ApplyViewZoom: 배율을 웹 화면과 글 상자에 반영
-368~376	SetLook: 이 파일의 서식 값을 바꾸고 기억한 뒤 화면에 반영(열린 파일이 없으면 설정 기본값)
-378~389	ApplyLook: 지금 파일의 서식을 글 상자, 웹 화면, 서식 줄에 반영
-391~417	SyncLookBar: 서식 줄의 값을 지금 파일에 맞추기
-419~439	ApplyLookBarTheme: 서식 줄에 테마 색 입히기
-441~447	UpdateUndoState: 되돌리기·다시 실행 버튼 상태
-449~477	MakeAlignIcons: 정렬 버튼 아이콘 — 가는 줄 다섯 개로 정렬 모양을 그리기
+59~202	InitLookBar: 서식 줄 만들기(용지, 되돌리기, 언어, 글꼴, 크기, 줄 간격, 정렬, 문단·글자 서식 버튼 등)
+204~218	CenterLookBar: 서식 줄을 가운데에 놓기
+220~233	ApplyLookBarShown: 글(txt, epub)이고 설정에서 켜 두었을 때만 서식 줄 보이기
+235~260	EnsureReadBar: epub·만화용 읽기 전용 서식창 만들기
+262~287	ApplyReadBarLayout: 설정에서 정한 순서대로 읽기 전용 서식창 항목 늘어놓기
+291~302	CenterReadBar: 읽기 전용 서식창을 가운데에
+304~333	ApplyLookBarLayout: 설정에서 정한 순서대로 서식 항목 다시 늘어놓기
+335~336	구분 주석(화면 배율)과 설명
+338~339	ZoomSteps(50~300% 단계), ViewZoom(이 파일의 화면 배율)
+341~346	ViewZoomBy: 한 단계 키우거나 줄이기
+348	ViewZoomReset: 100%로
+350~357	SetViewZoom: 화면 배율 정하기(이 파일에 기억)
+359~367	ApplyViewZoom: 배율을 웹 화면과 글 상자에 반영
+369~377	SetLook: 이 파일의 서식 값을 바꾸고 기억한 뒤 화면에 반영(열린 파일이 없으면 설정 기본값)
+379~390	ApplyLook: 지금 파일의 서식을 글 상자, 웹 화면, 서식 줄에 반영
+392~418	SyncLookBar: 서식 줄의 값을 지금 파일에 맞추기
+420~440	ApplyLookBarTheme: 서식 줄에 테마 색 입히기
+442~448	UpdateUndoState: 되돌리기·다시 실행 버튼 상태
+450~478	MakeAlignIcons: 정렬 버튼 아이콘 — 가는 줄 다섯 개로 정렬 모양을 그리기

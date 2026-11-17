@@ -119,7 +119,7 @@ public partial class MainForm
         ("sep", "구분선 1 ( | )"), ("menu", "메뉴 (☰)"), ("sep2", "구분선 2 ( | )"), ("edit", "수정(편집)"), ("open", "파일 열기"), ("library", "볼트 열기"),
         ("nav", "네비게이션 바"), ("look", "보기 설정"), ("play", "낭독 · 자동 재생"),
         ("immersion", "몰입 모드"), ("pin", "항상 위"), ("help", "도움말 (❓)"), ("settings", "설정 (⚙)"),
-        ("sidebar", "왼쪽 패널 열기/닫기"), ("sepF4", "구분선 ( | )"), ("fnav", "네비게이션 바"), ("sepF5", "구분선 ( | )"), ("tts", "낭독 · 자동 재생"), ("vmode", "보기 모드"), ("vlayout", "보기 방식"), ("margins", "여백 (상 · 하 · 좌 · 우)"),
+        ("sidebar", "왼쪽 패널 열기/닫기"), ("sepF4", "구분선 ( | )"), ("fnav", "네비게이션 바"), ("sepF5", "구분선 ( | )"), ("sepF6", "구분선 ( | )"), ("tts", "낭독 · 자동 재생"), ("vmode", "보기 모드"), ("vlayout", "보기 방식"), ("margins", "여백 (상 · 하 · 좌 · 우)"),
     };
 
     /// <summary>머리 막대 오른쪽 버튼의 기본 순서(왼쪽 → 오른쪽). 도움말 · 설정은 서재 창이 들고 있어 항상 맨 오른쪽 끝에 놓이고, 둘 사이의 순서만 바뀐다.</summary>
@@ -128,7 +128,7 @@ public partial class MainForm
 
     /// <summary>서식창(탭 밑 서식 줄) 항목의 기본 순서. 설정 > 서식창 · 머리 막대에서 옮기거나 끌 수 있다.</summary>
     internal static readonly string[] ToolbarLeftDefault =
-        { "fnav", "sepF4", "paper", "sepF1", "hist", "sepF2", "lang", "font", "size", "line", "sepF3", "align", "para", "chars", "sepF5", "tts" };
+        { "fnav", "paper", "sepF4", "para", "tts", "sepF1", "hist", "sepF2", "lang", "font", "size", "sepF3", "chars", "sepF5", "align", "sepF6", "line" };
 
     /// <summary>머리 막대 오른쪽 버튼의 순서: 설정에 저장된 순서에 없는 키는 기본 자리 그대로 뒤에 붙인다.</summary>
     internal static List<string> ToolbarOrder(AppSettings s)

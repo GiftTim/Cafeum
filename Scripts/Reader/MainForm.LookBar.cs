@@ -165,6 +165,7 @@ public partial class MainForm
         lookNav.Checked = settings.NavBarEnabled;
         { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); }
         { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); } // 낭독 앞 구분선(sepF5)
+        { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); } // 정렬 뒤 구분선(sepF6)
         lookTts = Btn(GlyphPlay, "낭독 · 자동 재생 설정 (바로 시작/정지: F5)", ShowPlayPopup);
         lookTts.Font = navIconFont;
 
@@ -192,7 +193,7 @@ public partial class MainForm
         formatGroups["para"] = new() { lookPara! };
         formatGroups["fnav"] = new() { lookNav! };
         formatGroups["tts"] = new() { lookTts! };
-        for (int i = 0; i < lookSeps.Count && i < 5; i++) formatGroups["sepF" + (i + 1)] = new() { lookSeps[i] };
+        for (int i = 0; i < lookSeps.Count && i < 6; i++) formatGroups["sepF" + (i + 1)] = new() { lookSeps[i] };
         lookFormatItems.AddRange(lookBar.Items.Cast<ToolStripItem>());
         ApplyLookBarLayout();
         lookBar.Resize += (_, _) => CenterLookBar();
