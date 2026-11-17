@@ -1006,6 +1006,11 @@ internal sealed class ScheduleView : Panel
         }
 
         /// <summary>오늘과의 차이: 오늘 · 3일 후 · 2일 전.</summary>
+        /// <summary>고른 날이 공휴일이면 그 이름(휴일 캘린더를 보이게 해 둔 경우만).</summary>
+        private string? HolidayName() => ScheduleStore.HolidaysVisible ? KoreanHolidays.NameOn(day) : null;
+        /// <summary>머리 영역 높이: 휴일이면 날짜 밑에 휴일 이름 줄이 하나 더 들어간다.</summary>
+        private int HeadH() => S(86);
+
         private string Relative()
         {
             int diff = (int)(day - DateTime.Today).TotalDays;
@@ -1033,7 +1038,7 @@ internal sealed class ScheduleView : Panel
         {
             base.OnMouseClick(e);
             if (e.Button == MouseButtons.Left && RelRect().Contains(e.Location)) { TodayClicked?.Invoke(); return; }
-            if (e.Button != MouseButtons.Left || e.Y < S(86)) return;
+            if (e.Button != MouseButtons.Left || e.Y < HeadH()) return;
             foreach (var (r, en) in rows)
                 if (r.Contains(e.Location)) { EntryClicked?.Invoke(en, PointToScreen(new Point(r.Left, r.Bottom))); return; }
         }
@@ -1050,7 +1055,9 @@ internal sealed class ScheduleView : Panel
             string ff = NovelStore.UiFontFamily;
             const TextFormatFlags left = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
             Color dim = Themes.Blend(pal.Side, pal.Fore, 0.55f);
-            int headH = S(86);
+            int headH = HeadH();
+            string? holName = HolidayName();
+            Color? holCol = holName != null ? ScheduleStore.HolidayColor : null;
 
             // 1) 일정 줄을 먼저 그린다(글자는 영역 밖으로도 그려질 수 있어서, 아래에서 머리 영역을 다시 덮는다)
             var list = DayList();
@@ -1087,16 +1094,20 @@ internal sealed class ScheduleView : Panel
             using (var sf = new Font(ff, 9.5f, FontStyle.Bold))
                 TextRenderer.DrawText(g, Relative(), sf, new Rectangle(S(20), S(10), Width - S(40), S(22)), dim, left);
             string dateText = $"{day.Month}월 {day.Day}일";
+            int wx0 = 0;
             using (var bf = new Font(ff, 22f, FontStyle.Bold))
-            using (var wf = new Font(ff, 11f))
+            using (var wf = new Font(ff, 10.5f))
             {
                 var dsz = TextRenderer.MeasureText(g, dateText, bf, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-                TextRenderer.DrawText(g, dateText, bf, new Rectangle(S(20), S(30), dsz.Width + S(4), S(40)), pal.Fore, left);
+                TextRenderer.DrawText(g, dateText, bf, new Rectangle(S(20), S(30), dsz.Width + S(4), S(40)), holCol ?? pal.Fore, left);
                 // 요일은 날짜 오른쪽, 아래쪽(글자 바닥)에 맞춰 작게
-                int wx = S(20) + dsz.Width + S(10);
-                TextRenderer.DrawText(g, day.ToString("dddd", ko), wf, new Rectangle(wx, S(30) + S(40) - S(26), Math.Max(10, Width - wx - S(12)), S(22)), dim, left);
+                int wx = S(20) + dsz.Width + S(10); wx0 = wx;
+                TextRenderer.DrawText(g, day.ToString("dddd", ko), wf, new Rectangle(wx, S(47), Math.Max(10, Width - wx - S(12)), S(20)), dim, left);
             }
-            using (var lp = new Pen(pal.Line)) g.DrawLine(lp, S(16), S(78), Width - S(16), S(78));
+            if (holName != null)
+                using (var hf = new Font(ff, 9f))
+                    TextRenderer.DrawText(g, holName, hf, new Rectangle(wx0, S(29), Math.Max(10, Width - wx0 - S(10)), S(18)), holCol!.Value, left);
+            using (var lp = new Pen(pal.Line)) g.DrawLine(lp, S(16), headH - S(8), Width - S(16), headH - S(8));
         }
     }
 
@@ -1536,7 +1547,7 @@ internal sealed class ScheduleView : Panel
             // 스크롤로 위로 밀려 올라간 줄이 머리(내 스케줄 · +) 위에 겹치지 않게 머리 영역을 덮고 다시 그린다
             using (var cover = new SolidBrush(pal.Side)) g.FillRectangle(cover, 0, 0, Width, S(44));
             using (var sep2 = new Pen(pal.Line)) g.DrawLine(sep2, 0, 0, Width, 0);
-            using (var hf = new Font(ff, 9f, FontStyle.Bold))
+            using (var hf = new Font(ff, 9f))
                 TextRenderer.DrawText(g, "내 스케줄", hf, new Rectangle(S(18), S(12), Width - S(36), S(24)), Themes.Blend(pal.Side, pal.Fore, 0.5f), TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             var pr = PlusRect();
             if (hot == 1000) { using var hb = new SolidBrush(pal.CardHover); using var hp = LibraryPalette.Rounded(pr, S(8)); g.FillPath(hb, hp); }
