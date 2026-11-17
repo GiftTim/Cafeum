@@ -10,6 +10,8 @@ internal static class ShellMenu
 {
     private const string Verb = "Cafeum";
     private const string Label = "Cafeum으로 보기";
+    /// <summary>이름을 바꾸기 전 버전이 남긴 우클릭 항목 이름(지우지 않으면 "Cafeum으로 보기"가 두 개 나온다).</summary>
+    private static readonly string[] LegacyVerbs = { "Caffeum" };
 
     public static void Register()
     {
@@ -21,6 +23,8 @@ internal static class ShellMenu
         {
             try
             {
+                foreach (var old in LegacyVerbs)
+                    Registry.CurrentUser.DeleteSubKeyTree($@"Software\Classes\SystemFileAssociations\{ext}\shell\{old}", false);
                 using var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\SystemFileAssociations\{ext}\shell\{Verb}");
                 if (key == null) continue;
                 using var cmd = key.CreateSubKey("command");

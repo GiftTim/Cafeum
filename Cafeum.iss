@@ -5,7 +5,7 @@
 
 #define MyAppName "Cafeum"
 #define MyAppDisplayName "Cafeum"
-#define MyAppVersion "1.1.14"
+#define MyAppVersion "1.1.15"
 #define MyAppPublisher "JuneSilver"
 #define MyAppExeName "Cafeum.exe"
 
@@ -53,6 +53,20 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppDisplayName} 실행"; Fl
 [Registry]
 ; 탐색기 오른쪽 클릭 메뉴 "Cafeum으로 보기"(현재 사용자 전용 · 관리자 권한 불필요 · Windows 10 / 11 공통). 앱도 실행할 때 같은 항목을 맞춰 둔다.
 ; 제거하면 이 키들도 함께 지워진다(uninsdeletekey).
+; 이름을 바꾸기 전 버전("Caffeum")의 옛 우클릭 항목은 설치할 때 지운다(남아 있으면 메뉴가 두 개 나온다).
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.txt\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.epub\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.pdf\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.zip\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.cbz\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.hwp\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.hwpx\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpg\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.jpeg\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.png\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.gif\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.bmp\shell\Caffeum"; Flags: deletekey
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.webp\shell\Caffeum"; Flags: deletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.txt\shell\Cafeum"; ValueType: string; ValueData: "Cafeum으로 보기"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.txt\shell\Cafeum"; ValueName: "Icon"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"",0"
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\.txt\shell\Cafeum\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
