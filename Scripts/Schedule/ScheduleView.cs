@@ -1000,7 +1000,7 @@ internal sealed class ScheduleView : Panel
 
         private static string TimeText(ScheduleEntry e)
         {
-            if (e.StartMin < 0) return "시간 없이";
+            if (e.StartMin < 0) return "하루종일";
             int s = e.StartMin, f = Math.Min(24 * 60, s + Math.Max(15, e.DurMin));
             return $"{s / 60:00}:{s % 60:00} – {f / 60 % 24:00}:{f % 60:00}";
         }
