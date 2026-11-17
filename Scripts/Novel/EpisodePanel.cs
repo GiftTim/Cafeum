@@ -1896,7 +1896,7 @@ internal sealed class NovelOverview : Panel
         if (!string.Equals(syncedNovel, dir, StringComparison.OrdinalIgnoreCase)) { syncedNovel = dir; pageOffset = 0; pageScroll.Value = 0; } // 다른 작품으로 들어오면 맨 위부터
         var meta = NovelStore.LoadMeta(dir);
         titleLabel.Text = Path.GetFileName(dir);
-        string desc = meta.Description?.Replace("\r", "").Replace('\n', ' ') ?? "";
+        string desc = meta.Description?.Replace("\r", "") ?? ""; // 소개에서 친 Enter(줄바꿈)는 그대로 보인다
         descLabel.Tag = desc;
         descLabel.Text = desc.Length > 0 ? desc : NovelStore.DefaultDescription;
         metaLabel.Text = $"{source.EpisodePaths.Count}편 · 로컬";
