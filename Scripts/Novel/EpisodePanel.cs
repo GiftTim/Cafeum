@@ -762,7 +762,7 @@ internal sealed class NovelTreeView : Control
         Focus();
         int i = IndexAt(e.Y);
         // [순서 바꾸기]가 켜져 있으면 회차를 끌어 순서를 바꾸고, 꺼져 있으면 문서 칸으로 가져가 놓은 쪽(왼쪽 · 오른쪽)에 연다(창 스냅처럼).
-        bool canDrag = i >= 0 && (reorder ? rows[i].Kind == Kind.Episode : rows[i].Kind is Kind.Episode or Kind.Wiki or Kind.Group); // 그룹 줄을 끌어 놓으면 그 그룹의 캔버스가 열린다
+        bool canDrag = i >= 0 && (reorder ? rows[i].Kind == Kind.Episode : rows[i].Kind is Kind.Episode or Kind.Wiki or Kind.Group or Kind.Ref); // 그룹 줄을 끌어 놓으면 그 그룹의 캔버스가, 참고 자료 줄을 끌어 놓으면 그 자료가 놓은 칸에 열린다
         dragIndex = e.Button == MouseButtons.Left && canDrag ? i : -1;
         downAt = e.Location;
         dragging = false;

@@ -9,7 +9,7 @@ namespace Cafeum;
 
 // 윈도우 스티커 메모를 본뜬 메모 기능.
 // 사이드바 [메모] → 파일 트리 자리에 메모 목록(검색 · 카드). 카드를 누르면 메모 한 장이 따로 뜨는 작은 창으로 열린다.
-// 메모 창: 위쪽 줄 [+ 새 메모] ··· [··· 메모 목록 · 삭제] [색] [압정 = 항상 위] [×] / 이름(진하게) + 본문 / 아래쪽 줄 [B I U S 글머리 체크] ··· [투명도].
+// 메모 창: 위쪽 줄 [+ 새 메모] ··· [··· 메모 목록 · 삭제] [색] [×] / 이름(진하게) + 본문 / 아래쪽 줄 [B I U S 글머리 체크] ··· [투명도].
 // ×는 창만 숨긴다(목록에 남는다). 완전히 없애는 건 [메모 삭제]로만. 작품마다 따로 저장된다(.cafeum-memo.json).
 
 /// <summary>메모 한 장: 이름 · 본문(RTF) · 색 · 투명도 · 창 위치.</summary>
@@ -25,8 +25,6 @@ public sealed class MemoNote
     public string Text { get; set; } = "";
     public int Color { get; set; }
     public double Opacity { get; set; } = 1.0;
-    /// <summary>항상 위(압정).</summary>
-    public bool Pinned { get; set; }
     /// <summary>속한 메모 그룹 이름(null이면 그룹 밖).</summary>
     public string? Group { get; set; }
     public DateTime Created { get; set; } = DateTime.Now;
@@ -209,7 +207,7 @@ internal static class MemoStore
 internal static class StickyChrome
 {
     public const string GlyphAdd = "\uE710", GlyphMore = "\uE712", GlyphClose = "\uE8BB", GlyphBullets = "\uE8FD",
-        GlyphCheckbox = "\uE739", GlyphCheck = "\uE73E", GlyphSearch = "\uE721", GlyphPalette = "\uE790", GlyphPin = "\uE718", GlyphPinned = "\uE841";
+        GlyphCheckbox = "\uE739", GlyphCheck = "\uE73E", GlyphSearch = "\uE721", GlyphPalette = "\uE790";
 
     private const int WM_NCHITTEST = 0x84, HTCLIENT = 1, HTTRANSPARENT = -1;
 
@@ -379,16 +377,12 @@ internal abstract class StickyStrip : Control
 /// <summary>메모 창 위쪽 줄: [+] ············ [···] [색] [압정] [×].</summary>
 internal sealed class StickyNoteHeader : StickyStrip
 {
-    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-    public bool Pinned { get; set; }
-
     protected override void Arrange()
     {
         int btn = S(30), y = (Height - btn) / 2, pad = S(4);
         Buttons.Add(new("add", new Rectangle(pad, y, btn, btn), StickyChrome.GlyphAdd, "새 메모 (Ctrl+N)"));
         int x = Width - pad - btn;
         Buttons.Add(new("close", new Rectangle(x, y, btn, btn), StickyChrome.GlyphClose, "숨기기 (Ctrl+W)")); x -= btn;
-        Buttons.Add(new("pin", new Rectangle(x, y, btn, btn), Pinned ? StickyChrome.GlyphPinned : StickyChrome.GlyphPin, Pinned ? "항상 위 끄기" : "항상 위")); x -= btn;
         Buttons.Add(new("palette", new Rectangle(x, y, btn, btn), StickyChrome.GlyphPalette, "색")); x -= btn;
         Buttons.Add(new("more", new Rectangle(x, y, btn, btn), StickyChrome.GlyphMore, "메뉴"));
     }
@@ -553,7 +547,6 @@ internal sealed class StickyNoteWindow : Form
                 case "add": StickyNotes.NewNote(dir, this); break;
                 case "more": ShowMore(pt); break;
                 case "palette": ShowPalette(pt); break;
-                case "pin": SetPinned(!Note.Pinned); break;
                 case "close": Close(); break;
             }
         };
@@ -588,7 +581,6 @@ internal sealed class StickyNoteWindow : Form
             body.Select(body.TextLength, 0);
             tools.OpacityValue = note.Opacity;
             Opacity = tools.OpacityValue;
-            header.Pinned = TopMost = note.Pinned;
         }
         finally { loading = false; }
         UpdateTitle();
@@ -694,13 +686,6 @@ internal sealed class StickyNoteWindow : Form
         ApplyColors();
         MarkText(); // 글자색이 바뀐 RTF도 저장
         Flush();
-    }
-
-    private void SetPinned(bool on)
-    {
-        Note.Pinned = header.Pinned = TopMost = on;
-        header.Invalidate();
-        MarkMeta();
     }
 
     private void ShowPalette(Point screen)
@@ -1368,7 +1353,19 @@ internal static class StickyNotes
     /// <summary>앱이 끝나기 전에 고치던 메모를 저장하도록 주 창에 건다(한 번만).</summary>
     public static void HookOwner(Form f)
     {
+        mainWindow = f;
         if (Hooked.Add(f)) f.FormClosing += (_, _) => FlushAll();
+    }
+
+    private static Form? mainWindow; // 메모 목록이 들어 있는 카페움 주 창(메모 창의 주인)
+
+    /// <summary>새 메모 창의 주인 창: 옆 메모의 주인 → 넘겨받은 창 → 메모 목록이 걸린 주 창 → 열려 있는 볼트 창. 주인이 있는 창은 늘 그 창 앞에 뜬다.</summary>
+    private static Form? OwnerFor(Form? near)
+    {
+        var o = near is StickyNoteWindow sn ? sn.Owner : near;
+        if (o == null || o.IsDisposed) o = mainWindow;
+        if (o == null || o.IsDisposed) o = Application.OpenForms.OfType<VaultForm>().FirstOrDefault(f => f.Visible);
+        return o is { IsDisposed: false } ? o : null;
     }
 
     public static StickyNoteWindow Open(string novelDir, MemoNote note, Form? near, bool activate = true)
@@ -1385,7 +1382,7 @@ internal static class StickyNotes
         w.FormClosed += (_, _) => Windows.Remove(note.Id);
         w.Bounds = PlaceFor(w, note, near);
         if (!note.Open) { note.Open = true; MemoStore.Save(novelDir); }
-        w.Show();
+        if (OwnerFor(near) is { } owner) w.Show(owner); else w.Show(); // 카페움 창의 소유 창: 다른 프로그램 위로 나서지 않고 카페움 앞에만 떠 있다
         if (activate) w.Activate();
         return w;
     }
