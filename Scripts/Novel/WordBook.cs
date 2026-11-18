@@ -27,11 +27,14 @@ internal sealed class WordGroup
 
 /// <summary>
 /// 내 단어장(앱 데이터 폴더의 wordbook.json). 그룹마다 단어를 모은다. 그룹이 하나도 없으면 "기본" 그룹을 만든다.
-/// 쓰다 끊겨도 예전 파일이 남도록 임시 파일에 쓴 뒤 바꾸고, 파일이 깨져 있으면 빈 단어장으로 시작한다.
+/// 읽고 쓰기는 JsonFile이 맡는다: 임시 파일에 쓴 뒤 바꾸고, 깨진 파일은 .corrupt로 옮겨 두며(백업이 있으면 되살린다),
+/// 다른 프로그램이 쓰는 중이라 읽지 못한 파일은 다시 읽을 때까지 덮어쓰지 않는다.
 /// </summary>
 internal static class WordBook
 {
     private static List<WordGroup>? groups;
+    private static bool loadFailed;     // 파일을 읽지 못한 채 빈 단어장으로 둔 상태(나중에 다시 읽어 본다)
+    private static long retryTick;
     private static string FilePath => Path.Combine(AppSettings.DataDir, "wordbook.json");
     public static event Action? Changed;
 
@@ -39,13 +42,14 @@ internal static class WordBook
     {
         get
         {
-            if (groups != null) return groups;
-            groups = new();
-            try
+            if (groups != null)
             {
-                if (File.Exists(FilePath)) groups = JsonSerializer.Deserialize<List<WordGroup>>(File.ReadAllText(FilePath)) ?? new();
+                // 읽지 못한 채 시작했다면 5초마다 다시 읽어 본다(다른 프로그램이 놓은 뒤에는 원래 단어장이 나타난다).
+                if (!loadFailed || Environment.TickCount64 - retryTick < 5000) return groups;
             }
-            catch (Exception ex) { AppLog.Write("단어장 파일을 읽지 못했어요(빈 단어장으로 시작)", ex); groups = new(); }
+            retryTick = Environment.TickCount64;
+            groups = JsonFile.Load<List<WordGroup>>(FilePath) ?? new();
+            loadFailed = JsonFile.IsUnreadable(FilePath);
             // "기본" 그룹은 늘 하나 있다: 표시된 것 → 이름이 "기본"인 것 → 없으면 맨 앞에 새로 만든다(예전에 저장한 단어장에도 표시를 달아 준다)
             var def = groups.FirstOrDefault(g => g.IsDefault) ?? groups.FirstOrDefault(g => g.Name == "기본");
             if (def == null) { def = new WordGroup { Name = "기본" }; groups.Insert(0, def); }
@@ -116,14 +120,7 @@ internal static class WordBook
 
     private static void Save()
     {
-        try
-        {
-            Directory.CreateDirectory(AppSettings.DataDir);
-            string tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(Groups));
-            File.Move(tmp, FilePath, true);
-        }
-        catch (Exception ex) { AppLog.Write("단어장을 저장하지 못했어요", ex); }
+        JsonFile.Save(FilePath, Groups); // 실패하면 JsonFile이 기록을 남기고 사용자에게 알린다
         Changed?.Invoke();
     }
 }

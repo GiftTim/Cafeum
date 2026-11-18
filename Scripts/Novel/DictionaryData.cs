@@ -33,7 +33,8 @@ internal sealed class DictionaryEntry
 /// <summary>
 /// 한 번 찾은 사전 결과를 이 컴퓨터(dictionary-cache.json)에 저장해 둔다. 인터넷이 끊겨도 저장된 단어는 볼 수 있다.
 /// 사전 종류마다 따로 저장한다(같은 글자라도 국어사전 · 한영 · 영한 결과가 다르다).
-/// 최대 3000건까지 두고, 넘치면 가장 오래 안 본 것부터 지운다. 파일이 깨져 있으면 빈 상태로 시작한다.
+/// 최대 3000건까지 두고, 넘치면 가장 오래 안 본 것부터 지운다. 읽고 쓰기는 JsonFile이 맡아서, 깨진 파일은 .corrupt로 옮겨 두고 빈 상태로 시작하며
+/// 다른 프로그램이 쓰는 중이라 읽지 못한 파일은 덮어쓰지 않는다.
 /// </summary>
 internal static class DictionaryCache
 {
@@ -51,13 +52,8 @@ internal static class DictionaryCache
     {
         if (map != null) return map;
         map = new Dictionary<string, DictionaryEntry>();
-        try
-        {
-            if (File.Exists(FilePath))
-                foreach (var e in JsonSerializer.Deserialize<List<DictionaryEntry>>(File.ReadAllText(FilePath)) ?? new())
-                    if (!string.IsNullOrEmpty(e.Word) && !string.IsNullOrEmpty(e.Text)) map[Key(e.Kind, e.Word)] = e;
-        }
-        catch (Exception ex) { AppLog.Write("사전 저장 파일을 읽지 못했어요(빈 상태로 시작)", ex); map = new(); }
+        foreach (var e in JsonFile.Load<List<DictionaryEntry>>(FilePath) ?? new())
+            if (!string.IsNullOrEmpty(e.Word) && !string.IsNullOrEmpty(e.Text)) map[Key(e.Kind, e.Word)] = e;
         return map;
     }
 
@@ -84,17 +80,7 @@ internal static class DictionaryCache
         }
     }
 
-    private static void Save(Dictionary<string, DictionaryEntry> m)
-    {
-        try
-        {
-            Directory.CreateDirectory(AppSettings.DataDir);
-            string tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(m.Values.ToList()));
-            File.Move(tmp, FilePath, true); // 쓰다 끊겨도 예전 파일이 남도록 임시 파일에 쓴 뒤 바꾼다
-        }
-        catch (Exception ex) { AppLog.Write("사전 결과를 저장하지 못했어요", ex); }
-    }
+    private static void Save(Dictionary<string, DictionaryEntry> m) => JsonFile.Save(FilePath, m.Values.ToList());
 }
 
 /// <summary>위키낱말사전에서 뜻을 가져온다(열쇠가 필요 없는 공개 API). 한국어 사이트는 한국어 · 영어 단어를, 영어 사이트는 한국어 단어를 담고 있다.</summary>
