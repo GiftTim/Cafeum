@@ -27,6 +27,7 @@ internal sealed class PipForm : Form
         AppShared.RegisterReader(doc);
         Controls.Add(doc);
         doc.Show();
+        doc.TextChanged += (_, _) => SyncTitle(); // ] · [ 로 옆 작품을 열면 안쪽 문서의 제목이 바뀌므로 PIP 창 제목도 따라간다
 
         // 중간 크기(화면 작업 영역의 가로 40% · 세로 80%쯤)로, 오른쪽 아래 구석에 띄운다.
         Load += (_, _) =>
@@ -38,5 +39,15 @@ internal sealed class PipForm : Form
             Location = new Point(Math.Max(wa.Left, wa.Right - Width - 24), Math.Max(wa.Top, wa.Bottom - Height - 24));
         };
         FormClosing += (_, _) => doc.Close(); // 읽던 자리를 저장하고 닫는다
+    }
+
+    /// <summary>안쪽 문서의 제목("파일 이름 — Cafeum")에서 뒤의 앱 이름을 떼고 "— PIP"를 붙여 창 제목으로 삼는다.</summary>
+    private void SyncTitle()
+    {
+        string title = doc.Text;
+        string suffix = " — " + AppShared.AppDisplayName;
+        if (title.EndsWith(suffix, StringComparison.Ordinal)) title = title[..^suffix.Length];
+        if (title.Length == 0 || title == AppShared.AppDisplayName) return; // 아직 문서를 열기 전의 기본 제목
+        Text = title + " — PIP";
     }
 }
