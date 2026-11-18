@@ -109,15 +109,18 @@ internal sealed class PomodoroWidget : Control
     }
 
     private Rectangle barPlay, barTrack, barTime;
+    private (int W, int H, int Dpi) barKey; // 막대 자리를 마지막으로 계산했을 때의 크기 · 배율(같으면 다시 재지 않는다)
     private long lastBarClick;
 
     private void LayoutBar()
     {
+        var key = (Width, Height, DeviceDpi);
+        if (key == barKey) return; // 마우스를 움직이거나 그릴 때마다 글꼴을 만들어 글자 폭을 재지 않도록
+        barKey = key;
         int h = Height;
         barPlay = new Rectangle(S(14), 0, S(30), h);
         // 진행한 시간 / 전체 시간: 글자 폭만큼만 잡아서 오른쪽 끝에 붙이고, 남는 폭은 모두 막대가 쓴다
-        using var mf = new Font(NovelStore.UiFontFamily, 9.5f);
-        int tw = TextRenderer.MeasureText("00:00 / 00:00", mf, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(2);
+        int tw = TextRenderer.MeasureText("00:00 / 00:00", Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(2);
         barTime = new Rectangle(Width - S(16) - tw, 0, tw, h);
         int x0 = barPlay.Right + S(8), x1 = barTime.X - S(12);
         barTrack = new Rectangle(x0, h / 2 - S(4) / 2, Math.Max(S(20), x1 - x0), S(4));
@@ -378,8 +381,7 @@ internal sealed class PomodoroWidget : Control
         int total = (int)Math.Round(Pomodoro.TotalMs / 1000.0), left = (int)Math.Ceiling(Pomodoro.RemainingMs / 1000.0);
         int done = Math.Clamp(total - left, 0, total);
         string F(int s) => $"{s / 60:00}:{s % 60:00}";
-        using var tf = new Font(NovelStore.UiFontFamily, 9.5f);
-        TextRenderer.DrawText(g, $"{F(done)} / {F(total)}", tf, barTime, Themes.Blend(p.Main, p.Fore, 0.6f), TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+        TextRenderer.DrawText(g, $"{F(done)} / {F(total)}", Font, barTime, Themes.Blend(p.Main, p.Fore, 0.6f), TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
     }
     private void PaintMini(Graphics g, LibraryPalette p, Color accent, Color face, Color track)
     {

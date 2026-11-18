@@ -39,6 +39,8 @@ internal sealed class DictionaryEntry
 internal static class DictionaryCache
 {
     private const int MaxEntries = 3000;
+    private const int TrimTo = 2700;    // 넘치면 한 번에 이만큼까지 줄인다(하나 넘칠 때마다 전체를 정렬하지 않으려고)
+    private static readonly DebouncedSave saver = new(() => { lock (gate) Save(Map()); });
     private static readonly object gate = new();
     private static Dictionary<string, DictionaryEntry>? map;
     private static string FilePath => Path.Combine(AppSettings.DataDir, "dictionary-cache.json");
@@ -75,10 +77,13 @@ internal static class DictionaryCache
             e.Used = DateTime.UtcNow.Ticks;
             m[Key(e.Kind, e.Word)] = e;
             if (m.Count > MaxEntries)
-                foreach (var old in m.Values.OrderBy(x => x.Used).Take(m.Count - MaxEntries).ToList()) m.Remove(Key(old.Kind, old.Word));
-            Save(m);
+                foreach (var old in m.Values.OrderBy(x => x.Used).Take(m.Count - TrimTo).ToList()) m.Remove(Key(old.Kind, old.Word));
+            saver.Request(); // 조회할 때마다 전체를 쓰지 않고 잠깐 조용하면 한 번만 쓴다
         }
     }
+
+    /// <summary>기다리는 저장이 있으면 지금 바로 쓴다(창을 닫을 때).</summary>
+    public static void Flush() => saver.Flush();
 
     private static void Save(Dictionary<string, DictionaryEntry> m) => JsonFile.Save(FilePath, m.Values.ToList());
 }

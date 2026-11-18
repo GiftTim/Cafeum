@@ -47,6 +47,7 @@ internal static class WordBook
                 // 읽지 못한 채 시작했다면 5초마다 다시 읽어 본다(다른 프로그램이 놓은 뒤에는 원래 단어장이 나타난다).
                 if (!loadFailed || Environment.TickCount64 - retryTick < 5000) return groups;
             }
+            bool retry = groups != null;
             retryTick = Environment.TickCount64;
             groups = JsonFile.Load<List<WordGroup>>(FilePath) ?? new();
             loadFailed = JsonFile.IsUnreadable(FilePath);
@@ -54,6 +55,7 @@ internal static class WordBook
             var def = groups.FirstOrDefault(g => g.IsDefault) ?? groups.FirstOrDefault(g => g.Name == "기본");
             if (def == null) { def = new WordGroup { Name = "기본" }; groups.Insert(0, def); }
             def.IsDefault = true;
+            if (retry) Changed?.Invoke(); // 다시 읽어 단어장이 바뀌었으니 화면도 새로 배치하게 알린다
             return groups;
         }
     }
@@ -118,9 +120,15 @@ internal static class WordBook
         Save();
     }
 
+    // 그룹을 접고 펴거나 단어를 옮길 때마다 파일을 새로 쓰지 않고, 잠깐 조용하면 한 번만 쓴다(창을 닫거나 프로그램이 끝날 때는 바로).
+    private static readonly DebouncedSave saver = new(() => JsonFile.Save(FilePath, Groups)); // 실패하면 JsonFile이 기록을 남기고 사용자에게 알린다
+
+    /// <summary>기다리는 저장이 있으면 지금 바로 쓴다.</summary>
+    public static void Flush() => saver.Flush();
+
     private static void Save()
     {
-        JsonFile.Save(FilePath, Groups); // 실패하면 JsonFile이 기록을 남기고 사용자에게 알린다
+        saver.Request();
         Changed?.Invoke();
     }
 }
@@ -137,6 +145,8 @@ internal sealed class WordBookView : Control
     private readonly List<Row> rows = new();
     private readonly List<(Rectangle R, string Text)> hints = new();
     private int scroll, hot = -1, contentH;
+    private bool layoutDirty = true; // 배치(행 자리)를 다시 계산해야 하는지: 데이터 · 찾는 글자 · 스크롤 · 크기가 바뀔 때만 켠다
+    private readonly FontCache fonts = new();
     private string filter = "";
     public event Action<WordItem>? WordChosen;
 
@@ -147,7 +157,10 @@ internal sealed class WordBookView : Control
         Disposed += (_, _) => WordBook.Changed -= Redraw;
     }
 
-    private void Redraw() { if (!IsDisposed) Invalidate(); }
+    private void Redraw() { if (IsDisposed) return; layoutDirty = true; Invalidate(); }
+    protected override void OnResize(EventArgs e) { base.OnResize(e); layoutDirty = true; }
+    protected override void OnDpiChangedAfterParent(EventArgs e) { base.OnDpiChangedAfterParent(e); layoutDirty = true; }
+    protected override void Dispose(bool disposing) { if (disposing) fonts.Dispose(); base.Dispose(disposing); }
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
     public void SetPalette(LibraryPalette pal) { p = pal; BackColor = pal.Main; Invalidate(); }
 
@@ -156,14 +169,17 @@ internal sealed class WordBookView : Control
     public string Filter
     {
         get => filter;
-        set { value = DictionaryCache.Normalize(value); if (value == filter) return; filter = value; scroll = 0; Invalidate(); }
+        set { value = DictionaryCache.Normalize(value); if (value == filter) return; filter = value; scroll = 0; layoutDirty = true; Invalidate(); }
     }
 
-    private bool Matches(WordItem w) => filter.Length == 0 || w.Word.Contains(filter, StringComparison.CurrentCultureIgnoreCase) || w.Gist.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
+    private bool Matches(WordItem w) => filter.Length == 0 || w.Word.Contains(filter, StringComparison.OrdinalIgnoreCase) || w.Gist.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
     // ── 행 배치 ──
+    // 마우스를 움직이거나 그릴 때마다 전체를 다시 배치하지 않도록, 배치가 바뀐 때(layoutDirty)만 다시 계산한다.
     private void LayoutRows()
     {
+        if (!layoutDirty) return;
+        layoutDirty = false;
         rows.Clear(); hints.Clear();
         int y = S(6) - scroll, w = Math.Max(S(40), Width - S(16));
         foreach (var g in WordBook.Groups)
@@ -186,7 +202,7 @@ internal sealed class WordBookView : Control
         base.OnMouseWheel(e);
         LayoutRows();
         int ns = Math.Clamp(scroll - e.Delta / 120 * S(48), 0, MaxScroll());
-        if (ns != scroll) { scroll = ns; Invalidate(); }
+        if (ns != scroll) { scroll = ns; layoutDirty = true; Invalidate(); }
     }
 
     private int HitRow(Point pt) { LayoutRows(); return rows.FindIndex(r => r.R.Contains(pt)); }
@@ -276,18 +292,18 @@ internal sealed class WordBookView : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         LayoutRows();
-        if (scrollToEnd) { scrollToEnd = false; scroll = MaxScroll(); }
-        scroll = Math.Clamp(scroll, 0, MaxScroll());
-        LayoutRows();
+        int wanted = scrollToEnd ? MaxScroll() : Math.Clamp(scroll, 0, MaxScroll());
+        scrollToEnd = false;
+        if (wanted != scroll) { scroll = wanted; layoutDirty = true; LayoutRows(); } // 스크롤 위치가 바뀐 때만 다시 배치한다
         string ff = NovelStore.UiFontFamily;
         const TextFormatFlags left = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
         Color dim = Themes.Blend(pal.Main, pal.Fore, 0.55f);
         Color groupFill = Themes.Blend(pal.Main, pal.Dark ? pal.Card : pal.Side, 0.7f);
 
-        using var gf = new Font(ff, 11f);
-        using var wf = new Font(ff, 10.5f);
-        using var wb = new Font(ff, 10.5f, FontStyle.Bold);
-        using var sf = new Font(ff, 9f);
+        var gf = fonts.Get(ff, 11f);
+        var wf = fonts.Get(ff, 10.5f);
+        var wb = fonts.Get(ff, 10.5f, FontStyle.Bold);
+        var sf = fonts.Get(ff, 9f);
 
         if (filter.Length > 0 && rows.Count == 0)
         {
@@ -312,7 +328,7 @@ internal sealed class WordBookView : Control
             else
             {
                 if (i == hot) { using var path = LibraryPalette.Rounded(r, S(8)); using var hb = new SolidBrush(pal.CardHover); g.FillPath(hb, path); }
-                bool hit = filter.Length > 0 && word.Word.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
+                bool hit = filter.Length > 0 && word.Word.Contains(filter, StringComparison.OrdinalIgnoreCase);
                 var font = hit ? wb : wf;
                 var wsz = TextRenderer.MeasureText(g, word.Word, font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
                 int ww = Math.Min(wsz.Width, r.Width / 2);

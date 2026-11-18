@@ -24,6 +24,7 @@ internal sealed class DictionaryWindow : Form
     private readonly TextButton addButton;
     private readonly GroupButton groupButton;
     private readonly WordBookView book;
+    private readonly FontCache fonts = new();
     private LibraryPalette palette;
     private CancellationTokenSource? cts;
     private int tab;                    // 0 국어사전 · 1 한영 · 2 영한 · 3 단어장
@@ -87,8 +88,8 @@ internal sealed class DictionaryWindow : Form
         book.WordChosen += w => { dictText = w.Word; SetTab(Math.Clamp(w.Kind, 0, 2)); }; // 단어장에서 누른 단어는 그 사전 탭으로 열린다
         WordBook.Changed += OnBookChanged;
         ResizeEnd += (_, _) => SaveState();
-        FormClosing += (_, _) => { SaveState(); cts?.Cancel(); };
-        FormClosed += (_, _) => { WordBook.Changed -= OnBookChanged; cts?.Dispose(); };
+        FormClosing += (_, _) => { SaveState(now: true); WordBook.Flush(); DictionaryCache.Flush(); cts?.Cancel(); };
+        FormClosed += (_, _) => { WordBook.Changed -= OnBookChanged; cts?.Dispose(); fonts.Dispose(); };
 
         LoadState();
         ApplyTheme(pal);
@@ -136,15 +137,19 @@ internal sealed class DictionaryWindow : Form
         expandedHeight = Height;
     }
 
-    private void SaveState()
+    // 탭을 누르거나 접을 때마다 설정 파일 전체를 새로 쓰지 않고, 값만 바꿔 두었다가 잠깐 조용하면 한 번만 쓴다(창을 닫을 때는 바로).
+    private readonly DebouncedSave stateSaver = new(() =>
     {
-        try
-        {
-            int h = collapsed ? expandedHeight : Height;
-            AppShared.Settings.DictWindow = $"{Left},{Top},{Width},{h},{(collapsed ? 1 : 0)},{tab}";
-            AppShared.Settings.Save();
-        }
+        try { AppShared.Settings.Save(); }
         catch (Exception ex) { AppLog.Write("사전 창 위치를 저장하지 못했어요", ex); }
+    });
+
+    private void SaveState(bool now = false)
+    {
+        int h = collapsed ? expandedHeight : Height;
+        AppShared.Settings.DictWindow = $"{Left},{Top},{Width},{h},{(collapsed ? 1 : 0)},{tab}";
+        stateSaver.Request();
+        if (now) stateSaver.Flush();
     }
 
     /// <summary>머리 줄만 남게 접고(다시 누르면 펼친다).</summary>
@@ -204,7 +209,7 @@ internal sealed class DictionaryWindow : Form
         chrome.SetPalette(p);
         foreach (var c in new Control[] { body, dictView, bookView, groupBar, bottomBar, resultHost }) c.BackColor = p.Main;
         search.SetPalette(p);
-        status.BackColor = p.Main; status.ForeColor = p.Dim; status.Font = new Font(NovelStore.UiFontFamily, 8.5f);
+        status.BackColor = p.Main; status.ForeColor = p.Dim; status.Font = fonts.Get(NovelStore.UiFontFamily, 8.5f);
         result.BackColor = p.Main; result.ForeColor = p.Fore;
         addButton.SetPalette(p);
         groupButton.SetPalette(p);
@@ -368,7 +373,7 @@ internal sealed class DictionaryWindow : Form
     {
         result.Clear();
         result.Tag = "hint";
-        using var f = new Font(NovelStore.UiFontFamily, 10f);
+        var f = fonts.Get(NovelStore.UiFontFamily, 10f);
         string first = Kind switch
         {
             DictKind.KoEn => "한국어 단어를 입력하고 Enter를 누르면 영어 뜻이 나와요.",
@@ -385,32 +390,34 @@ internal sealed class DictionaryWindow : Form
         result.Clear();
         result.Tag = "message";
         string ff = NovelStore.UiFontFamily;
-        using var tf = new Font(ff, 11f, FontStyle.Bold);
-        using var df = new Font(ff, 9.5f);
+        var tf = fonts.Get(ff, 11f, FontStyle.Bold);
+        var df = fonts.Get(ff, 9.5f);
         Add(title + "\n\n", tf, palette.Fore);
         Add(detail, df, palette.Dim);
         SetStatus("");
         UpdateAddButton();
     });
 
+    private static readonly Regex HeadingLine = new(@"^(={3,6})\s*(.+?)\s*\1$", RegexOptions.Compiled);
+
     private void Render(DictionaryEntry item) => Batch(() =>
     {
         result.Clear();
         result.Tag = "result";
         string ff = NovelStore.UiFontFamily;
-        using var title = new Font(ff, 18f, FontStyle.Bold);
-        using var h3 = new Font(ff, 11.5f, FontStyle.Bold);
-        using var h4 = new Font(ff, 10.5f, FontStyle.Bold);
-        using var h5 = new Font(ff, 9f, FontStyle.Bold);
-        using var body = new Font(ff, 10f);
-        using var small = new Font(ff, 9f);
+        var title = fonts.Get(ff, 18f, FontStyle.Bold);
+        var h3 = fonts.Get(ff, 11.5f, FontStyle.Bold);
+        var h4 = fonts.Get(ff, 10.5f, FontStyle.Bold);
+        var h5 = fonts.Get(ff, 9f, FontStyle.Bold);
+        var bodyFont = fonts.Get(ff, 10f);
+        var small = fonts.Get(ff, 9f);
         Add(item.Word + "\n", title, palette.Fore);
         Add(DictKind.Info(item.Kind).Source + "\n", small, palette.Dim);
         bool lastBlank = true;
         foreach (var raw in item.Text.Replace("\r", "").Split('\n'))
         {
             string line = raw.TrimEnd();
-            var m = Regex.Match(line, @"^(={3,6})\s*(.+?)\s*\1$");
+            var m = HeadingLine.Match(line);
             if (m.Success)
             {
                 int level = m.Groups[1].Length;
@@ -421,7 +428,7 @@ internal sealed class DictionaryWindow : Form
             }
             if (line.Length == 0) { if (!lastBlank) { Add("\n", small, palette.Fore); lastBlank = true; } continue; }
             bool meta = line.Contains("IPA") || line.StartsWith("어원:") || line.StartsWith("발음") || line.StartsWith("Etymology") || line.StartsWith("Pronunciation");
-            Add(line + "\n", meta ? small : body, meta ? palette.Dim : palette.Fore);
+            Add(line + "\n", meta ? small : bodyFont, meta ? palette.Dim : palette.Fore);
             lastBlank = false;
         }
         result.SelectionStart = 0;
@@ -443,6 +450,9 @@ internal sealed class DictChrome : Control
     private string title = "사전";
     private readonly Rectangle[] tabRects = new Rectangle[4];
     private Rectangle toggleRect, closeRect;
+    private readonly FontCache fonts = new();
+    private (int Width, int Dpi, string Family) layoutKey; // 탭 자리를 마지막으로 계산했을 때의 폭 · 배율 · 글꼴(같으면 다시 재지 않는다)
+    protected override void Dispose(bool disposing) { if (disposing) fonts.Dispose(); base.Dispose(disposing); }
 
     public event Action<int>? TabChanged;
     public event Action? ToggleRequested;
@@ -471,6 +481,9 @@ internal sealed class DictChrome : Control
 
     private void LayoutParts(Graphics g, Font tabFont)
     {
+        var key = (Width, DeviceDpi, tabFont.FontFamily.Name);
+        if (key == layoutKey) return;
+        layoutKey = key;
         toggleRect = new Rectangle(Width - S(76), 0, S(34), HeaderH);
         closeRect = new Rectangle(Width - S(42), 0, S(34), HeaderH);
         int x = S(24), y = HeaderH;
@@ -529,15 +542,15 @@ internal sealed class DictChrome : Control
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         string ff = NovelStore.UiFontFamily;
         Color dim = Themes.Blend(pal.Main, pal.Fore, 0.55f);
-        using var tabFont = new Font(ff, 10.5f);
-        using var tabBold = new Font(ff, 10.5f, FontStyle.Bold);
+        var tabFont = fonts.Get(ff, 10.5f);
+        var tabBold = fonts.Get(ff, 10.5f, FontStyle.Bold);
         LayoutParts(g, tabFont);
 
         // 머리 줄: 책 아이콘 · 제목 · 접기(⌄ / 접혀 있으면 ⌃) · 닫기(×)
-        using (var icon = new Font(MainForm.IconFontName(), 12f))
-            TextRenderer.DrawText(g, "", icon, new Rectangle(S(14), 0, S(26), HeaderH), pal.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        using (var tf = new Font(ff, 11f))
-            TextRenderer.DrawText(g, title, tf, new Rectangle(S(46), 0, Math.Max(10, Width - S(130)), HeaderH), dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+        var icon = fonts.Get(MainForm.IconFontName(), 12f);
+        TextRenderer.DrawText(g, "", icon, new Rectangle(S(14), 0, S(26), HeaderH), pal.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        var tf = fonts.Get(ff, 11f);
+        TextRenderer.DrawText(g, title, tf, new Rectangle(S(46), 0, Math.Max(10, Width - S(130)), HeaderH), dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
         DrawChevron(g, toggleRect, !collapsed, hot == 10 ? pal.Fore : dim);
         DrawClose(g, closeRect, hot == 11 ? pal.Fore : dim);
         using (var lp = new Pen(pal.Line)) g.DrawLine(lp, 0, HeaderH - 1, Width, HeaderH - 1);
@@ -575,6 +588,8 @@ internal sealed class DictChrome : Control
 internal sealed class DictSearchField : Control
 {
     private readonly TextBox box = new() { BorderStyle = BorderStyle.None, PlaceholderText = "단어 검색..." };
+    private readonly FontCache fonts = new();
+    protected override void Dispose(bool disposing) { if (disposing) fonts.Dispose(); base.Dispose(disposing); }
     private LibraryPalette? p;
     private bool hotButton;
     public event Action? Submit;
@@ -609,7 +624,7 @@ internal sealed class DictSearchField : Control
 
     private void LayoutBox()
     {
-        box.Font = new Font(NovelStore.UiFontFamily, 11f);
+        box.Font = fonts.Get(NovelStore.UiFontFamily, 11f);
         box.Location = new Point(Frame.X + S(14), Frame.Y + (Frame.Height - box.PreferredHeight) / 2);
         box.Width = Math.Max(20, ButtonRect.X - Frame.X - S(22));
     }
@@ -672,7 +687,9 @@ internal sealed class TextButton : Control
     }
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
-    public void SetPalette(LibraryPalette pal) { p = pal; BackColor = pal.Main; Font = new Font(NovelStore.UiFontFamily, 10.5f); Invalidate(); }
+    public void SetPalette(LibraryPalette pal) { p = pal; BackColor = pal.Main; Font = fonts.Get(NovelStore.UiFontFamily, 10.5f); Invalidate(); }
+    private readonly FontCache fonts = new();
+    protected override void Dispose(bool disposing) { if (disposing) fonts.Dispose(); base.Dispose(disposing); }
     protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Cursor = Enabled ? Cursors.Hand : Cursors.Default; Invalidate(); }
     protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); Invalidate(); }
     protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); hover = true; Invalidate(); }
@@ -696,6 +713,8 @@ internal sealed class GroupButton : Control
     private LibraryPalette? p;
     private bool hover;
     private static readonly string ScriptFace = PickScript();
+    private readonly FontCache fonts = new();
+    protected override void Dispose(bool disposing) { if (disposing) fonts.Dispose(); base.Dispose(disposing); }
 
     private static string PickScript()
     {
@@ -737,7 +756,6 @@ internal sealed class GroupButton : Control
             g.DrawLine(pp, pcx - arm, pcy, pcx + arm, pcy);
             g.DrawLine(pp, pcx, pcy - arm, pcx, pcy + arm);
         }
-        using var gf = new Font(ScriptFace, 10.5f, FontStyle.Bold);
-        TextRenderer.DrawText(g, "Group", gf, new Rectangle(r.X + S(30), r.Y, r.Width - S(34), r.Height), pal.Accent, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+        TextRenderer.DrawText(g, "Group", fonts.Get(ScriptFace, 10.5f, FontStyle.Bold), new Rectangle(r.X + S(30), r.Y, r.Width - S(34), r.Height), pal.Accent, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
     }
 }
