@@ -291,7 +291,7 @@ internal sealed class WikiPage : Panel
         if (doc == null) return;
         var (k, v) = index >= 0 ? doc.Attributes[index] : ("", "");
         using var dlg = new NovelInputDialog(index >= 0 ? "속성 고치기" : "속성 추가하기", "이름 (예: 나이, 소속, 능력)", k, "값", v, firstIsName: false);
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK || dlg.FirstValue.Length == 0) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK || dlg.FirstValue.Length == 0) return;
         if (index >= 0) doc.Attributes[index] = (dlg.FirstValue, dlg.SecondValue.Replace("\r", "").Replace("\n", " "));
         else doc.Attributes.Add((dlg.FirstValue, dlg.SecondValue.Replace("\r", "").Replace("\n", " ")));
         attrs.SetItems(doc.Attributes);
@@ -319,7 +319,7 @@ internal sealed class WikiPage : Panel
         if (doc == null) return;
         Save();
         using var dlg = new NovelInputDialog("위키 문서 이름 바꾸기", "제목", doc.Title);
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         try { WikiStore.Rename(doc, dlg.FirstValue); titleLabel.Text = doc.Title; SyncCrumb(); Changed?.Invoke(); }
         catch (Exception ex) { MessageBox.Show(FindForm(), $"이름을 바꾸지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }

@@ -11,7 +11,7 @@ public partial class MainForm
     {
         bool canBreak = shownKind == ContentKind.Txt; // 문장 단위 줄바꿈은 txt에만 있다
         using var dlg = new ViewSettingsDialog(theme, EffLine, settings.ParagraphSpacing, settings.TxtAutoBreak, canBreak);
-        if (dlg.ShowDialog(HostForm) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(HostForm) != DialogResult.OK) return;
 
         bool breakChanged = canBreak && dlg.AutoBreak != settings.TxtAutoBreak;
         if (canBreak) settings.TxtAutoBreak = dlg.AutoBreak;

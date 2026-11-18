@@ -186,7 +186,7 @@ internal static class WikiStore
     public static string? AskCreate(IWin32Window? owner, string novelDir)
     {
         using var dlg = new WikiCreateDialog();
-        if (dlg.ShowDialog(owner) != DialogResult.OK) return null;
+        if (dlg.ShowDialogOver(owner) != DialogResult.OK) return null;
         try { return Create(novelDir, dlg.TitleText, dlg.CategoryKey, dlg.SummaryText, dlg.Tags).Path; }
         catch (Exception ex) { MessageBox.Show(owner, $"위키 문서를 만들지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); return null; }
     }

@@ -182,7 +182,7 @@ internal sealed class NovelInfoDialog : Form
             Title = "표지 이미지 고르기",
             Filter = "이미지 (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp",
         };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
         try
         {
             long bytes = new FileInfo(dlg.FileName).Length;

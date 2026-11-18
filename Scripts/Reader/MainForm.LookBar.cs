@@ -45,7 +45,7 @@ public partial class MainForm
     {
         if (lookRec == null) return;
         using var dlg = new PaperForm(lookRec.Paper ?? settings.Paper);
-        if (dlg.ShowDialog(HostForm) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(HostForm) != DialogResult.OK) return;
         var result = dlg.Result;
         if (dlg.AsDefault) { settings.Paper = result.Fit ? null : result.Clone(); settings.Save(); }
         SetLook(r => r.Paper = result);

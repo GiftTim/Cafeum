@@ -382,7 +382,7 @@ internal static class NamePrompt
         f.Controls.AddRange(new Control[] { lb, box, ok, cancel });
         f.AcceptButton = ok; f.CancelButton = cancel;
         f.Shown += (_, _) => { f.Activate(); box.Focus(); box.SelectAll(); };
-        if (f.ShowDialog(owner) != DialogResult.OK) return null;
+        if (f.ShowDialogOver(owner) != DialogResult.OK) return null;
         string s = box.Text.Trim();
         return s.Length == 0 ? null : s;
     }

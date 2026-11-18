@@ -1013,7 +1013,7 @@ internal sealed class PlotCanvasView : Control
     private void RenameGroupNode(CanvasNode g)
     {
         using var dlg = new NovelInputDialog("묶음 이름", "이름", g.Label ?? "");
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         PushUndo();
         g.Label = dlg.FirstValue.Trim();
         Changed();
@@ -1100,7 +1100,7 @@ internal sealed class PlotCanvasView : Control
                 m.Items.Add("이름표 달기…", null, (_, _) =>
                 {
                     using var dlg = new NovelInputDialog("연결선 이름표", "이름표", e.Label ?? "");
-                    if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+                    if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
                     PushUndo(); e.Label = dlg.FirstValue.Trim().Length == 0 ? null : dlg.FirstValue.Trim(); Changed();
                 });
                 m.Items.Add("방향 뒤집기", null, (_, _) =>
@@ -1139,7 +1139,7 @@ internal sealed class PlotCanvasView : Control
             _ => "PNG 그림 (*.png)|*.png",
         };
         using var dlg = new SaveFileDialog { Filter = filter, FileName = Path.GetFileNameWithoutExtension(path) + "." + ext, Title = "캔버스 내보내기" };
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         try
         {
             switch (format)
@@ -1269,7 +1269,7 @@ internal sealed class PlotCanvasView : Control
     public void Import()
     {
         using var dlg = new OpenFileDialog { Filter = "JSON Canvas (*.canvas;*.json)|*.canvas;*.json|모든 파일|*.*", Title = "캔버스 가져오기" };
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         CanvasDoc? d = null;
         try { d = CanvasStore.Parse(File.ReadAllText(dlg.FileName, Encoding.UTF8)); } catch { }
         if (d == null || d.Nodes.Count == 0) { MessageBox.Show(FindForm(), "가져올 노드가 없거나 JSON Canvas 형식이 아니에요.", "캔버스 가져오기", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }

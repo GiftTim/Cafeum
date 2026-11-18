@@ -300,7 +300,7 @@ internal sealed class NovelHome : Panel
     private void CreateNovel()
     {
         using var dlg = new NovelInfoDialog("", null, null, creating: true); // 기본 정보 창과 같은 모양(제목 · 작품 설명 · 표지)
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         try
         {
             string dir = NovelStore.CreateNovel(vaultPath, dlg.TitleText, dlg.DescText);
@@ -332,7 +332,7 @@ internal sealed class NovelHome : Panel
     private void EditInfo(string dir)
     {
         using var dlg = new NovelInfoDialog(Path.GetFileName(dir), NovelStore.LoadMeta(dir).Description, dir);
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         try
         {
             NovelStore.SaveDescription(dir, dlg.DescText);

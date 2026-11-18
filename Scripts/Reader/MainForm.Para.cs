@@ -21,7 +21,7 @@ public partial class MainForm
         cur.Align = lookRec.LookAlign ?? cur.Align;
         cur.LinePercent = EffLine;
         using var dlg = new ParagraphDialog(cur);
-        if (dlg.ShowDialog(HostForm) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(HostForm) != DialogResult.OK) return;
         var p = dlg.Result;
         SetLook(r =>
         {
@@ -75,7 +75,7 @@ public partial class MainForm
     {
         if (!CanFormatChars) { ShowToast("글을 고치는 중일 때 쓸 수 있어요"); return; }
         using var dlg = new ColorDialog { FullOpen = true, Color = mainEditor.SelectionColor };
-        if (dlg.ShowDialog(HostForm) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(HostForm) != DialogResult.OK) return;
         mainEditor.ApplyColor(dlg.Color);
         MarkFormatDirty();
         mainEditor.Focus();

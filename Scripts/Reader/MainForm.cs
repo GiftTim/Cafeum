@@ -482,7 +482,7 @@ public partial class MainForm : Form
             Filter = "지원 파일 (*.txt;*.epub;*.pdf;*.hwp;*.hwpx;*.zip;*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp)|*.txt;*.epub;*.pdf;*.hwp;*.hwpx;*.zip;*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp" +
                 "|텍스트 파일 (*.txt)|*.txt|EPUB (*.epub)|*.epub|PDF (*.pdf)|*.pdf|한글 문서 (*.hwp;*.hwpx)|*.hwp;*.hwpx|zip (소설·만화) (*.zip)|*.zip|이미지 파일|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp|모든 파일|*.*",
         };
-        if (dlg.ShowDialog(this) == DialogResult.OK)
+        if (dlg.ShowDialogOver(this) == DialogResult.OK)
             OpenPath(dlg.FileName);
     }
 
@@ -774,7 +774,7 @@ public partial class MainForm : Form
         if (forceDialog || string.IsNullOrEmpty(path))
         {
             using var dlg = new SaveFileDialog { Filter = "텍스트 파일 (*.txt)|*.txt|모든 파일|*.*" };
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             path = dlg.FileName;
         }
 
@@ -814,7 +814,7 @@ public partial class MainForm : Form
         if (forceDialog || string.IsNullOrEmpty(path))
         {
             using var dlg = new SaveFileDialog { Filter = "EPUB (*.epub)|*.epub" };
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             path = dlg.FileName;
         }
 

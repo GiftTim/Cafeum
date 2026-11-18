@@ -608,7 +608,7 @@ public partial class MainForm
         using var help = new HelpForm();
         help.ApplyTheme(theme);
         help.TopMost = HostForm.TopMost;
-        help.ShowDialog(this);
+        help.ShowDialogOver(this);
     }
 
     private void OnFileDragEnter(object? sender, DragEventArgs e)
@@ -783,8 +783,24 @@ public partial class MainForm
     }
     internal void ToggleImmersionFromHost() => ToggleImmersion();
 
+    /// <summary>몰입 모드를 쓸 수 있는가: 참고 자료는 PIP 창에서만(서재 칸 안의 참고 자료는 막는다). 그 밖의 문서는 그대로.</summary>
+    private bool ImmersionAllowed => InPip || !refBarActive;
+
+    /// <summary>몰입 단추 · 메뉴 항목을 지금 문서에 맞게 눌리게/회색으로 맞춘다.</summary>
+    private void UpdateImmersionAvailability()
+    {
+        bool ok = ImmersionAllowed;
+        if (immersionMenuItem != null) immersionMenuItem.Enabled = ok || immersive;
+        if (toolbarItems.TryGetValue("immersion", out var immItem))
+        {
+            immItem.Enabled = ok || immersive;
+            immItem.ToolTipText = ok ? "몰입 모드 (F11)" : "몰입 모드 — 참고 자료는 PIP 창에서만 쓸 수 있어요";
+        }
+    }
+
     private void ToggleImmersion()
     {
+        if (!immersive && !ImmersionAllowed) { ShowToast("몰입 모드는 PIP 창에서만 쓸 수 있어요"); return; }
         immersive = !immersive;
         var host = HostForm;
         if (immersive)
@@ -829,9 +845,12 @@ public partial class MainForm
         switch (key)
         {
             case Keys.F5: ToggleAutoPlay(); return true;
-            case Keys.F11: ToggleImmersion(); return true;
+            case Keys.F11: // PIP 창: 몰입 모드. 서재 안: 서재의 전체 화면 버튼과 같이(전체 화면 + 항상 위, 다시 누르면 함께 풀린다)
+                if (!InPip && HostForm is VaultForm fullVault) fullVault.ToggleFullScreenLikeLibrary(); else ToggleImmersion();
+                return true;
             case Keys.Escape when edgePrompt.Visible: HideEdgePrompt(); return true; // 끝 · 처음 안내 상자부터 닫는다
             case Keys.Escape when immersive: ToggleImmersion(); return true;
+            case Keys.Escape when !InPip && HostForm is VaultForm { IsFullScreen: true } escVault: escVault.ToggleFullScreenLikeLibrary(); return true; // 서재 전체 화면은 Esc로도 나간다
             case Keys.F1: if (HostForm is VaultForm vf) vf.ToggleFullScreenByKey(); else ShowHelp(); return true; // F1 = 전체 화면(PIP 같은 작은 창에서는 예전처럼 사용법)
             case Keys.OemCloseBrackets when CanUseBracketKeys(): GoAdjacentFile(forward: true); return true; // ]
             case Keys.OemOpenBrackets when CanUseBracketKeys(): GoAdjacentFile(forward: false); return true; // [

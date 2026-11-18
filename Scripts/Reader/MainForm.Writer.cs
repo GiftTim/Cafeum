@@ -192,7 +192,7 @@ public partial class MainForm
     private void OpenGoalSettings()
     {
         using var dlg = new GoalSettingsDialog(settings);
-        dlg.ShowDialog(HostForm);
+        dlg.ShowDialogOver(HostForm);
         UpdateGoalWidget(0, 0);
         EpisodeMetaChanged?.Invoke(); // 목록 글자 수 방식이 바뀌었을 수 있으니 목록을 다시 읽게
     }
@@ -275,7 +275,7 @@ public partial class MainForm
     private void AskGoal()
     {
         using var dlg = new NovelInputDialog("목표 글자 수", "한 회차의 목표 글자 수", settings.WriterGoalChars.ToString(), firstIsName: false);
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
         if (int.TryParse(dlg.FirstValue.Replace(",", ""), out int n) && n > 0)
         {
             settings.WriterGoalChars = Math.Min(n, 10_000_000);
@@ -642,7 +642,7 @@ public partial class MainForm
         private void EditText(string caption, string? current, Action<string?> save)
         {
             using var dlg = new TextEditDialog(caption, current ?? "");
-            if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             save(string.IsNullOrWhiteSpace(dlg.Value) ? null : dlg.Value);
         }
 

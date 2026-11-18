@@ -242,7 +242,7 @@ internal sealed class PomodoroWidget : Control
     {
         var keep = Pomodoro.Current;
         using var dlg = new PomodoroSettingsDialog(pal);
-        dlg.ShowDialog(FindForm());
+        dlg.ShowDialogOver(FindForm());
         Pomodoro.SettingsChanged(keep);
         if (Pomodoro.S.Mini) ModeChanged?.Invoke(); // 최소화 모양(동그라미 · 막대)을 바꿨을 수 있다
         Invalidate();
@@ -476,7 +476,7 @@ internal sealed class PomodoroSettingsDialog : Form
         {
             if (Cur() is not { } d) return;
             using var dlg = new ColorDialog { Color = d.ColorValue, FullOpen = true };
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             d.Color = ColorTranslator.ToHtml(dlg.Color);
             PaintColor(d);
         };
@@ -605,7 +605,7 @@ internal sealed class PomodoroSettingsDialog : Form
             Title = "재생할 소리 파일",
             Filter = "소리 파일|*.mp3;*.wav;*.wma;*.m4a;*.mp4;*.aac;*.flac;*.ogg|모든 파일|*.*",
         };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
         foreach (var f in dlg.FileNames) { d.SoundPaths.Add(f); sounds.Items.Add(Path.GetFileName(f)); }
         if (d.SoundPaths.Count > 0 && !soundOn.Checked) soundOn.Checked = true;
     }

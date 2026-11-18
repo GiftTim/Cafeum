@@ -1184,7 +1184,7 @@ internal sealed class DocPane : PaneFrame
             overview.DeleteRequested += dir =>
             {
                 using (var confirm = new NovelDeleteDialog(Path.GetFileName(dir))) // 소설 이름을 그대로 적어야만 지워진다
-                    if (confirm.ShowDialog(FindForm()) != DialogResult.OK) return;
+                    if (confirm.ShowDialogOver(FindForm()) != DialogResult.OK) return;
                 try
                 {
                     owner.CloseDocsUnder(dir);

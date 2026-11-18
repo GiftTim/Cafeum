@@ -145,7 +145,7 @@ public partial class MainForm
         dlg.CancelButton = cancel;
         Themes.ApplyChrome(dlg, theme);
         dlg.Shown += (_, _) => { box.Select(0, box.Text.Length); box.Focus(); };
-        if (dlg.ShowDialog(HostForm) == DialogResult.OK) ZoomTo((int)box.Value);
+        if (dlg.ShowDialogOver(HostForm) == DialogResult.OK) ZoomTo((int)box.Value);
     }
 
     /// <summary>보기 > 보기 모드 > 사용자 지정: 원본 대비 10~500%를 직접 넣는다. 취소하면 null.</summary>
@@ -180,7 +180,7 @@ public partial class MainForm
         dlg.CancelButton = cancel;
         Themes.ApplyChrome(dlg, theme);
         dlg.Shown += (_, _) => { box.Select(0, box.Text.Length); box.Focus(); };
-        return dlg.ShowDialog(HostForm) == DialogResult.OK ? (int)box.Value : null;
+        return dlg.ShowDialogOver(HostForm) == DialogResult.OK ? (int)box.Value : null;
     }
 
     /// <summary>글꼴 대화상자. 고른 글꼴 · 크기는 설정창과 같은 설정값(FontFamily · FontSize)에 저장되어 txt · epub 모두에 적용된다.</summary>
@@ -195,7 +195,7 @@ public partial class MainForm
             MaxSize = 48,
             AllowVerticalFonts = false,
         };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
 
         string family = dlg.Font.FontFamily.Name;
         int size = Math.Clamp((int)Math.Round(dlg.Font.Size), 8, 48);

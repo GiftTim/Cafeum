@@ -211,7 +211,7 @@ internal sealed class EpisodePanel : Panel
             Filter = "참고 자료 (소설 · 만화 · PDF · 이미지)|" + string.Join(";", NovelStore.ReferenceExtensions.Select(e => "*" + e)) +
                      "|소설 (*.txt;*.epub;*.hwp;*.hwpx)|*.txt;*.epub;*.hwp;*.hwpx|만화 (*.zip;*.cbz)|*.zip;*.cbz|PDF (*.pdf)|*.pdf|이미지|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp",
         };
-        if (dlg.ShowDialog(FindForm()) == DialogResult.OK) AddReferenceFiles(dlg.FileNames);
+        if (dlg.ShowDialogOver(FindForm()) == DialogResult.OK) AddReferenceFiles(dlg.FileNames);
     }
 
     /// <summary>파일들을 참고 자료로 넣는다(파일 트리에 끌어다 놓아도 여기로 온다).</summary>
@@ -305,7 +305,7 @@ internal sealed class EpisodePanel : Panel
         m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(() =>
         {
             using var dlg = new NovelInputDialog("그룹 이름 바꾸기", "그룹 이름", group);
-            if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             string oldCanvas = CanvasStore.PathFor(dir, group);
             PathAboutToChange?.Invoke(oldCanvas); // 그 그룹의 캔버스가 열려 있으면 닫았다가
             string renamed = NovelStore.RenameGroup(dir, group, dlg.FirstValue);
@@ -419,7 +419,7 @@ internal sealed class EpisodePanel : Panel
     private void Rename(string path)
     {
         using var dlg = new NovelInputDialog("회차 이름 바꾸기", "회차 제목", Path.GetFileNameWithoutExtension(path));
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         DoRename(path, dlg.FirstValue);
     }
 
@@ -2047,7 +2047,7 @@ internal sealed class NovelOverview : Panel
         if (source.NovelPath is not string dir) return;
         string oldTitle = Path.GetFileName(dir);
         using var dlg = new NovelInfoDialog(oldTitle, NovelStore.LoadMeta(dir).Description, dir);
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         try
         {
             NovelStore.SaveDescription(dir, dlg.DescText);

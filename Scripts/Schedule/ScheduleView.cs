@@ -266,7 +266,7 @@ internal sealed class ScheduleView : Panel
         if (palette == null) return;
         using var dlg = new ScheduleEntryDialog(palette, "", ScheduleStore.Calendars.FirstOrDefault(c => c.Visible)?.Id ?? ScheduleStore.Calendars[0].Id, d, startMin, endMin);
         PlaceDialog(dlg, screen);
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         string calId = dlg.CalId;
         if (dlg.NewColor is Color nc) calId = ScheduleStore.AddCal(dlg.EntryText, nc).Id;
         DateTime? endShift = end is DateTime e0 ? dlg.EntryDate + (e0.Date - d.Date) : null; // 날짜를 바꾸면 기간도 같이 옮긴다
@@ -291,7 +291,7 @@ internal sealed class ScheduleView : Panel
         if (palette == null || !ScheduleStore.TryParse(en.Date, out var d)) return;
         using var dlg = new ScheduleEntryDialog(palette, en.Text, en.Cal, d, en.StartMin, en.StartMin < 0 ? -1 : en.StartMin + en.DurMin, en.Place, en.Note, en.Done, editing: true);
         PlaceDialog(dlg, screen);
-        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
         if (dlg.Deleted) { ScheduleStore.RemoveDay(en, day ?? d); return; }
         en.Text = dlg.EntryText.Trim();
         en.Cal = dlg.NewColor is Color nc2 ? ScheduleStore.AddCal(dlg.EntryText, nc2).Id : dlg.CalId;
@@ -1362,7 +1362,7 @@ internal sealed class ScheduleView : Panel
             m.Items.Add("색 바꾸기...", null, (_, _) => BeginInvoke(() =>
             {
                 using var dlg = new ColorDialog { Color = ScheduleStore.HolidayColor, FullOpen = true, AnyColor = true };
-                if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+                if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
                 ScheduleStore.HolidayColor = dlg.Color; Changed?.Invoke();
             }));
             m.Items.Add("처음 색으로", null, (_, _) => BeginInvoke(() => { ScheduleStore.ResetHolidayColor(); Changed?.Invoke(); }));
@@ -1461,7 +1461,7 @@ internal sealed class ScheduleView : Panel
             var free = ScheduleStore.FreeColors();
             if (free.Count == 0) { MessageBox.Show(FindForm(), $"스케줄 색 {SchedulePalette7.Colors.Length}가지를 모두 쓰고 있어요(색마다 스케줄 하나).\n다른 스케줄을 지우거나 색을 바꾼 뒤에 만들어 주세요.", "스케줄", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             using var dlg = new ScheduleDefDialog(p!, "", free[0], "");
-            if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             ScheduleStore.AddCal(dlg.DefName, dlg.DefColor, dlg.DefNote);
             SetActive(ScheduleStore.Calendars[^1]); // 만든 스케줄을 바로 붓으로 고른다
             Changed?.Invoke();
@@ -1470,7 +1470,7 @@ internal sealed class ScheduleView : Panel
         private void EditCalendar(ScheduleCal cal)
         {
             using var dlg = new ScheduleDefDialog(p!, cal.Name, cal.ColorValue, cal.Note, cal.Id);
-            if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             cal.Name = dlg.DefName;
             cal.Color = ColorTranslator.ToHtml(dlg.DefColor);
             cal.Note = dlg.DefNote;

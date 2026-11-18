@@ -193,7 +193,7 @@ internal static class AppShared
     {
         using var dlg = new FolderBrowserDialog { Description = "볼트로 열 폴더를 고르세요", UseDescriptionForTitle = true, ShowNewFolderButton = true };
         if (Settings.LastVault is { Length: > 0 } last && Directory.Exists(last)) dlg.InitialDirectory = last;
-        return dlg.ShowDialog(owner) == DialogResult.OK ? dlg.SelectedPath : null;
+        return dlg.ShowDialogOver(owner) == DialogResult.OK ? dlg.SelectedPath : null;
     }
 
     /// <summary>폴더를 끌어다 놓았을 때: 그 폴더를 볼트로 연다.</summary>

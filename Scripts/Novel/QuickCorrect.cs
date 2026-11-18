@@ -169,7 +169,7 @@ internal sealed class QuickCorrectDialog : Form
         void Add()
         {
             using var dlg = new PairEditDialog(addTitle, fromLabel, toLabel, box?.Text.Trim() ?? "", "");
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             data.RemoveAll(p => p.From == dlg.FromText);
             data.Add(new WordPair { From = dlg.FromText, To = dlg.ToText });
             Persist();
@@ -182,7 +182,7 @@ internal sealed class QuickCorrectDialog : Form
             string oldFrom = list.SelectedItems[0].Text;
             var cur = data.First(p => p.From == oldFrom);
             using var dlg = new PairEditDialog(addTitle, fromLabel, toLabel, cur.From, cur.To);
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             int at = data.IndexOf(cur);
             data.RemoveAll(p => p != cur && p.From == dlg.FromText);
             cur.From = dlg.FromText;
@@ -210,7 +210,7 @@ internal sealed class QuickCorrectDialog : Form
         void Open() // 탭으로 나뉜 글 파일(한 줄에 "틀린 말[탭]맞는 말")에서 불러와 합친다
         {
             using var ofd = new OpenFileDialog { Filter = "사전 파일 (*.txt;*.tsv)|*.txt;*.tsv|모든 파일|*.*", Title = "사전 불러오기" };
-            if (ofd.ShowDialog(this) != DialogResult.OK) return;
+            if (ofd.ShowDialogOver(this) != DialogResult.OK) return;
             int n = 0;
             try
             {
@@ -232,7 +232,7 @@ internal sealed class QuickCorrectDialog : Form
         void Save()
         {
             using var sfd = new SaveFileDialog { Filter = "사전 파일 (*.txt)|*.txt", Title = "사전 저장하기", FileName = tabTitle + ".txt" };
-            if (sfd.ShowDialog(this) != DialogResult.OK) return;
+            if (sfd.ShowDialogOver(this) != DialogResult.OK) return;
             try { File.WriteAllLines(sfd.FileName, data.Select(p => p.From + "\t" + p.To)); }
             catch (Exception ex) { MessageBox.Show(this, $"저장하지 못했어요: {ex.Message}", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }

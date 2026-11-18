@@ -9,7 +9,7 @@ public partial class MainForm
     {
         if (toolbarMore == null) return;
         var tools = new ToolStripMenuItem("도구");
-        var content = new ToolStripMenuItem("빠른 교정 내용…", null, (_, _) => { using var dlg = new QuickCorrectDialog(settings); dlg.ShowDialog(HostForm); });
+        var content = new ToolStripMenuItem("빠른 교정 내용…", null, (_, _) => { using var dlg = new QuickCorrectDialog(settings); dlg.ShowDialogOver(HostForm); });
         var quick = new ToolStripMenuItem("글 한 번에 다듬기…", null, (_, _) => RunQuickFix());
         tools.DropDownItems.Add(content);
         tools.DropDownItems.Add(quick);
@@ -23,7 +23,7 @@ public partial class MainForm
     {
         if (shownKind != ContentKind.Txt || mainEditor.ReadOnly) { ShowToast("글을 고칠 수 있을 때만 쓸 수 있어요"); return; }
         using var dlg = new QuickFixDialog(mainEditor.Text);
-        if (dlg.ShowDialog(HostForm) != DialogResult.OK || dlg.Result == mainEditor.Text) return;
+        if (dlg.ShowDialogOver(HostForm) != DialogResult.OK || dlg.Result == mainEditor.Text) return;
         int caret = mainEditor.SelectionStart;
         mainEditor.SelectAll();
         mainEditor.SelectedText = dlg.Result; // 한 번에 바꿔 넣어서 Ctrl+Z로 되돌릴 수 있다

@@ -1297,7 +1297,7 @@ internal sealed class StickyListPanel : Panel
         m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(() =>
         {
             using var dlg = new NovelInputDialog("그룹 이름 바꾸기", "그룹 이름", group);
-            if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             bool wasCollapsed = collapsed.Remove(group);
             string renamed = MemoStore.RenameGroup(d, group, dlg.FirstValue);
             if (wasCollapsed) { collapsed.Add(renamed); Rebuild(force: true); } // 접혀 있던 그룹은 새 이름으로도 접힌 채

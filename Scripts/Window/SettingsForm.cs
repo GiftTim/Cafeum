@@ -172,7 +172,7 @@ public sealed class SettingsForm : Form
         paraBtn.Click += (_, _) =>
         {
             using var dlg = new ParagraphDialog(settings.DefaultPara?.Clone() ?? new ParaFormat { Align = "left", LinePercent = settings.LineHeight });
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             var p = dlg.Result;
             Apply(() => { settings.DefaultPara = p; if (p.LineMode == 0) settings.LineHeight = Math.Clamp(p.LinePercent, 100, 300); }, SettingKind.Font);
         };
@@ -338,7 +338,7 @@ public sealed class SettingsForm : Form
         if (!AppShared.TryGetOpenTxt(out string text, out string name))
         {
             using var dlg = new OpenFileDialog { Filter = "텍스트 파일 (*.txt)|*.txt|모든 파일|*.*", Title = "나눠 볼 텍스트 파일" };
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            if (dlg.ShowDialogOver(this) != DialogResult.OK) return;
             try
             {
                 Cursor = Cursors.WaitCursor;

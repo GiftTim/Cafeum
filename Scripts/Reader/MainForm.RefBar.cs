@@ -116,6 +116,7 @@ public partial class MainForm
             ApplyReadBarLayout();
         }
         else if (refDoc) SyncRefBarKind();
+        UpdateImmersionAvailability();
     }
 
     /// <summary>참고 자료 서식창을 늘어놓는다(보통 읽기 서식창의 설정 순서 · 숨김은 따르지 않는다).</summary>

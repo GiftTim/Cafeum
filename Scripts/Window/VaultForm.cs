@@ -15,6 +15,8 @@ internal sealed class VaultForm : Form
     private readonly NovelWorkspace workspace;
     private bool homeMode = true;
     private bool fullScreen;
+    /// <summary>전체 화면 중인가(문서 화면이 Esc로 나가기를 판단할 때 쓴다).</summary>
+    public bool IsFullScreen => fullScreen;
     private FormBorderStyle savedBorder;
     private FormWindowState savedState;
     private LibraryPalette palette = LibraryPalette.From(Themes.All[0]);
@@ -195,6 +197,8 @@ internal sealed class VaultForm : Form
             else if (e.Control && e.KeyCode == Keys.Tab && !homeMode) { workspace.CycleFocus(); e.Handled = true; }
             else if (e.Control && e.Shift && e.KeyCode == Keys.F && !homeMode) { workspace.Tree.ShowPage(2); sidebar.FocusSearch(); e.Handled = true; }
             else if (e.KeyCode == Keys.F1) { ToggleFullScreenByKey(); e.Handled = true; } // F1 = 전체 화면
+            else if (e.KeyCode == Keys.Escape && fullScreen) { ToggleFullScreenLikeLibrary(); e.Handled = true; } // 전체 화면은 Esc로도 나간다
+            else if (e.KeyCode == Keys.F11) { ToggleFullScreenLikeLibrary(); e.Handled = true; } // F11 = 서재의 전체 화면과 같게(문서 안에서 눌러도 같다)
             else if (e.Control && e.KeyCode == Keys.Oemcomma) { AppShared.ShowSettings(this); e.Handled = true; }
             else if (e.KeyCode == Keys.F5 && homeMode) { home.Reload(); e.Handled = true; }
         };
@@ -216,7 +220,7 @@ internal sealed class VaultForm : Form
         using var help = new HelpForm();
         help.ApplyTheme(Themes.Find(AppShared.Settings.Theme));
         help.TopMost = TopMost;
-        help.ShowDialog(this);
+        help.ShowDialogOver(this);
     }
 
     // ───────────────────────── 작품 목록 · 워크스페이스 ─────────────────────────
@@ -278,6 +282,9 @@ internal sealed class VaultForm : Form
 
     /// <summary>F1: 전체 화면을 켜고 끈다. 서재 화면에서는 서재의 전체 화면 아이콘처럼 항상 위도 함께 건다.</summary>
     public void ToggleFullScreenByKey() { if (homeMode) ToggleFullScreenPinned(); else ToggleFullScreen(); }
+
+    /// <summary>F11: 서재의 전체 화면 버튼과 같다(어느 화면에서든 전체 화면 + 항상 위를 함께 걸고, 다시 누르면 함께 푼다).</summary>
+    public void ToggleFullScreenLikeLibrary() => ToggleFullScreenPinned();
 
     private void ToggleFullScreenPinned()
     {
