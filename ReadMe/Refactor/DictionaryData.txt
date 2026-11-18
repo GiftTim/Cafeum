@@ -1,0 +1,34 @@
+DictionaryData.cs (168줄)
+
+사전 창이 쓰는 데이터와 인터넷 조회를 맡는 파일이에요. DictKind는 사전 종류(국어사전, 한영 사전, 영한 사전)와 각 사전이 가져올 사이트를 정해요. DictionaryEntry는 저장해 둔 결과 한 건이에요. DictionaryCache는 한 번 찾은 결과를 이 컴퓨터(dictionary-cache.json)에 저장해서 인터넷이 끊겨도 볼 수 있게 해요. 종류마다 따로 저장하고, 최대 3000건을 두며 넘치면 가장 오래 안 본 것부터 2700건까지 한 번에 줄여요. 조회 때마다 파일을 쓰지 않고 모아서 쓰고(DebouncedSave), 읽고 쓰기는 JsonFile이 맡아서 깨진 파일은 .corrupt로 보존하고 읽지 못한 파일은 덮어쓰지 않아요. DictionaryClient는 위키낱말사전의 공개 API로 뜻을 가져와요. 한국어 사이트는 한국어와 영어 단어를, 영어 사이트는 한국어 단어를 담고 있어서 사전 종류마다 사이트와 언어 항목이 달라요. 응답에서 해당 언어 항목만 잘라 쓰고, 단어장에 같이 적어 둘 한 줄 뜻(Gist)도 뽑아요.
+
+1~3	도구함
+5	네임스페이스
+7~8	DictKind 설명과 선언
+10	Korean, KoEn, EnKo
+12~18	Info: 사전 종류마다 사이트, 언어 항목, 출처 글
+20	Name: 사전 이름
+21	DictKind 끝
+23~24	DictionaryEntry 설명과 선언: 저장해 둔 결과 한 건
+26~30	단어, 글, 사전 종류, 마지막으로 본 시각
+31	DictionaryEntry 끝
+33~39	DictionaryCache 설명과 선언
+41~46	한도, 줄일 크기, 저장 모으기, 잠금, 메모리 표, 파일 경로
+48~49	Normalize: 앞뒤 공백을 자르고 유니코드를 한 모양으로
+51	Key: 종류와 단어로 만든 열쇠
+53~60	Map: 처음 쓸 때 파일을 읽어 표 만들기
+62~69	TryGet: 저장된 결과 꺼내기(본 시각 갱신)
+71~83	Put: 결과 저장(넘치면 줄이기, 저장은 모아서)
+85~86	Flush: 기다리는 저장을 지금 쓰기
+88	Save
+89	DictionaryCache 끝
+91~92	DictionaryClient 설명과 선언
+94	http: 8초 제한 클라이언트
+96~101	Create: 프로그램 이름이 든 User-Agent 달기
+103~110	FetchAsync: 찾기(대문자로 못 찾으면 소문자로 한 번 더)
+112~129	FetchOne: API로 글을 받아 해당 언어 항목만 꺼내기
+131~142	Section: 언어 제목부터 다음 언어 제목 앞까지 자르기
+144	PartOfSpeech: 품사 제목 정규식
+146~165	Gist: 단어장에 적을 한 줄 뜻 뽑기
+167	Trim: 60자로 줄이기
+168	DictionaryClient 끝
