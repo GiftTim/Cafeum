@@ -882,40 +882,47 @@ internal sealed class ScheduleView : Panel
                 Color ic = on ? pal.Fore : Themes.Blend(pal.Main, pal.Fore, 0.55f);
                 DrawCalIcon(g, new Rectangle(r.X + (r.Width - S(28)) / 2, r.Y + (r.Height - S(28)) / 2, S(28), S(28)), k, ic, pal);            }
         }
-        /// <summary>달력 모양 아이콘: 위의 고리 두 개 + 칸. kind 0 월(칸이 가득) · 1 주(WEEK) · 2 일(DAY).</summary>
+        /// <summary>
+        /// 달력 모양 아이콘: 위의 고리 두 개 + 머리 줄 + 3줄 × 4칸(첫 줄은 첫 칸이 비어 있다).
+        /// kind 0 월 = 칸이 모두 찬 네모 · 1 주 = 가운데 줄만 찬 네모 · 2 일 = 한 칸(가운데 줄 첫 칸)만 찬 네모. 나머지 칸은 속이 빈 네모.
+        /// </summary>
         private void DrawCalIcon(Graphics g, Rectangle r, int kind, Color col, LibraryPalette pal)
         {
-            float lw = Math.Max(1.6f, r.Width / 13f);
+            float lw = Math.Max(1.6f, r.Width / 11f);
             var body = new RectangleF(r.X + lw, r.Y + r.Height * 0.16f, r.Width - lw * 2, r.Height * 0.80f);
             using var pen = new Pen(col, lw) { LineJoin = LineJoin.Round };
             using var br = new SolidBrush(col);
-            using (var bp = LibraryPalette.Rounded(Rectangle.Round(body), (int)(r.Width * 0.14f))) g.DrawPath(pen, bp);
-            // 고리 두 개
-            float rx1 = body.X + body.Width * 0.30f, rx2 = body.X + body.Width * 0.70f;
-            using (var rp = new Pen(col, lw * 1.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (var bp = LibraryPalette.Rounded(Rectangle.Round(body), (int)(r.Width * 0.16f))) g.DrawPath(pen, bp);
+            // 고리 두 개(몸통 위로 솟은 굵은 막대)
+            float rx1 = body.X + body.Width * 0.33f, rx2 = body.X + body.Width * 0.70f;
+            using (var rp = new Pen(col, lw * 1.7f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
-                g.DrawLine(rp, rx1, r.Y + r.Height * 0.03f, rx1, r.Y + r.Height * 0.26f);
-                g.DrawLine(rp, rx2, r.Y + r.Height * 0.03f, rx2, r.Y + r.Height * 0.26f);
+                g.DrawLine(rp, rx1, r.Y + r.Height * 0.05f, rx1, r.Y + r.Height * 0.28f);
+                g.DrawLine(rp, rx2, r.Y + r.Height * 0.05f, rx2, r.Y + r.Height * 0.28f);
             }
+            // 머리 줄
             float top = body.Y + body.Height * 0.26f;
-            if (kind == 0) // 월: 머리 줄 + 칸 격자(채운 네모)
-            {
-                g.DrawLine(pen, body.X, top, body.Right, top);
-                float cw = body.Width / 5f, chh = (body.Bottom - top) / 3.4f;
-                for (int row = 0; row < 3; row++)
-                    for (int c = 0; c < 4; c++)
-                    {
-                        if (row == 0 && c == 0) continue;
-                        float bx = body.X + cw * 0.45f + c * cw, by = top + chh * 0.35f + row * chh * 1.0f;
-                        g.FillRectangle(br, bx, by, cw * 0.72f, chh * 0.72f);
-                    }
-            }
-            else
-            {
-                using var tf = new Font(NovelStore.UiFontFamily, kind == 1 ? Math.Max(5f, r.Width * 0.235f) : Math.Max(5f, r.Width * 0.31f), FontStyle.Bold, GraphicsUnit.Pixel);
-                var tr = new Rectangle((int)body.X, (int)(top - lw), (int)body.Width, (int)(body.Bottom - top + lw));
-                TextRenderer.DrawText(g, kind == 1 ? "WEEK" : "DAY", tf, tr, col, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-            }
+            using (var hp = new Pen(col, Math.Max(1f, lw * 0.8f))) g.DrawLine(hp, body.X, top, body.Right, top);
+
+            // 칸: 3줄 × 4칸
+            float gx = body.X + body.Width * 0.14f, gw = body.Width * 0.72f;
+            float gy = top + body.Height * 0.12f, gh = body.Bottom - gy - body.Height * 0.14f;
+            float gap = Math.Max(1f, body.Width * 0.05f);
+            float cell = Math.Min((gw - gap * 3) / 4f, (gh - gap * 2) / 3f);
+            // 칸을 정수 픽셀에 맞춰 또렷하게(작은 아이콘에서 속이 빈 네모의 안쪽이 번져 메워져 보이지 않게)
+            cell = Math.Max(3f, (float)Math.Floor(cell)); gap = Math.Max(1f, (float)Math.Round(gap));
+            float x0 = (float)Math.Round(gx + (gw - (cell * 4 + gap * 3)) / 2f); gy = (float)Math.Round(gy);
+            using var hollow = new Pen(col, Math.Max(1f, (float)Math.Round(cell * 0.25f))) { LineJoin = LineJoin.Miter }; // 테두리는 칸의 4분의 1쯤
+            float inset = hollow.Width / 2f;
+            for (int row = 0; row < 3; row++)
+                for (int c = 0; c < 4; c++)
+                {
+                    if (row == 0 && c == 0) continue; // 첫 줄은 첫 칸이 비어 있다(그 달 1일이 둘째 칸에서 시작)
+                    float bx = x0 + c * (cell + gap), by = gy + row * (cell + gap);
+                    bool filled = kind == 0 || (kind == 1 && row == 1) || (kind == 2 && row == 1 && c == 0);
+                    if (filled) g.FillRectangle(br, bx, by, cell, cell);
+                    else g.DrawRectangle(hollow, bx + inset, by + inset, cell - hollow.Width, cell - hollow.Width);
+                }
         }
         /// <summary>주 이동 화살표(얇고 큰 꺾쇠).</summary>
         private void DrawChevron(Graphics g, Rectangle r, bool left, Color col)

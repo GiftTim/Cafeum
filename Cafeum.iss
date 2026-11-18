@@ -5,7 +5,7 @@
 
 #define MyAppName "Cafeum"
 #define MyAppDisplayName "Cafeum"
-#define MyAppVersion "1.2.4"
+#define MyAppVersion "1.2.5"
 #define MyAppPublisher "JuneSilver"
 #define MyAppExeName "Cafeum.exe"
 
