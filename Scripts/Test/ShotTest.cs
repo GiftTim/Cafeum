@@ -63,17 +63,11 @@ static partial class Program
             }
         }
         // 뽀모도로: 막대 모양 최소화 + 설정 창
-        Pomodoro.Init(); Pomodoro.S.Mini = true; Pomodoro.S.MiniStyle = "bar"; Pomodoro.S.BarCompact = false;
+        Pomodoro.Init(); Pomodoro.S.Mini = true; Pomodoro.S.MiniStyle = "bar";
         var ph = new Form { Size = new Size(760, 160), StartPosition = FormStartPosition.Manual, Location = new Point(60, 60), BackColor = Color.White };
         var pw = new PomodoroWidget(pal); ph.Controls.Add(pw);
         ph.Show(); pw.Size = PomodoroWidget.SizeFor(ph.DeviceDpi); pw.Location = new Point(40, 40);
         Save(ph, "pomo_bar");
-        Pomodoro.S.BarCompact = true;
-        var ph2 = new Form { Size = new Size(560, 160), StartPosition = FormStartPosition.Manual, Location = new Point(60, 260), BackColor = Color.White };
-        var pw2 = new PomodoroWidget(pal); ph2.Controls.Add(pw2);
-        ph2.Show(); pw2.Size = PomodoroWidget.SizeFor(ph2.DeviceDpi); pw2.Location = new Point(40, 40);
-        Save(ph2, "pomo_compact");
-        Pomodoro.S.BarCompact = false;
         Save(new PomodoroSettingsDialog(pal), "pomo_settings");
         Save(new ViewSettingsDialog(Themes.All[0], 170, 0, true, true), "view_settings");
         {   // 압정 아이콘 모양 점검(꺼짐 · 켜짐)

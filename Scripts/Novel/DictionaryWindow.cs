@@ -34,7 +34,6 @@ internal sealed class DictionaryWindow : Form
     private int gen; // 찾기 차례 번호: 탭을 바꾸거나 새로 찾으면 올라가서, 늦게 도착한 옛 결과는 그리지 않는다
 
     protected override CreateParams CreateParams { get { var cp = base.CreateParams; cp.ClassStyle |= 0x00020000; /* CS_DROPSHADOW */ return cp; } }
-    protected override bool ShowWithoutActivation => false;
 
     public DictionaryWindow(LibraryPalette pal)
     {
@@ -615,7 +614,6 @@ internal sealed class DictSearchField : Control
         box.Width = Math.Max(20, ButtonRect.X - Frame.X - S(22));
     }
 
-    public void FocusBox() { box.Focus(); box.SelectAll(); }
 
     public void SetPalette(LibraryPalette pal)
     {

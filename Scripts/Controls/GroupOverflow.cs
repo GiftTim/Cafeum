@@ -17,6 +17,8 @@ internal sealed class GroupOverflow
     private ToolStripDropDown? popup;
     private List<(ToolStripItem Item, int Index)> moved = new();
     private System.Windows.Forms.Timer? watch;
+    /// <summary>펼침 창이 열려 있는 동안 넘침 버튼의 Tag에 넣는 표식. 렌더러(OverflowButtonPainter)가 눌린 모양으로 그린다.</summary>
+    public const string OpenTag = "open";
     private long closedTick;
     private readonly ToolStripLabel keepButton = new("") { AutoSize = false, Width = 0, Overflow = ToolStripItemOverflow.Always }; // 펼친 동안에도 넘침 버튼이 사라지지 않게 줄에 남겨 두는 빈 항목
 
@@ -40,7 +42,17 @@ internal sealed class GroupOverflow
     /// <summary>이 항목이 지금 줄에 보이지 않고 넘침으로 빠져 있는지(가운데 맞춤 계산에서 뺀다).</summary>
     public static bool IsHidden(ToolStripItem i) => i.Overflow == ToolStripItemOverflow.Always;
 
-    private int Wid(ToolStripItem i) => i.Width + i.Margin.Horizontal;
+    private static int Wid(ToolStripItem i) => i.Width + i.Margin.Horizontal;
+
+    /// <summary>줄 안의 항목 묶음을 가운데에 놓을 왼쪽 여백. 가려진 묶음이 있으면 넘침 버튼이 오른쪽 끝을 차지하므로 가운데로 모으지 않고 왼쪽 최소 여백부터 놓는다.</summary>
+    public int CenteredLeft()
+    {
+        Update();
+        int min = sideMin();
+        if (IsOverflowing) return min;
+        int items = bar.Items.Cast<ToolStripItem>().Where(i => i.Available && !IsHidden(i)).Sum(Wid);
+        return Math.Max(min, (bar.ClientSize.Width - items) / 2);
+    }
 
     /// <summary>줄 폭에 맞춰 보일 묶음과 가릴 묶음을 다시 정한다.</summary>
     public void Update()
@@ -63,8 +75,8 @@ internal sealed class GroupOverflow
             var tail = seps; // 마지막 묶음 뒤에 남은 구분선
 
             int avail = bar.ClientSize.Width - sideMin() - bar.Padding.Right;
-            int Need(int g) => groups[g].Seps.Sum(Wid) + groups[g].Items.Sum(Wid);
-            int total = Enumerable.Range(0, groups.Count).Sum(Need) + tail.Sum(Wid);
+            var need = groups.Select(g => g.Seps.Sum(Wid) + g.Items.Sum(Wid)).ToArray();
+            int total = need.Sum() + tail.Sum(Wid);
 
             int keep = groups.Count;
             if (total > avail)
@@ -72,7 +84,7 @@ internal sealed class GroupOverflow
                 int room = avail - buttonW();
                 int used = 0;
                 keep = 0;
-                while (keep < groups.Count && used + Need(keep) <= room) { used += Need(keep); keep++; }
+                while (keep < groups.Count && used + need[keep] <= room) { used += need[keep]; keep++; }
             }
 
             hidden = new();
@@ -80,14 +92,17 @@ internal sealed class GroupOverflow
             {
                 bool hide = g >= keep;
                 var mode = hide ? ToolStripItemOverflow.Always : ToolStripItemOverflow.Never;
-                foreach (var s in groups[g].Seps) s.Overflow = mode;
-                foreach (var i in groups[g].Items) i.Overflow = mode;
+                foreach (var s in groups[g].Seps) SetMode(s, mode);
+                foreach (var i in groups[g].Items) SetMode(i, mode);
                 if (hide) hidden.Add(groups[g].Items);
             }
-            foreach (var s in tail) s.Overflow = keep < groups.Count ? ToolStripItemOverflow.Always : ToolStripItemOverflow.Never;
+            foreach (var s in tail) SetMode(s, keep < groups.Count ? ToolStripItemOverflow.Always : ToolStripItemOverflow.Never);
         }
         finally { updating = false; }
     }
+
+    // 같은 값을 다시 쓰면 줄 배치가 또 계산되므로 바뀔 때만 쓴다.
+    private static void SetMode(ToolStripItem i, ToolStripItemOverflow mode) { if (i.Overflow != mode) i.Overflow = mode; }
 
     private void Toggle()
     {
@@ -114,6 +129,7 @@ internal sealed class GroupOverflow
         table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
         moved = new();
+        var at = bar.Items.Cast<ToolStripItem>().Select((it, i) => (it, i)).ToDictionary(x => x.it, x => x.i); // 떼기 전의 원래 번호(하나씩 떼면 번호가 밀린다)
         var strips = new List<ToolStrip>();
         for (int g = 0; g < hidden.Count; g++)
         {
@@ -134,22 +150,14 @@ internal sealed class GroupOverflow
             };
             strips.Add(strip);
             table.Controls.Add(strip);
+            // 줄에서 떼어 묶음 줄로 옮긴다.
             foreach (var item in hidden[g])
             {
-                moved.Add((item, bar.Items.IndexOf(item)));
-            }
-        }
-        // 줄에서 떼어 묶음 줄로 옮긴다(원래 자리 번호는 위에서 적어 둔다).
-        int gi = 0;
-        foreach (var g in hidden)
-        {
-            foreach (var item in g)
-            {
+                moved.Add((item, at[item]));
                 bar.Items.Remove(item);
                 item.Overflow = ToolStripItemOverflow.Never;
-                strips[gi].Items.Add(item);
+                strip.Items.Add(item);
             }
-            gi++;
         }
 
         var host = new ToolStripControlHost(table) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false };
@@ -158,7 +166,7 @@ internal sealed class GroupOverflow
         host.Size = table.GetPreferredSize(Size.Empty);
         popup = dd;
         bar.Items.Add(keepButton);
-        bar.OverflowButton.Tag = "open"; // 렌더러가 눌린 모양으로 그린다
+        bar.OverflowButton.Tag = OpenTag;
         bar.OverflowButton.Invalidate();
         dd.Closed += (_, _) => Restore(dd, strips);
         dd.Show(bar, new Point(bar.Width, bar.Height), ToolStripDropDownDirection.BelowLeft);
@@ -176,11 +184,8 @@ internal sealed class GroupOverflow
         watch.Start();
     }
 
-    /// <summary>펼침 창을 닫고 옮겨 둔 항목을 원래 자리로 돌려놓는다.</summary>
-    public void Close()
-    {
-        if (popup is { } p) p.Close();
-    }
+    /// <summary>펼침 창이 열려 있으면 닫는다(닫히면 Restore가 항목을 줄로 돌려놓는다).</summary>
+    public void Close() => popup?.Close();
 
     private void Restore(ToolStripDropDown dd, List<ToolStrip> strips)
     {
@@ -196,8 +201,9 @@ internal sealed class GroupOverflow
         moved = new();
         popup = null;
         Update();
-        if (!bar.IsDisposed && bar.IsHandleCreated) bar.BeginInvoke(() => { dd.Dispose(); foreach (var s in strips) s.Dispose(); });
-        else { dd.Dispose(); foreach (var s in strips) s.Dispose(); }
+        void Dispose() { dd.Dispose(); foreach (var s in strips) s.Dispose(); }
+        if (!bar.IsDisposed && bar.IsHandleCreated) bar.BeginInvoke(Dispose); // 닫히는 중인 창 안에서 바로 없애지 않는다
+        else Dispose();
         bar.PerformLayout();
     }
 }

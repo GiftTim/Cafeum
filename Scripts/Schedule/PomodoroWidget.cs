@@ -108,13 +108,12 @@ internal sealed class PomodoroWidget : Control
         sliderRect = new Rectangle(muteRect.Right + S(8), S(258), w - muteRect.Right - S(8) - S(20), S(20));
     }
 
-    private Rectangle barPlay, barTrack, barTime, barShrink, barPin, barMenu, barClose;
+    private Rectangle barPlay, barTrack, barTime;
     private long lastBarClick;
 
     private void LayoutBar()
     {
         int h = Height;
-        barShrink = barPin = barMenu = barClose = Rectangle.Empty; // 단추는 두지 않는다(고정 · 설정 · 닫기는 우클릭 메뉴로)
         barPlay = new Rectangle(S(14), 0, S(30), h);
         // 진행한 시간 / 전체 시간: 글자 폭만큼만 잡아서 오른쪽 끝에 붙이고, 남는 폭은 모두 막대가 쓴다
         using var mf = new Font(NovelStore.UiFontFamily, 9.5f);
@@ -328,7 +327,7 @@ internal sealed class PomodoroWidget : Control
         using (var kb = new SolidBrush(ink)) g.FillEllipse(kb, xv - S(7), ty - S(7), S(14), S(14));
     }
 
-    /// <summary>긴 막대 모양 최소화: [재생] [진행 막대] [핀] [≡] [×]. 빈 곳을 두 번 누르면 원래 크기로.</summary>
+    /// <summary>긴 막대의 우클릭 메뉴(고정 · 설정 · 닫기 · 원래 크기로). 막대에는 단추가 [재생]뿐이라 나머지는 여기서 고른다.</summary>
     private void ShowBarMenu(Point at)
     {
         var m = new ContextMenuStrip();
@@ -344,6 +343,7 @@ internal sealed class PomodoroWidget : Control
         m.Show(this, at);
     }
 
+    /// <summary>긴 막대 모양 최소화: [재생] [진행 막대] [시간]. 빈 곳을 두 번 누르면 원래 크기로.</summary>
     private void PaintBar(Graphics g, LibraryPalette p, Color accent, Color face, Color track)
     {
         LayoutBar();

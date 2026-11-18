@@ -164,9 +164,6 @@ internal sealed class WordBookView : Control
 
     private bool Matches(WordItem w) => filter.Length == 0 || w.Word.Contains(filter, StringComparison.CurrentCultureIgnoreCase) || w.Gist.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
 
-    /// <summary>찾는 글자가 든 단어가 하나라도 있나(없으면 "단어장에 없어요" 안내를 그린다).</summary>
-    public bool HasMatches => WordBook.Groups.Any(g => g.Words.Any(Matches));
-
     // ── 행 배치 ──
     private void LayoutRows()
     {

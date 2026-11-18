@@ -170,7 +170,7 @@ internal static class OverflowButtonPainter
         float s = e.Item.Owner?.DeviceDpi / 96f ?? 1f;
         float bh = Math.Min(e.Item.Height - 6 * s, 24 * s);
         var box = new RectangleF(1 * s, (e.Item.Height - bh) / 2f, e.Item.Width - 6 * s, bh); // 오른쪽 끝에 붙지 않게 조금 띄운다
-        bool open = e.Item.Tag is "open"; // 펼침 창이 열려 있는 동안은 눌린 채로
+        bool open = e.Item.Tag is GroupOverflow.OpenTag; // 펼침 창이 열려 있는 동안은 눌린 채로
         bool active = e.Item.Selected || e.Item.Pressed;
         using (var fill = new SolidBrush(open ? Themes.Blend(chrome, fore, 0.26f) : active ? Themes.Blend(chrome, fore, 0.16f) : chrome)) g.FillRectangle(fill, box);
         using (var border = new Pen(Themes.Blend(chrome, fore, 0.3f))) g.DrawRectangle(border, box.X, box.Y, box.Width, box.Height);

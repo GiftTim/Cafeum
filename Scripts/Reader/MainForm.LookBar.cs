@@ -160,13 +160,12 @@ public partial class MainForm
         MakeAlignIcons();
 
         // 낭독 버튼에 쓰는 아이콘 글꼴.
-        var navIconFont = new Font(IconFontName(), 12f);
-        Disposed += (_, _) => navIconFont.Dispose();
-        { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); }
-        { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); } // 낭독 앞 구분선(sepF5)
-        { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); } // 정렬 뒤 구분선(sepF6)
+        var ttsIconFont = new Font(IconFontName(), 12f);
+        Disposed += (_, _) => ttsIconFont.Dispose();
+        // 앞에서 만든 세 개에 이어 나머지 기본 구분선 셋: 모두 sepF1~sepF6(아래 formatGroups에서 만든 순서대로 이름을 붙인다). 어디에 놓일지는 설정의 서식창 순서가 정한다.
+        for (int k = 0; k < 3; k++) { var sp = new ToolStripSeparator(); lookBar.Items.Add(sp); lookSeps.Add(sp); }
         lookTts = Btn(GlyphPlay, "낭독 · 자동 재생 설정 (바로 시작/정지: F5)", ShowPlayPopup);
-        lookTts.Font = navIconFont;
+        lookTts.Font = ttsIconFont;
 
         // 항목 사이는 3px(왼쪽 1 + 오른쪽 2). 편집 용지는 구분선에 3px, 글자 크기 칸과 pt는 1px.
         foreach (ToolStripItem item in lookBar.Items) item.Margin = new Padding(1, 2, 2, 3);
@@ -204,15 +203,11 @@ public partial class MainForm
     private bool centeringLook;
     private void CenterLookBar()
     {
-        if (lookBar == null || centeringLook) return;
+        if (lookBar == null || lookOverflow == null || centeringLook) return;
         centeringLook = true;
         try
         {
-            lookOverflow?.Update();
-            int items = lookBar.Items.Cast<ToolStripItem>().Where(i => i.Available && !GroupOverflow.IsHidden(i)).Sum(i => i.Width + i.Margin.Horizontal);
-            int min = LogicalToDeviceUnits(16);
-            // 가려진 묶음이 있으면 넘침 버튼이 오른쪽 끝을 차지하므로 가운데로 모으지 않고 왼쪽부터 놓는다.
-            int left = lookOverflow?.IsOverflowing == true ? min : Math.Max(min, (lookBar.ClientSize.Width - items) / 2);
+            int left = lookOverflow.CenteredLeft();
             if (lookBar.Padding.Left != left) lookBar.Padding = new Padding(left, lookBar.Padding.Top, lookBar.Padding.Right, lookBar.Padding.Bottom);
         }
         finally { centeringLook = false; }
@@ -293,13 +288,11 @@ public partial class MainForm
     private bool centeringRead;
     private void CenterReadBar()
     {
-        if (readBar == null || centeringRead) return;
+        if (readBar == null || readOverflow == null || centeringRead) return;
         centeringRead = true;
         try
         {
-            readOverflow?.Update();
-            int items = readBar.Items.Cast<ToolStripItem>().Where(i => i.Available && !GroupOverflow.IsHidden(i)).Sum(i => i.Width + i.Margin.Horizontal);
-            int left = readOverflow?.IsOverflowing == true ? LogicalToDeviceUnits(16) : Math.Max(LogicalToDeviceUnits(16), (readBar.ClientSize.Width - items) / 2);
+            int left = readOverflow.CenteredLeft();
             if (readBar.Padding.Left != left) readBar.Padding = new Padding(left, readBar.Padding.Top, readBar.Padding.Right, readBar.Padding.Bottom);
         }
         finally { centeringRead = false; }

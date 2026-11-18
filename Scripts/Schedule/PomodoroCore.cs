@@ -46,7 +46,7 @@ internal sealed class PomoSettings
     /// <summary>최소화했을 때의 모양: "circle"(작은 동그라미) · "bar"(긴 막대).</summary>
     public string MiniStyle { get; set; } = "circle";
     /// <summary>막대 모양에서 막대 없이 남은 시각만 보이는 작은 상태.</summary>
-    public bool BarCompact { get; set; } public bool Locked { get; set; }
+    public bool Locked { get; set; }
     public int PosX { get; set; } = -1;
     public int PosY { get; set; } = -1;
 

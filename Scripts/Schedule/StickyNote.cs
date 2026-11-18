@@ -374,7 +374,7 @@ internal abstract class StickyStrip : Control
     protected override void Dispose(bool disposing) { if (disposing) tip.Dispose(); base.Dispose(disposing); }
 }
 
-/// <summary>메모 창 위쪽 줄: [+] ············ [···] [색] [압정] [×].</summary>
+/// <summary>메모 창 위쪽 줄: [+] ············ [···] [색] [×].</summary>
 internal sealed class StickyNoteHeader : StickyStrip
 {
     protected override void Arrange()
