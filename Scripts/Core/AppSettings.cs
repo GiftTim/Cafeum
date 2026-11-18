@@ -133,6 +133,10 @@ public sealed class AppSettings
     /// <summary>아이콘 막대에서 숨긴 항목들. 볼트 파일은 처음엔 숨겨 둔다.</summary>
     public List<string> RailHidden { get; set; } = new() { "files" };
 
+    // ── 사전 창(왼쪽 아이콘 막대의 [사전]) ──
+    /// <summary>사전 창을 마지막으로 닫을 때의 "x,y,너비,높이,접힘(0/1),탭". 비어 있으면 처음 자리.</summary>
+    public string DictWindow { get; set; } = "";
+
     // ── 회차 글쓰기(Muvel식 "글자 수 세기" 위젯) ──
     /// <summary>한 회차의 목표 글자 수.</summary>
     public int WriterGoalChars { get; set; } = 3000;

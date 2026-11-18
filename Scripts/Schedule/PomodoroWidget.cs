@@ -48,7 +48,7 @@ internal sealed class PomodoroWidget : Control
     private static bool IsBar => Pomodoro.S.MiniStyle == "bar";
 
     public static Size SizeFor(int dpi) => Pomodoro.S.Mini
-        ? (IsBar ? new((int)((Pomodoro.S.BarCompact ? 224 : 402) * dpi / 96.0), (int)((Pomodoro.S.BarCompact ? 44 : 38) * dpi / 96.0)) : new((int)(46 * dpi / 96.0), (int)(46 * dpi / 96.0)))
+        ? (IsBar ? new((int)(296 * dpi / 96.0), (int)(38 * dpi / 96.0)) : new((int)(46 * dpi / 96.0), (int)(46 * dpi / 96.0)))
         : new((int)(220 * dpi / 96.0), (int)(284 * dpi / 96.0));
 
     private void SetMini(bool mini)
@@ -114,21 +114,14 @@ internal sealed class PomodoroWidget : Control
     private void LayoutBar()
     {
         int h = Height;
-        barClose = new Rectangle(Width - S(36), 0, S(28), h);
-        barMenu = new Rectangle(barClose.X - S(30), 0, S(28), h);
-        barPin = new Rectangle(barMenu.X - S(30), 0, S(28), h);
-        barPlay = new Rectangle(S(12), 0, S(30), h);
-        barShrink = new Rectangle(barPin.X - S(30), 0, S(28), h); // 크기 줄이기(막대 없이 남은 시각만)
-        if (Pomodoro.S.BarCompact) barTime = new Rectangle(barPlay.Right + S(6), 0, Math.Max(S(40), barShrink.X - barPlay.Right - S(10)), h); // 남은 시각
-        else
-        {
-            // 진행한 시간 / 전체 시간: 글자 폭만큼만 잡아서 막대 바로 옆에 붙인다
-            using var mf = new Font(NovelStore.UiFontFamily, 8.5f);
-            int tw = TextRenderer.MeasureText("00:00 / 00:00", mf, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(2);
-            barTime = new Rectangle(barShrink.X - S(8) - tw, 0, tw, h);
-        }
-        int x0 = barPlay.Right + S(8), x1 = barTime.X - S(5);
-        barTrack = new Rectangle(x0, h / 2 - S(3) / 2, Math.Max(S(20), x1 - x0), S(3)); // 글자 수 세기 위젯의 진행 막대와 같은 3
+        barShrink = barPin = barMenu = barClose = Rectangle.Empty; // 단추는 두지 않는다(고정 · 설정 · 닫기는 우클릭 메뉴로)
+        barPlay = new Rectangle(S(14), 0, S(30), h);
+        // 진행한 시간 / 전체 시간: 글자 폭만큼만 잡아서 오른쪽 끝에 붙이고, 남는 폭은 모두 막대가 쓴다
+        using var mf = new Font(NovelStore.UiFontFamily, 9.5f);
+        int tw = TextRenderer.MeasureText("00:00 / 00:00", mf, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(2);
+        barTime = new Rectangle(Width - S(16) - tw, 0, tw, h);
+        int x0 = barPlay.Right + S(8), x1 = barTime.X - S(12);
+        barTrack = new Rectangle(x0, h / 2 - S(4) / 2, Math.Max(S(20), x1 - x0), S(4));
     }
 
     private int HitAt(Point p) => Pomodoro.S.Mini ? (IsBar ? BarHit(p) : -1) :
@@ -139,7 +132,7 @@ internal sealed class PomodoroWidget : Control
     private int BarHit(Point p)
     {
         LayoutBar();
-        return barPlay.Contains(p) ? 10 : barShrink.Contains(p) ? 11 : barPin.Contains(p) ? 12 : barMenu.Contains(p) ? 13 : barClose.Contains(p) ? 14 : -1;
+        return barPlay.Contains(p) ? 10 : -1;
     }
 
     private void SlideTo(int x)
@@ -196,16 +189,13 @@ internal sealed class PomodoroWidget : Control
             if (moved) { Moved?.Invoke(); return; }
             if (!Pomodoro.S.Mini) return;
         }
+        if (e.Button == MouseButtons.Right && Pomodoro.S.Mini && IsBar) { ShowBarMenu(e.Location); return; } // 긴 막대에는 단추가 없어서 우클릭 메뉴로 대신한다
         if (e.Button != MouseButtons.Left) return;
         if (Pomodoro.S.Mini && IsBar)
         {
             switch (HitAt(e.Location))
             {
                 case 10: Pomodoro.Toggle(); break;                                                    // 재생 / 일시정지
-                case 11: Pomodoro.S.BarCompact = !Pomodoro.S.BarCompact; Pomodoro.Save(); hot = -1; ModeChanged?.Invoke(); Invalidate(); break; // 크기 줄이기 ↔ 되돌리기
-                case 12: Pomodoro.S.Locked = !Pomodoro.S.Locked; Pomodoro.Save(); Invalidate(); break; // 핀: 위치 고정
-                case 13: OpenSettings(); break;                                                       // ≡ 설정
-                case 14: CloseRequested?.Invoke(); break;                                             // ×
                 default:                                                                              // 빈 곳을 두 번 누르면 원래 크기로
                     long now = Environment.TickCount64;
                     if (now - lastBarClick <= SystemInformation.DoubleClickTime) { lastBarClick = 0; SetMini(false); }
@@ -339,6 +329,21 @@ internal sealed class PomodoroWidget : Control
     }
 
     /// <summary>긴 막대 모양 최소화: [재생] [진행 막대] [핀] [≡] [×]. 빈 곳을 두 번 누르면 원래 크기로.</summary>
+    private void ShowBarMenu(Point at)
+    {
+        var m = new ContextMenuStrip();
+        MenuGuard.Attach(m);
+        m.Items.Add("원래 크기로", null, (_, _) => SetMini(false));
+        var lockItem = new ToolStripMenuItem("위치 고정") { Checked = Pomodoro.S.Locked };
+        lockItem.Click += (_, _) => { Pomodoro.S.Locked = !Pomodoro.S.Locked; Pomodoro.Save(); Invalidate(); };
+        m.Items.Add(lockItem);
+        m.Items.Add("설정…", null, (_, _) => BeginInvoke(OpenSettings));
+        m.Items.Add(new ToolStripSeparator());
+        m.Items.Add("닫기", null, (_, _) => CloseRequested?.Invoke());
+        m.Closed += (_, _) => BeginInvoke(() => m.Dispose());
+        m.Show(this, at);
+    }
+
     private void PaintBar(Graphics g, LibraryPalette p, Color accent, Color face, Color track)
     {
         LayoutBar();
@@ -348,7 +353,7 @@ internal sealed class PomodoroWidget : Control
             using var bp = new Pen(Themes.Blend(p.Main, p.Fore, 0.18f)); g.DrawPath(bp, fp);
         }
         // 재생 ▶ / 일시정지 ⏸ (직접 그려서 가운데에)
-        float cx = barPlay.X + barPlay.Width / 2f, cy = Height / 2f, u = Height * (Pomodoro.S.BarCompact ? 0.15f : 0.14f);
+        float cx = barPlay.X + barPlay.Width / 2f, cy = Height / 2f, u = Height * 0.14f;
         using (var pb = new SolidBrush(accent))
         {
             if (Pomodoro.State == PomoState.Running)
@@ -359,42 +364,22 @@ internal sealed class PomodoroWidget : Control
             }
             else g.FillPolygon(pb, new[] { new PointF(cx - u * 0.75f, cy - u), new PointF(cx + u * 1.05f, cy), new PointF(cx - u * 0.75f, cy + u) });
         }
-        if (Pomodoro.S.BarCompact)
+        // 진행 막대: 남은 시간만큼 색이 채워진다(줄어드는 방향은 설정을 따른다)
+        double frac = Pomodoro.TotalMs > 0 ? Math.Clamp(Pomodoro.RemainingMs / Pomodoro.TotalMs, 0, 1) : 1;
+        using (var tp = LibraryPalette.Rounded(barTrack, barTrack.Height / 2f)) using (var tb = new SolidBrush(track)) g.FillPath(tb, tp);
+        int fw = (int)Math.Round(barTrack.Width * frac);
+        if (fw > 0)
         {
-            // 줄인 상태: 막대 없이 남은 시각만
-            int left = (int)Math.Ceiling(Pomodoro.RemainingMs / 1000.0);
-            using var rf = new Font(NovelStore.UiFontFamily, 11f, FontStyle.Bold);
-            TextRenderer.DrawText(g, $"{left / 60:00}:{left % 60:00}", rf, barTime, p.Fore, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+            bool right = Pomodoro.S.OverlayDrainDirection != "left";
+            var fr = right ? new Rectangle(barTrack.Right - fw, barTrack.Y, fw, barTrack.Height) : new Rectangle(barTrack.X, barTrack.Y, fw, barTrack.Height);
+            using var fpth = LibraryPalette.Rounded(fr, barTrack.Height / 2f); using var fbb = new SolidBrush(accent); g.FillPath(fbb, fpth);
         }
-        else
-        {
-            // 진행 막대: 남은 시간만큼 색이 채워진다(줄어드는 방향은 설정을 따른다)
-            double frac = Pomodoro.TotalMs > 0 ? Math.Clamp(Pomodoro.RemainingMs / Pomodoro.TotalMs, 0, 1) : 1;
-            using (var tp = LibraryPalette.Rounded(barTrack, barTrack.Height / 2f)) using (var tb = new SolidBrush(track)) g.FillPath(tb, tp);
-            int fw = (int)Math.Round(barTrack.Width * frac);
-            if (fw > 0)
-            {
-                bool right = Pomodoro.S.OverlayDrainDirection != "left";
-                var fr = right ? new Rectangle(barTrack.Right - fw, barTrack.Y, fw, barTrack.Height) : new Rectangle(barTrack.X, barTrack.Y, fw, barTrack.Height);
-                using var fpth = LibraryPalette.Rounded(fr, barTrack.Height / 2f); using var fbb = new SolidBrush(accent); g.FillPath(fbb, fpth);
-            }
-            // 막대 끝: 진행한 시간 / 전체 시간
-            {
-                int total = (int)Math.Round(Pomodoro.TotalMs / 1000.0), left = (int)Math.Ceiling(Pomodoro.RemainingMs / 1000.0);
-                int done = Math.Clamp(total - left, 0, total);
-                string F(int s) => $"{s / 60:00}:{s % 60:00}";
-                using var tf = new Font(NovelStore.UiFontFamily, 8.5f);
-                TextRenderer.DrawText(g, $"{F(done)} / {F(total)}", tf, barTime, Themes.Blend(p.Main, p.Fore, 0.6f), TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-            }
-            }
-        // 오른쪽 아이콘: 핀(고정하면 강조색) · ≡ · ×
-        using var icon = new Font(MainForm.IconFontName(), 11f);
-        const TextFormatFlags mid = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
-        Color dim = Themes.Blend(p.Main, p.Fore, 0.6f);
-        TextRenderer.DrawText(g, Pomodoro.S.BarCompact ? "\uE740" : "\uE73F", icon, barShrink, hot == 11 ? p.Fore : dim, mid); // 줄이기 ↔ 되돌리기
-        TextRenderer.DrawText(g, "\uE718", icon, barPin, Pomodoro.S.Locked ? accent : (hot == 12 ? p.Fore : dim), mid);
-        TextRenderer.DrawText(g, "\uE700", icon, barMenu, hot == 13 ? p.Fore : dim, mid);
-        TextRenderer.DrawText(g, "\uE711", icon, barClose, hot == 14 ? p.Fore : dim, mid);
+        // 막대 끝: 진행한 시간 / 전체 시간
+        int total = (int)Math.Round(Pomodoro.TotalMs / 1000.0), left = (int)Math.Ceiling(Pomodoro.RemainingMs / 1000.0);
+        int done = Math.Clamp(total - left, 0, total);
+        string F(int s) => $"{s / 60:00}:{s % 60:00}";
+        using var tf = new Font(NovelStore.UiFontFamily, 9.5f);
+        TextRenderer.DrawText(g, $"{F(done)} / {F(total)}", tf, barTime, Themes.Blend(p.Main, p.Fore, 0.6f), TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
     }
     private void PaintMini(Graphics g, LibraryPalette p, Color accent, Color face, Color track)
     {

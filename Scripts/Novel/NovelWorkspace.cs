@@ -20,8 +20,7 @@ internal sealed class NovelWorkspace : Panel
     private readonly StickyListPanel memoList; // 사이드바 [메모]: 파일 트리 자리에 대신 뜨는 메모 목록
     private readonly string treeGlyph;
     private bool memoShown;
-    private readonly DictionaryPanel dictPanel; // 사이드바 [국어사전]: 파일 트리 자리에 대신 뜨는 사전 화면
-    private bool dictShown;
+    private DictionaryWindow? dictWin; // 아이콘 막대 [사전]: 따로 떠 있는 사전 창
     private readonly DocPane left, right;
     private DocPane focused;
     private LibraryPalette? palette;
@@ -40,6 +39,7 @@ internal sealed class NovelWorkspace : Panel
     {
         rail.SetActive("timer", pomo is { Visible: true });
         rail.SetActive("count", focused.CountWidgetOn);
+        rail.SetActive("dict", dictWin is { IsDisposed: false, Visible: true });
     }
     protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (IsHandleCreated) BeginInvoke(SyncPomodoro); }
     protected override void OnHandleCreated(EventArgs e)
@@ -157,8 +157,6 @@ internal sealed class NovelWorkspace : Panel
         treeGlyph = treeFrame.Glyph;
         memoList = new StickyListPanel { Dock = DockStyle.Fill, Visible = false };
         treeFrame.Body.Controls.Add(memoList);
-        dictPanel = new DictionaryPanel { Dock = DockStyle.Fill, Visible = false };
-        treeFrame.Body.Controls.Add(dictPanel);
         StickyNotes.ListRequested += OnMemoListRequested;
         Disposed += (_, _) => StickyNotes.ListRequested -= OnMemoListRequested;
 
@@ -438,16 +436,13 @@ internal sealed class NovelWorkspace : Panel
                 if (outer.Panel1Collapsed || !memoShown) { ShowMemo(true); SetTreeVisible(true); }
                 else SetTreeVisible(false);
                 break;
-            case "dict": // 파일 트리 자리에 국어사전을 띄운다(다시 누르면 닫는다)
-                if (outer.Panel1Collapsed || !dictShown) { ShowDict(true); SetTreeVisible(true); dictPanel.FocusInput(); }
-                else SetTreeVisible(false);
-                break;
+            case "dict": ToggleDictionary(); break; // 사전 창 켜고 끄기
             case "tree":
-                if (outer.Panel1Collapsed || memoShown || dictShown || Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; }
+                if (outer.Panel1Collapsed || memoShown || Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; }
                 else SetTreeVisible(false);
                 break;
             case "files":
-                if (outer.Panel1Collapsed || memoShown || dictShown || !Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(2); treeFrame.Title = "볼트 파일"; }
+                if (outer.Panel1Collapsed || memoShown || !Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(2); treeFrame.Title = "볼트 파일"; }
                 else SetTreeVisible(false);
                 break;
             case "search": NotReady("검색 보드"); break;
@@ -518,15 +513,13 @@ internal sealed class NovelWorkspace : Panel
 
     private void SyncRail()
     {
-        rail.Selected = outer.Panel1Collapsed ? null : dictShown ? "dict" : memoShown ? "memo" : Tree.ShowingFiles ? "files" : "tree";
+        rail.Selected = outer.Panel1Collapsed ? null : memoShown ? "memo" : Tree.ShowingFiles ? "files" : "tree";
         SyncWidgetMarks();
     }
 
     /// <summary>왼쪽 칸에 메모 목록(true) 또는 파일 트리(false)를 보인다.</summary>
     private void ShowMemo(bool on)
     {
-        dictShown = false;
-        dictPanel.Visible = false;
         memoShown = on;
         memoList.Visible = on;
         Tree.Visible = !on;
@@ -534,18 +527,16 @@ internal sealed class NovelWorkspace : Panel
         else { treeFrame.Title = Tree.ShowingFiles ? "볼트 파일" : "파일 트리"; treeFrame.Glyph = treeGlyph; }
     }
 
-    /// <summary>왼쪽 칸에 국어사전(true) 또는 파일 트리(false)를 보인다.</summary>
-    private void ShowDict(bool on)
+    /// <summary>[사전] 아이콘: 사전 창을 켜고(다시 누르면 끈다). 창은 이 창 위에 따로 떠서 옮기고 접을 수 있다.</summary>
+    private void ToggleDictionary()
     {
-        if (!on) { ShowMemo(false); return; }
-        memoShown = false;
-        memoList.Visible = false;
-        Tree.Visible = false;
-        dictShown = true;
-        dictPanel.Visible = true;
-        dictPanel.BringToFront();
-        treeFrame.Title = "국어사전";
-        treeFrame.Glyph = WorkspaceRail.Catalog.First(c => c.Key == "dict").Glyph;
+        if (dictWin is { IsDisposed: false, Visible: true }) { dictWin.Close(); return; }
+        var owner = FindForm();
+        if (owner == null) return;
+        dictWin = new DictionaryWindow(palette ?? LibraryPalette.From(AppShared.LibraryTheme));
+        dictWin.FormClosed += (_, _) => { dictWin = null; if (!IsDisposed) SyncWidgetMarks(); };
+        dictWin.Show(owner); // 이 창의 소유 창: 늘 이 창 위에 뜨고, 이 창이 닫히면 같이 닫힌다
+        SyncWidgetMarks();
     }
 
     /// <summary>메모 창의 [메모 목록]: 이 작품의 메모면 왼쪽 칸에 목록을 띄운다.</summary>
@@ -583,7 +574,7 @@ internal sealed class NovelWorkspace : Panel
         treeFrame.SetPalette(p);
         Tree.ApplyTheme(p);
         memoList.ApplyTheme(p);
-        dictPanel.ApplyTheme(p);
+        dictWin?.ApplyTheme(p);
         left.ApplyTheme(p);
         right.ApplyTheme(p);
     }
@@ -604,7 +595,7 @@ internal sealed class WorkspaceRail : Control
         ("novel", "", "소설 메인으로"),
         ("tree", "", "파일 트리"),
         ("memo", "", "메모"),
-        ("dict", "", "국어사전"),
+        ("dict", "", "사전"),
         ("search", "", "검색 보드"),
         ("timer", "\uE916", "뽀모도로 타이머"),
         ("count", "", "글자 수 세기"), // 아이콘은 직접 그린다(WorkspaceRail.OnPaint)
