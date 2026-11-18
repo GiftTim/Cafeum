@@ -1,4 +1,4 @@
-VaultForm.cs (345줄)
+VaultForm.cs (352줄)
 
 Cafeum의 본체 창(볼트 하나)이에요. 처음에는 작품 목록 화면(NovelHome)이 보이고, 작품에 들어가면 늘 워크스페이스(NovelWorkspace)가 보여요. 회차 하나는 읽기와 쓰기 화면(MainForm) 하나라서 txt 편집, 낭독, 이어 읽기를 그대로 써요. 볼트 전체 파일 트리(VaultSidebar)는 워크스페이스의 [볼트 파일]에 들어가요.
 윈도우 기본 제목줄 대신 직접 그린 제목줄(WindowTitleBar)을 쓰기 때문에, 제목줄과 테두리를 클라이언트 영역으로 쓰도록 WM_NCCALCSIZE를 처리하고, 창 이동, 두 번 눌러 최대화, 가장자리로 크기 조절은 WM_NCHITTEST에서 알려 줘서 윈도우가 해 주게 해요. 최대화하면 이 모니터의 작업 영역(작업 표시줄 뺀 자리)에 맞추고, 이전 크기로 돌아올 때는 최대화 직전의 자리와 크기로 되돌려요.
@@ -7,28 +7,30 @@ CAFEUM_TEST_* 환경 변수는 화면 캡처로 확인할 때만 쓰는 시험�
 
 1	네임스페이스
 3~9	설명과 VaultForm 클래스 선언
-11~21	필드: 볼트 경로와 이름, 볼트 파일 트리, 작품 목록, 워크스페이스, 첫 화면 여부, 전체 화면 상태, 색, 기본 글꼴
-23	VaultPath
-25~26	ShowWithoutActivation: 시험용으로 창이 앞으로 나오지 않게
-28~35	DropKeyboardFilter: 시험용으로 키보드·마우스 입력을 버리는 필터
-36~45	구분 주석(직접 그린 제목줄), 시스템 함수, titleBar, chromeOn
-47~84	WndProc: 제목줄과 테두리 계산(WM_NCCALCSIZE), 가장자리와 제목줄 자리 판정(WM_NCHITTEST)
-86~88	clamping, normalBounds, prevState
-90~111	OnStateOrSizeChanged: 최대화와 되돌리기를 다시 그리고 이전 자리와 크기로 되돌리기
-113~123	ClampToWorkArea: 작업 영역 안으로 맞추기
-125~212	생성자: 창 모양, 볼트 파일 트리와 워크스페이스와 작품 목록 이벤트 잇기, 끌어다 놓기, 단축키, 테마
-214~220	ShowHelp: 사용법 창
-222	구분 주석(작품 목록과 워크스페이스)
-224~234	ShowHome: 작품 목록으로(열린 문서는 저장하고 닫음)
-236~246	EnterNovel: 작품의 워크스페이스로(늘 소설 메인에서 시작)
-248~263	OpenDocument: 문서 열기(다른 작품이면 그 작품의 워크스페이스로)
-265~272	NovelDirFor: 파일이 속한 작품 폴더
-274~280	전체 화면 변수와 ToggleFullScreenByKey(F1)
-282~293	ToggleFullScreenPinned: 전체 화면과 항상 위를 함께
-295~315	ToggleFullScreen: 창 전체 화면 켜고 끄기
-317~320	RecreateHandleFrame: 제목줄·테두리 계산 다시 하게 하기
-322~323	ApplyHeaderButtons: 설정에서 아이콘 막대가 바뀌었을 때
-325	구분 주석(테마와 글자 크기)
-327~336	ApplyTheme: 색 입히기
-338~344	ApplyVaultSettings: 목록 글자 크기 반영
-345	클래스 끝
+11~23	필드: 볼트 경로와 이름, 볼트 파일 트리, 작품 목록, 워크스페이스, 첫 화면 여부, 전체 화면 상태, 색, 기본 글꼴
+25	VaultPath
+27~28	ShowWithoutActivation: 시험용으로 창이 앞으로 나오지 않게
+30~37	DropKeyboardFilter: 시험용으로 키보드·마우스 입력을 버리는 필터
+38~47	구분 주석(직접 그린 제목줄), 시스템 함수, titleBar, chromeOn
+49~86	WndProc: 제목줄과 테두리 계산(WM_NCCALCSIZE), 가장자리와 제목줄 자리 판정(WM_NCHITTEST)
+88~90	clamping, normalBounds, prevState
+92~113	OnStateOrSizeChanged: 최대화와 되돌리기를 다시 그리고 이전 자리와 크기로 되돌리기
+115~125	ClampToWorkArea: 작업 영역 안으로 맞추기
+127~216	생성자: 창 모양, 볼트 파일 트리와 워크스페이스와 작품 목록 이벤트 잇기, 끌어다 놓기, 단축키, 테마
+218~224	ShowHelp: 사용법 창
+226	구분 주석(작품 목록과 워크스페이스)
+228~238	ShowHome: 작품 목록으로(열린 문서는 저장하고 닫음)
+240~250	EnterNovel: 작품의 워크스페이스로(늘 소설 메인에서 시작)
+252~267	OpenDocument: 문서 열기(다른 작품이면 그 작품의 워크스페이스로)
+269~276	NovelDirFor: 파일이 속한 작품 폴더
+278~284	전체 화면 변수와 ToggleFullScreenByKey(F1)
+18~19	IsFullScreen: 전체 화면 중인지(문서 화면이 Esc로 나가기를 판단할 때)
+286~287	ToggleFullScreenLikeLibrary: F11, 서재의 전체 화면 버튼과 같게(전체 화면과 항상 위를 함께)
+289~300	ToggleFullScreenPinned: 전체 화면과 항상 위를 함께
+302~322	ToggleFullScreen: 창 전체 화면 켜고 끄기
+324~327	RecreateHandleFrame: 제목줄·테두리 계산 다시 하게 하기
+329~330	ApplyHeaderButtons: 설정에서 아이콘 막대가 바뀌었을 때
+332	구분 주석(테마와 글자 크기)
+334~343	ApplyTheme: 색 입히기
+345~351	ApplyVaultSettings: 목록 글자 크기 반영
+352	클래스 끝

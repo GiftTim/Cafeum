@@ -1,4 +1,4 @@
-MainForm.RefBar.cs (293줄, MainForm의 일부)
+MainForm.RefBar.cs (294줄, MainForm의 일부)
 
 참고 자료 문서(작품의 "참고 자료" 폴더 안 파일, 또는 탐색기 "Cafeum으로 보기"로 연 PIP 창의 문서)의 서식창을 맡는 파일이에요.
 문서 종류(txt, epub, 만화, pdf)와 상관없이 같은 줄을 쓰고, 종류에 안 맞는 버튼은 감춰요.
@@ -17,9 +17,9 @@ MainForm.RefBar.cs (293줄, MainForm의 일부)
 76~92	ToggleLockMode: 잠금 모드 켜고 끄기(켜면 고치는 중이던 글을 저장하고 읽기로, 터치 넘김 끔)
 94	marginDrop: 만화의 용지 편집 펼침 부품
 96~107	ShowMarginDrop: 만화의 [용지 편집] — 여백 칸을 버튼 바로 밑에 직접 펼치기
-109~119	SyncRefBar: 읽기 서식창을 참고 자료용이나 보통(epub·만화)으로 바꿔 두기
-121~159	ApplyRefBarLayout: 참고 자료 서식창 항목을 늘어놓기
-161~195	SyncRefBarKind: 지금 문서 종류에 안 맞는 버튼은 감추고, 설정에서 뺀 항목도 감추기
-196~226	RefreshOrderIcon: 순서·나누기 아이콘 다시 그리기
-228~241	ShowImageOrderMenu: 읽는 순서와 한 장을 둘로 나누기 메뉴(만화)
-243~292	RefreshPipIcon: PIP 아이콘(큰 네모 안의 ↘ 화살표와 작은 네모) 그리기
+109~120	SyncRefBar: 읽기 서식창을 참고 자료용이나 보통(epub·만화)으로 바꿔 두기
+122~160	ApplyRefBarLayout: 참고 자료 서식창 항목을 늘어놓기
+162~196	SyncRefBarKind: 지금 문서 종류에 안 맞는 버튼은 감추고, 설정에서 뺀 항목도 감추기
+197~227	RefreshOrderIcon: 순서·나누기 아이콘 다시 그리기
+229~242	ShowImageOrderMenu: 읽는 순서와 한 장을 둘로 나누기 메뉴(만화)
+244~293	RefreshPipIcon: PIP 아이콘(큰 네모 안의 ↘ 화살표와 작은 네모) 그리기

@@ -92,7 +92,7 @@ txt는 읽을 때 epub과 같은 웹 화면으로 보여주고, 고칠 때만 �
 1793	구분 주석(만화/이미지)
 1795~1840	LoadZipImages: zip 속 그림 열기(묶음 zip도 판별)
 1842~1868	LoadSingleImageFile: 그림 하나를 열면 같은 폴더의 그림들을 묶어 넘겨보기
-1870~1915	RebuildImagePages: 읽는 방향, 두쪽 보기, 반쪽 나누기에 맞춰 넘겨볼 쪽 목록 만들기
+1871~1915	RebuildImagePages: 읽는 방향, 두쪽 보기, 반쪽 나누기에 맞춰 넘겨볼 쪽 목록 만들기
 1917~1924	JumpToImageItem: 원래 순서의 그림 번호로 쪽 찾아 열기
 1926~1931	UpdateImageTitle: 제목 표시줄에 [현재/전체] 표시
 1933~1969	ShowImagePage: 한 쪽 보여주기(캐시에 있으면 그것, 없으면 그 자리에서 읽기)

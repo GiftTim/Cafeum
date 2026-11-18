@@ -1,4 +1,4 @@
-NovelWorkspace.cs (1367줄)
+NovelWorkspace.cs (1384줄)
 
 작품 안의 작업 화면을 만드는 파일이에요. 작품에 들어가면 늘 이 화면이 열리고, 왼쪽부터 [아이콘 막대] | [파일 트리 칸] | [문서 칸] (| [옆 문서 칸]) 순서로 놓여요.
 문서 칸 하나에는 문서가 하나만 열려요(탭이 없어요). 다만 참고 자료는 한 칸 안에서 탭으로 여러 개 열 수 있고, PIP로 내보내면 그 탭 자리에 안내 글만 남겨 둬요. 파일 트리에서 누르면 지금 고른 칸에, Ctrl+누르면 옆 칸에 나눠 열고, 파일 트리에서 끌어다 놓으면 창 스냅처럼 놓일 자리를 미리 보여 줘요.
@@ -10,152 +10,152 @@ NovelWorkspace.cs (1367줄)
 1	도구함
 3	네임스페이스
 5~14	설명과 NovelWorkspace 클래스 선언
-16~28	필드: 아이콘 막대, 머리 줄, 가르는 틀 둘, 파일 트리 틀, 메모 목록, 문서 칸 둘, 지금 고른 칸, 몰입 모드 여부 등
-30	Tree: 파일 트리(EpisodePanel)
-32	구분 주석(뽀모도로 타이머 위젯)
-33~34	pomo(위젯), markTimer(위젯 켜짐 표시를 0.3초마다 맞추는 타이머)
-36~41	SyncWidgetMarks: 떠 있는 위젯(타이머, 글자 수 세기)의 아이콘을 눌린 모양으로 맞추기
-42	OnVisibleChanged: 보이거나 숨겨질 때 위젯 맞추기
-43~48	OnHandleCreated: 핸들이 생기면 위젯을 맞추고 타이머 시작
-49	MarkTick: 타이머 한 번마다 눌린 표시 맞추기
-50~51	sizedHost, HostSizeChanged: 창 크기가 바뀌면 위젯 자리를 다시 잡기
-53~59	Dispose: 타이머, 창 크기 구독, 위젯 정리
-61~67	TogglePomodoro: 뽀모도로 위젯 켜고 끄기(설정에 저장)
-69~103	SyncPomodoro: 위젯 보이기·숨기기(소설 메인이나 화면에서 나가면 숨기고 타이머를 처음으로)
-105~117	PlacePomodoro: 위젯을 저장한 자리 또는 오른쪽 위에 놓기(창 안에서 벗어나지 않게)
-118	NovelPath: 지금 연 작품 폴더
-119	Focused: 지금 고른 칸
-121~131	이벤트: 서재로, 도움말, 설정, 전체 화면, 항상 위, 검색, 몰입 모드 변화, 창 제목 변화
-133~198	생성자: 파일 트리 이벤트 잇기, 틀과 칸 만들기, 칸마다 이벤트 잇기, 가르는 틀 짜기
-200	구분 주석(작품 열기·닫기)
-202~222	LoadNovel: 작품 열기(소설 메인에서 시작하고 파일 트리는 닫아 둠)
-224~230	CloseAll: 열린 문서를 모두 저장하고 닫기
-232~252	Open: 문서 열기(이미 열려 있으면 그 칸을 고르고, split이면 옆 칸에)
-254	구분 주석(끌어서 열기)
-256	snapPreview: 놓일 자리 미리보기
-258~278	SnapTarget: 끌고 온 문서를 놓을 칸과 미리보기 자리 정하기
-280~289	ShowSnap: 미리보기 상자 보이기
-291~334	DropSnap: 놓았을 때 열기(옆 칸 문서를 끌어오면 두 칸이 자리를 바꿈, 한 칸이면 둘로 나눔)
-336~340	CenterSplit: 나눈 칸을 반반으로(폭이 안 잡혔으면 잡히는 대로)
-342~357	CloseDocsUnder: 이 경로(폴더면 그 안 전부)를 연 칸 닫기
-359~366	FocusPane: 칸 고르기(창 제목과 파일 트리의 현재 표시 맞추기)
-368~378	SyncFocusVisuals: 고른 칸 표시, 아이콘 막대·머리 줄, [×] 보임 맞추기
-380~393	ClosePane: 칸 [×](옆 칸이 있으면 이 칸을 없애고, 하나뿐이면 작품 화면으로)
-395~407	OpenPip: 참고 자료를 항상 위에 뜨는 작은 창으로 옮기기
-409~410	RefreshTitle: 창 제목 다시 알리기
-412~413	SetPinned: 항상 위 상태를 머리 줄에 알리기
-415~416	SetFullScreenIcon: 전체 화면 상태를 머리 줄에 알리기
-418~419	CloseFocused: Ctrl+W, 고른 칸 닫기
-421~422	CycleFocus: Ctrl+Tab, 옆 칸으로
-424	구분 주석(아이콘 막대)
-426~454	OnRail: 아이콘 막대 눌림 처리(서재, 소설 메인, 파일 트리, 메모, 볼트 파일, 검색, 타이머, 글자 수, 설정 …)
-456~466	UpdateChrome: 소설 메인이면 머리 줄, 문서 안이면 아이콘 막대 보이기(몰입 모드에서는 둘 다 숨김)
-468~479	OnHeader: 소설 메인 머리 줄의 버튼 처리
-481~483	NotReady: 아직 만들지 않은 기능(검색 보드) 안내
-485~486	ApplyRailSettings: 설정의 아이콘 막대 순서·숨김 반영
-488	leftHadDoc: 왼쪽 칸에 문서가 있었는지
-490~497	BackToMain: 소설 메인으로 돌아올 때 파일 트리 닫기(몰입 모드 중이면 끝날 때 닫힌 채로)
-499	treeWidthPending: 파일 트리 폭을 아직 안 정했는지
-501~507	ApplyTreeWidth: 파일 트리 폭(340)을 폭이 잡힌 뒤 한 번만 정하기
-509	SetTreeVisible: 파일 트리 칸 열고 닫기
-511~515	SyncRail: 아이콘 막대에서 눌린 항목 맞추기
-517~525	ShowMemo: 왼쪽 칸에 메모 목록 또는 파일 트리 보이기
-527~534	OnMemoListRequested: 메모 창의 [메모 목록]이 이 작품의 것이면 왼쪽 칸에 띄우기
-536~546	SetChromeVisible: 몰입 모드로 아이콘 막대, 파일 트리, 칸 머리 숨기고 되돌리기(들어가기 전 파일 트리 상태를 기억)
-548	treeClosedBeforeChromeHid: 몰입 모드에 들어가기 전에 파일 트리가 닫혀 있었는지
-550	구분 주석(테마)
-552~564	ApplyTheme: 색을 각 부품에 입히기
-566	ApplyFont: 파일 트리 글꼴
-567	NovelWorkspace 클래스 끝
-569~573	WorkspaceRail 설명과 클래스 선언(왼쪽 끝 아이콘 막대)
-575~587	Catalog: 아이콘 막대에 둘 수 있는 항목(키, 아이콘, 이름)이고 기본 순서
-589~590	IsCustom: 사용자가 넣은 구분선(sepX…)·빈 아이콘(blankX…)인지
-592~604	OrderFor: 설정에 저장된 순서(모르는 키는 빼고, 빠진 항목은 기본 자리 근처에 끼움)
-606	LabelOf: 항목 이름
-608~613	필드: 색, 마우스 올린 항목, 고른 항목, 설명 말풍선, 지금 보이는 항목들, Clicked
-615~619	생성자
-621~624	docMode, DocMode: 문서 안인지(파일 트리·메모·검색·글자 수 아이콘은 문서 안에서만 보임)
-626~643	ApplySettings: 설정의 순서·숨김을 반영해 보일 항목 정하기
-645~647	active, SetActive: 눌린 채 켜져 있는 항목 표시
-648~649	Selected: 고른 항목
-651	SetPalette: 색 정하기
-652	S: 화면 배율에 맞춘 크기
-653	OnHandleCreated: 너비 정하기
-654	Dispose
-656~658	IsSep, IsBlank, ItemH: 구분선·빈 아이콘 여부와 칸 높이
-660~673	ItemRect: 항목의 자리(위쪽 묶음은 위에서부터, 아래쪽 묶음은 아래에서부터)
-675~682	MenuAnchor: 항목 오른쪽에 메뉴를 띄울 자리
-684~688	IndexAt: 마우스 자리의 항목
-690~699	OnMouseMove: 마우스를 올린 항목 표시와 설명
-700	OnMouseLeave
-701~707	OnMouseClick: 왼쪽 클릭이면 Clicked 알림
-709~741	OnPaint: 항목 그리기(구분선, 눌림·올림 배경, 글자 수 아이콘, 글꼴 아이콘)
-742	WorkspaceRail 클래스 끝
-744~745	PaneFrame 설명과 클래스 선언(칸 하나의 틀: 머리 줄 + 몸통)
-747~751	필드와 이벤트: 머리, Body, 닫기·더보기·머리 클릭
-753~762	생성자
-764~779	속성: Title, Glyph, Dot, DotStyle, HeaderVisible, ShowMore, ShowClose
-781	SetPalette
-783~853	PaneHeader: 칸 머리 줄(아이콘, 이름, 점, ⋯, ×) 직접 그리기
-785~791	PaneHeader 필드와 이벤트
-793~797	PaneHeader 생성자
-798~802	S, SetPalette, OnHandleCreated, 닫기·더보기 버튼 자리
-803~809	OnMouseMove
-810	OnMouseLeave
-811~818	OnMouseClick: [×], [⋯], 머리 눌림 구분
-820~852	OnPaint: 아이콘, 이름, 점(고른 칸·저장 안 됨·저장됨), 버튼 그리기
-854	PaneFrame 클래스 끝
-856~857	DocPane 설명과 클래스 선언(문서 칸)
-859~868	필드: 주인, 지금 문서, 참고 자료 탭들, 탭 막대, PIP 안내 글, 위키, 캔버스, 작품 화면
-870	DocPath: 이 칸에 열린 문서 경로
-871~872	ToggleCountWidget: 글자 수 세기 위젯 켜고 끄기
-873~874	CountWidgetOn: 글자 수 세기 위젯이 떠 있는지
-875~878	이벤트: 고름, 닫기, 내용 바뀜, 서재로
-880~904	생성자: 탭 막대 이벤트 잇기
-906~913	Hook: 칸 안 어디를 눌러도 이 칸을 고른 것으로
-915~916	Focused: 칸 고름 표시
-918~925	칸 머리 점: focusDot, savedDot, UpdateDot
-927	SetPalette
-929~937	ApplyTheme
-939~940	IsWiki: 위키 폴더 안 파일인지
-942~987	Open: 문서를 이 칸에 열기(참고 자료는 탭, 캔버스, 위키, 회차)
-989~990	IsRefFile: 참고 자료 폴더 안 파일인지
-992~1007	CreateDoc: 칸 안에 끼울 문서(MainForm) 만들고 이벤트 잇기
-1009~1015	OnDocClosed: 문서가 스스로 닫혔을 때 탭이면 그 탭만, 아니면 작품 화면으로
-1017~1032	OpenRef: 참고 자료를 새 탭으로 열기
-1034~1049	ActivateRef: i번째 탭을 보이고 나머지는 숨기기
-1051~1068	CloseRefTab: 참고 자료 탭 닫기
-1070~1084	BeginPip: 참고 자료 탭을 PIP로 내보내기(탭은 두고 안내 글만)
-1086~1098	EndPip: PIP 창이 닫히면 그 탭에 문서 다시 열기
-1100~1102	HasOpen: 이 경로가 이 칸에 열려 있는지(숨은 탭 포함)
-1104~1114	CloseRefsUnder: 이 경로 밑의 참고 자료 탭 닫기
-1116	TryLoadWiki: 위키 불러오기(못 읽으면 null)
-1118~1154	CloseContent: 열린 문서를 저장하고 닫기(칸은 그대로)
-1156~1204	ShowOverview: 작품 화면 보이기(작품 지우기, 이름 바꾸기 이벤트 연결)
-1206~1212	ShowPaneMenu: 칸 머리 [⋯] 메뉴(회차, 캔버스, 위키별)
-1214~1215	HeaderVisible: 칸 머리 보임
-1216	DocPane 클래스 끝
-1218~1222	MainHeaderBar 설명과 클래스 선언(소설 메인 맨 위 머리 줄)
-1224~1234	필드와 FullOn, Pinned: 전체 화면·항상 위 상태
-1235~1238	Buttons: 오른쪽 버튼 목록
-1240~1244	로고, 색, 마우스 올린 곳, 설명 말풍선, Clicked
-1246~1252	생성자: 앱 아이콘을 로고로 읽기
-1254	SetPalette
-1255	S
-1256	OnHandleCreated: 높이 정하기
-1257	Dispose
-1259	LogoRect: 로고 자리
-1261~1262	BrandRect: 로고와 이름·부제를 합친 자리(어디를 눌러도 서재로)
-1264~1270	ButtonRect: 오른쪽 버튼 자리
-1272~1277	IndexAt: 마우스 자리의 버튼
-1279~1288	OnMouseMove
-1289	OnMouseLeave
-1290~1297	OnMouseClick
-1299~1340	OnPaint: 로고, 이름·부제, 버튼 그리기
-1341	MainHeaderBar 클래스 끝
-1343~1344	SnapPreview 설명과 클래스 선언(끌 때 놓일 자리를 보이는 반투명 상자)
-1346~1352	생성자: 테두리 없고 반투명
-1354	ShowWithoutActivation: 보여도 포커스를 뺏지 않음
-1356~1364	CreateParams: 활성화·작업표시줄·마우스 통과 설정
-1366	OnHandleCreated: 모서리 둥글게
-1367	SnapPreview 클래스 끝
+16~29	필드: 아이콘 막대, 머리 줄, 가르는 틀 둘, 파일 트리 틀, 메모 목록, 문서 칸 둘, 지금 고른 칸, 몰입 모드 여부 등
+31	Tree: 파일 트리(EpisodePanel)
+33	구분 주석(뽀모도로 타이머 위젯)
+34~35	pomo(위젯), markTimer(위젯 켜짐 표시를 0.3초마다 맞추는 타이머)
+37~43	SyncWidgetMarks: 떠 있는 위젯(타이머, 글자 수 세기)의 아이콘을 눌린 모양으로 맞추기
+44	OnVisibleChanged: 보이거나 숨겨질 때 위젯 맞추기
+45~50	OnHandleCreated: 핸들이 생기면 위젯을 맞추고 타이머 시작
+51	MarkTick: 타이머 한 번마다 눌린 표시 맞추기
+52~53	sizedHost, HostSizeChanged: 창 크기가 바뀌면 위젯 자리를 다시 잡기
+55~61	Dispose: 타이머, 창 크기 구독, 위젯 정리
+63~69	TogglePomodoro: 뽀모도로 위젯 켜고 끄기(설정에 저장)
+71~105	SyncPomodoro: 위젯 보이기·숨기기(소설 메인이나 화면에서 나가면 숨기고 타이머를 처음으로)
+107~119	PlacePomodoro: 위젯을 저장한 자리 또는 오른쪽 위에 놓기(창 안에서 벗어나지 않게)
+120	NovelPath: 지금 연 작품 폴더
+121	Focused: 지금 고른 칸
+123~133	이벤트: 서재로, 도움말, 설정, 전체 화면, 항상 위, 검색, 몰입 모드 변화, 창 제목 변화
+135~200	생성자: 파일 트리 이벤트 잇기, 틀과 칸 만들기, 칸마다 이벤트 잇기, 가르는 틀 짜기
+202	구분 주석(작품 열기·닫기)
+204~224	LoadNovel: 작품 열기(소설 메인에서 시작하고 파일 트리는 닫아 둠)
+226~232	CloseAll: 열린 문서를 모두 저장하고 닫기
+234~254	Open: 문서 열기(이미 열려 있으면 그 칸을 고르고, split이면 옆 칸에)
+256	구분 주석(끌어서 열기)
+258	snapPreview: 놓일 자리 미리보기
+260~280	SnapTarget: 끌고 온 문서를 놓을 칸과 미리보기 자리 정하기
+282~291	ShowSnap: 미리보기 상자 보이기
+293~336	DropSnap: 놓았을 때 열기(옆 칸 문서를 끌어오면 두 칸이 자리를 바꿈, 한 칸이면 둘로 나눔)
+338~342	CenterSplit: 나눈 칸을 반반으로(폭이 안 잡혔으면 잡히는 대로)
+344~359	CloseDocsUnder: 이 경로(폴더면 그 안 전부)를 연 칸 닫기
+361~368	FocusPane: 칸 고르기(창 제목과 파일 트리의 현재 표시 맞추기)
+370~380	SyncFocusVisuals: 고른 칸 표시, 아이콘 막대·머리 줄, [×] 보임 맞추기
+382~395	ClosePane: 칸 [×](옆 칸이 있으면 이 칸을 없애고, 하나뿐이면 작품 화면으로)
+397~409	OpenPip: 참고 자료를 항상 위에 뜨는 작은 창으로 옮기기
+411~412	RefreshTitle: 창 제목 다시 알리기
+414~415	SetPinned: 항상 위 상태를 머리 줄에 알리기
+417~418	SetFullScreenIcon: 전체 화면 상태를 머리 줄에 알리기
+420~421	CloseFocused: Ctrl+W, 고른 칸 닫기
+423~424	CycleFocus: Ctrl+Tab, 옆 칸으로
+426	구분 주석(아이콘 막대)
+428~457	OnRail: 아이콘 막대 눌림 처리(서재, 소설 메인, 파일 트리, 메모, 볼트 파일, 검색, 타이머, 글자 수, 설정 …)
+459~469	UpdateChrome: 소설 메인이면 머리 줄, 문서 안이면 아이콘 막대 보이기(몰입 모드에서는 둘 다 숨김)
+471~482	OnHeader: 소설 메인 머리 줄의 버튼 처리
+484~486	NotReady: 아직 만들지 않은 기능(검색 보드) 안내
+488~489	ApplyRailSettings: 설정의 아이콘 막대 순서·숨김 반영
+491	leftHadDoc: 왼쪽 칸에 문서가 있었는지
+493~500	BackToMain: 소설 메인으로 돌아올 때 파일 트리 닫기(몰입 모드 중이면 끝날 때 닫힌 채로)
+502	treeWidthPending: 파일 트리 폭을 아직 안 정했는지
+504~510	ApplyTreeWidth: 파일 트리 폭(340)을 폭이 잡힌 뒤 한 번만 정하기
+512	SetTreeVisible: 파일 트리 칸 열고 닫기
+514~518	SyncRail: 아이콘 막대에서 눌린 항목 맞추기
+520~528	ShowMemo: 왼쪽 칸에 메모 목록 또는 파일 트리 보이기
+542~549	OnMemoListRequested: 메모 창의 [메모 목록]이 이 작품의 것이면 왼쪽 칸에 띄우기
+551~561	SetChromeVisible: 몰입 모드로 아이콘 막대, 파일 트리, 칸 머리 숨기고 되돌리기(들어가기 전 파일 트리 상태를 기억)
+563	treeClosedBeforeChromeHid: 몰입 모드에 들어가기 전에 파일 트리가 닫혀 있었는지
+565	구분 주석(테마)
+567~580	ApplyTheme: 색을 각 부품에 입히기
+582	ApplyFont: 파일 트리 글꼴
+583	NovelWorkspace 클래스 끝
+585~589	WorkspaceRail 설명과 클래스 선언(왼쪽 끝 아이콘 막대)
+591~604	Catalog: 아이콘 막대에 둘 수 있는 항목(키, 아이콘, 이름)이고 기본 순서
+606~607	IsCustom: 사용자가 넣은 구분선(sepX…)·빈 아이콘(blankX…)인지
+609~621	OrderFor: 설정에 저장된 순서(모르는 키는 빼고, 빠진 항목은 기본 자리 근처에 끼움)
+623	LabelOf: 항목 이름
+625~630	필드: 색, 마우스 올린 항목, 고른 항목, 설명 말풍선, 지금 보이는 항목들, Clicked
+632~636	생성자
+638~641	docMode, DocMode: 문서 안인지(파일 트리·메모·검색·글자 수 아이콘은 문서 안에서만 보임)
+643~660	ApplySettings: 설정의 순서·숨김을 반영해 보일 항목 정하기
+662~664	active, SetActive: 눌린 채 켜져 있는 항목 표시
+665~666	Selected: 고른 항목
+668	SetPalette: 색 정하기
+669	S: 화면 배율에 맞춘 크기
+670	OnHandleCreated: 너비 정하기
+671	Dispose
+673~675	IsSep, IsBlank, ItemH: 구분선·빈 아이콘 여부와 칸 높이
+677~690	ItemRect: 항목의 자리(위쪽 묶음은 위에서부터, 아래쪽 묶음은 아래에서부터)
+692~699	MenuAnchor: 항목 오른쪽에 메뉴를 띄울 자리
+701~705	IndexAt: 마우스 자리의 항목
+707~716	OnMouseMove: 마우스를 올린 항목 표시와 설명
+717	OnMouseLeave
+718~724	OnMouseClick: 왼쪽 클릭이면 Clicked 알림
+726~758	OnPaint: 항목 그리기(구분선, 눌림·올림 배경, 글자 수 아이콘, 글꼴 아이콘)
+759	WorkspaceRail 클래스 끝
+761~762	PaneFrame 설명과 클래스 선언(칸 하나의 틀: 머리 줄 + 몸통)
+764~768	필드와 이벤트: 머리, Body, 닫기·더보기·머리 클릭
+770~779	생성자
+781~796	속성: Title, Glyph, Dot, DotStyle, HeaderVisible, ShowMore, ShowClose
+798	SetPalette
+800~870	PaneHeader: 칸 머리 줄(아이콘, 이름, 점, ⋯, ×) 직접 그리기
+802~808	PaneHeader 필드와 이벤트
+810~814	PaneHeader 생성자
+815~819	S, SetPalette, OnHandleCreated, 닫기·더보기 버튼 자리
+820~826	OnMouseMove
+827	OnMouseLeave
+828~835	OnMouseClick: [×], [⋯], 머리 눌림 구분
+837~869	OnPaint: 아이콘, 이름, 점(고른 칸·저장 안 됨·저장됨), 버튼 그리기
+871	PaneFrame 클래스 끝
+873~874	DocPane 설명과 클래스 선언(문서 칸)
+876~885	필드: 주인, 지금 문서, 참고 자료 탭들, 탭 막대, PIP 안내 글, 위키, 캔버스, 작품 화면
+887	DocPath: 이 칸에 열린 문서 경로
+888~889	ToggleCountWidget: 글자 수 세기 위젯 켜고 끄기
+890~891	CountWidgetOn: 글자 수 세기 위젯이 떠 있는지
+892~895	이벤트: 고름, 닫기, 내용 바뀜, 서재로
+897~921	생성자: 탭 막대 이벤트 잇기
+923~930	Hook: 칸 안 어디를 눌러도 이 칸을 고른 것으로
+932~933	Focused: 칸 고름 표시
+935~942	칸 머리 점: focusDot, savedDot, UpdateDot
+944	SetPalette
+946~954	ApplyTheme
+956~957	IsWiki: 위키 폴더 안 파일인지
+959~1004	Open: 문서를 이 칸에 열기(참고 자료는 탭, 캔버스, 위키, 회차)
+1006~1007	IsRefFile: 참고 자료 폴더 안 파일인지
+1009~1024	CreateDoc: 칸 안에 끼울 문서(MainForm) 만들고 이벤트 잇기
+1026~1032	OnDocClosed: 문서가 스스로 닫혔을 때 탭이면 그 탭만, 아니면 작품 화면으로
+1034~1049	OpenRef: 참고 자료를 새 탭으로 열기
+1051~1066	ActivateRef: i번째 탭을 보이고 나머지는 숨기기
+1068~1085	CloseRefTab: 참고 자료 탭 닫기
+1087~1101	BeginPip: 참고 자료 탭을 PIP로 내보내기(탭은 두고 안내 글만)
+1103~1115	EndPip: PIP 창이 닫히면 그 탭에 문서 다시 열기
+1117~1119	HasOpen: 이 경로가 이 칸에 열려 있는지(숨은 탭 포함)
+1121~1131	CloseRefsUnder: 이 경로 밑의 참고 자료 탭 닫기
+1133	TryLoadWiki: 위키 불러오기(못 읽으면 null)
+1135~1171	CloseContent: 열린 문서를 저장하고 닫기(칸은 그대로)
+1173~1221	ShowOverview: 작품 화면 보이기(작품 지우기, 이름 바꾸기 이벤트 연결)
+1223~1229	ShowPaneMenu: 칸 머리 [⋯] 메뉴(회차, 캔버스, 위키별)
+1231~1232	HeaderVisible: 칸 머리 보임
+1233	DocPane 클래스 끝
+1235~1239	MainHeaderBar 설명과 클래스 선언(소설 메인 맨 위 머리 줄)
+1241~1251	필드와 FullOn, Pinned: 전체 화면·항상 위 상태
+1252~1255	Buttons: 오른쪽 버튼 목록
+1257~1261	로고, 색, 마우스 올린 곳, 설명 말풍선, Clicked
+1263~1269	생성자: 앱 아이콘을 로고로 읽기
+1271	SetPalette
+1272	S
+1273	OnHandleCreated: 높이 정하기
+1274	Dispose
+1276	LogoRect: 로고 자리
+1278~1279	BrandRect: 로고와 이름·부제를 합친 자리(어디를 눌러도 서재로)
+1281~1287	ButtonRect: 오른쪽 버튼 자리
+1289~1294	IndexAt: 마우스 자리의 버튼
+1296~1305	OnMouseMove
+1306	OnMouseLeave
+1307~1314	OnMouseClick
+1316~1357	OnPaint: 로고, 이름·부제, 버튼 그리기
+1358	MainHeaderBar 클래스 끝
+1360~1361	SnapPreview 설명과 클래스 선언(끌 때 놓일 자리를 보이는 반투명 상자)
+1363~1369	생성자: 테두리 없고 반투명
+1371	ShowWithoutActivation: 보여도 포커스를 뺏지 않음
+1373~1381	CreateParams: 활성화·작업표시줄·마우스 통과 설정
+1383	OnHandleCreated: 모서리 둥글게
+1384	SnapPreview 클래스 끝

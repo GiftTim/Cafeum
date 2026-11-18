@@ -1,4 +1,4 @@
-MainForm.Features.cs (1270줄, MainForm의 일부)
+MainForm.Features.cs (1289줄, MainForm의 일부)
 
 읽기 화면의 부가 기능을 모아 둔 파일이에요.
 메뉴(최근 파일, 테마, PDF 야간 모드, 자동 재생, 낭독 속도·목소리), 테마와 여백 적용, 설정이 바뀌었을 때의 반영(OnSettingsChanged), 읽던 자리 기억, 파일 끌어놓기, 우클릭 메뉴와 웹 검색, 안내 글(토스트), PDF 열기, 몰입 모드(전체 화면), 단축키, 낭독(TTS)이 들어 있어요.
@@ -59,27 +59,29 @@ epub 안에서 낭독을 돕는 스크립트(EpubTtsScript)와 윈도우 시스�
 760~761	IsHostActive: 그 창이 지금 앞에 있는지
 763~783	ShowMainMenu: 머리 막대 ☰ 버튼 밑에 문서 메뉴 띄우기
 784	ToggleImmersionFromHost: 볼트 창에서 몰입 모드 켜고 끄기
-786~821	ToggleImmersion: 몰입 모드(제목 막대·테두리를 숨기고 화면 전체로)
-823	구분 주석(단축키)
-825~854	TryHandleFeatureKey: F5, F11, Esc, F1, ] [, Ctrl+L, Ctrl+S, Ctrl+, , Ctrl+±/0, Ctrl+F, 방향키 처리
-856~863	CanUseArrowPaging: ← →를 쪽 넘기기로 쓸 수 있는 상태인지
-865~866	ProcessCmdKey: 키 입력을 위 함수로 먼저 보내기
-868~888	HookWebViewKeys: 웹 화면에 포커스가 있어도 키를 가로채도록 걸기
-890~906	ImmersionHoverTick: 몰입 모드에서 마우스를 맨 위에 대면 메뉴가 잠깐 나타남
-908	구분 주석(낭독)
-910~915	ToggleAutoPlay: F5 — 만화는 슬라이드쇼, 소설은 낭독
-917~921	ToggleTts: 낭독 켜고 끄기
-923~927	UpdateAutoPlayMenu: 메뉴 글자("시작"/"정지") 맞추기
-929~991	StartTts: 낭독 시작(epub, txt에 따라 시작 위치를 정함)
-993~1002	StopTts: 낭독 멈춤
-1004~1011	FinishTts: 낭독이 끝났을 때 안내
-1013~1018	OnTtsSentenceFinished: 한 문장이 끝나면 다음 문장으로
-1020~1050	SpeakNextTxt: txt에서 다음 문장을 찾아 표시하고 읽기
-1052~1060	HighlightTxt: 읽는 문장 표시
-1062~1074	PrepareEpubTts: epub 챕터의 낭독 스크립트와 본문 글 준비
-1076~1107	SpeakNextEpub: epub에서 다음 문장을 읽고 표시
-1109~1112	ClearEpubTtsMark: epub의 읽는 문장 표시 지우기
-1114~1248	EpubTtsScript: 본문 글자를 이어 붙인 글과 화면 위치를 맞추고, 읽는 문장을 문서를 건드리지 않는 방식(CSS Custom Highlight)으로 표시하며, F5·F11·[ ] 키와 Ctrl+휠을 앱에 알리는 스크립트
-1250	구분 주석(Win32)
-1252~1257	윈도우 메시지·창 스타일 상수
-1259~1269	SendMessage, GetWindowLongPtr, SetWindowLongPtr, SetWindowPos 불러오기
+786~787	ImmersionAllowed: 몰입 모드를 쓸 수 있는지(참고 자료는 PIP 창에서만)
+789~799	UpdateImmersionAvailability: 몰입 단추와 메뉴 항목을 지금 문서에 맞게 켜고 회색으로
+801~837	ToggleImmersion: 몰입 모드(제목 막대·테두리를 숨기고 화면 전체로)
+839	구분 주석(단축키)
+841~873	TryHandleFeatureKey: F5, F11, Esc, F1, ] [, Ctrl+L, Ctrl+S, Ctrl+, , Ctrl+±/0, Ctrl+F, 방향키 처리
+875~882	CanUseArrowPaging: ← →를 쪽 넘기기로 쓸 수 있는 상태인지
+884~885	ProcessCmdKey: 키 입력을 위 함수로 먼저 보내기
+887~907	HookWebViewKeys: 웹 화면에 포커스가 있어도 키를 가로채도록 걸기
+909~925	ImmersionHoverTick: 몰입 모드에서 마우스를 맨 위에 대면 메뉴가 잠깐 나타남
+927	구분 주석(낭독)
+929~934	ToggleAutoPlay: F5 — 만화는 슬라이드쇼, 소설은 낭독
+936~940	ToggleTts: 낭독 켜고 끄기
+942~946	UpdateAutoPlayMenu: 메뉴 글자("시작"/"정지") 맞추기
+948~1010	StartTts: 낭독 시작(epub, txt에 따라 시작 위치를 정함)
+1012~1021	StopTts: 낭독 멈춤
+1023~1030	FinishTts: 낭독이 끝났을 때 안내
+1032~1037	OnTtsSentenceFinished: 한 문장이 끝나면 다음 문장으로
+1039~1069	SpeakNextTxt: txt에서 다음 문장을 찾아 표시하고 읽기
+1071~1079	HighlightTxt: 읽는 문장 표시
+1081~1093	PrepareEpubTts: epub 챕터의 낭독 스크립트와 본문 글 준비
+1095~1126	SpeakNextEpub: epub에서 다음 문장을 읽고 표시
+1128~1131	ClearEpubTtsMark: epub의 읽는 문장 표시 지우기
+1133~1267	EpubTtsScript: 본문 글자를 이어 붙인 글과 화면 위치를 맞추고, 읽는 문장을 문서를 건드리지 않는 방식(CSS Custom Highlight)으로 표시하며, F5·F11·[ ] 키와 Ctrl+휠을 앱에 알리는 스크립트
+1269	구분 주석(Win32)
+1271~1276	윈도우 메시지·창 스타일 상수
+1278~1288	SendMessage, GetWindowLongPtr, SetWindowLongPtr, SetWindowPos 불러오기
