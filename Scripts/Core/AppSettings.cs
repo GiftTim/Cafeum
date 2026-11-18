@@ -107,6 +107,10 @@ public sealed class AppSettings
     /// 보기 > 탐색을 켤 때마다 고정된 채로 시작한다(MainForm.Nav.cs).</summary>
     public bool NavBarPinned { get; set; } = true;
 
+    /// <summary>서식창 · 머리 막대 설정(ToolbarLeft · ToolbarHidden)이 어느 배치 기준으로 저장됐는지. 항목이 바뀌면 MigrateToolbar가 옛 설정을 새 배치에 맞춘다.</summary>
+    public int ToolbarLayoutVersion { get; set; }
+    public const int ToolbarLayoutCurrent = 1;
+
     /// <summary>읽기 화면 위쪽 머리 막대에서 뺀 버튼의 키(MainForm.ToolbarCatalog). 비어 있으면 전부 보인다.</summary>
     public List<string> ToolbarHidden { get; set; } = new();
     /// <summary>머리 막대 오른쪽 묶음의 순서(왼쪽 → 오른쪽 키). 비어 있으면 기본 순서(MainForm.ToolbarRightDefault).</summary>
@@ -218,7 +222,32 @@ public sealed class AppSettings
     };
 
     /// <summary>설정 파일이 없거나 깨졌으면(백업에서도 못 살리면) 기본값으로 시작한다. 읽기 · 쓰기 방식은 JsonFile 참고.</summary>
-    public static AppSettings Load() => JsonFile.Load<AppSettings>(FilePath, JsonOptions) ?? new AppSettings();
+    public static AppSettings Load()
+    {
+        var s = JsonFile.Load<AppSettings>(FilePath, JsonOptions) ?? new AppSettings();
+        s.MigrateToolbar();
+        return s;
+    }
+
+    /// <summary>
+    /// 서식창 배치가 바뀌었을 때(v1: 네비게이션 아이콘 fnav가 없어지고 기본 구분선 sepF6이 생겼다) 이미 저장해 둔 사용자의 설정을 새 배치에 맞춘다.
+    /// 순서를 저장한 적이 없는 사용자(ToolbarLeft가 비어 있음)는 새 기본값을 그대로 쓰므로 건드리지 않는다. 몇 번을 불러도 결과가 같다.
+    /// 저장은 다음에 설정을 저장할 때 같이 된다.
+    /// </summary>
+    internal void MigrateToolbar()
+    {
+        if (ToolbarLayoutVersion >= ToolbarLayoutCurrent) return;
+        if (ToolbarLeft.Count > 0)
+        {
+            ToolbarLeft.Remove("fnav");
+            ToolbarHidden.Remove("fnav");
+            // 옛 기본 배치에서 네비게이션 아이콘 바로 뒤에 있던 구분선(sepF4)이 맨 앞에 홀로 남으면 감춘다(순서에서 빼면 기본 키가 맨 끝에 다시 붙는다).
+            if (ToolbarLeft.Count > 0 && ToolbarLeft[0] == "sepF4" && !ToolbarHidden.Contains("sepF4")) ToolbarHidden.Add("sepF4");
+            // 새 구분선 sepF6은 저장된 순서의 맨 끝에 덧붙으니, 기존 사용자에게는 감춰 둔다(설정에서 켤 수 있다).
+            if (!ToolbarLeft.Contains("sepF6") && !ToolbarHidden.Contains("sepF6")) ToolbarHidden.Add("sepF6");
+        }
+        ToolbarLayoutVersion = ToolbarLayoutCurrent;
+    }
 
     public void Save() => JsonFile.Save(FilePath, this, JsonOptions);
 }
