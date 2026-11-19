@@ -1,4 +1,4 @@
-using System.Drawing.Drawing2D;
+﻿using System.Drawing.Drawing2D;
 
 namespace Cafeum;
 
@@ -35,8 +35,8 @@ internal sealed class WikiDatabaseView : WikiViewBase
     private static readonly string[] ColNames = { "문서", "요약", "대분류", "분류", "중요도", "태그" };
     private static readonly string[] ColGlyphs = { "", "", "", "", "", "" };
     // 열 폭: 화면이 넓으면 기본 폭(남는 폭은 열들에 나눠 채움), 좁으면 최소 폭까지 줄여서 가로 스크롤 없이 한눈에 보이게 한다
-    private static readonly int[] BaseW = { 260, 300, 170, 300, 170, 220 };
-    private static readonly int[] MinW = { 170, 150, 120, 170, 120, 130 };
+    private static readonly int[] BaseW = { 210, 250, 140, 250, 140, 180 };
+    private static readonly int[] MinW = { 140, 120, 100, 140, 100, 110 };
     private int[] ColWFor(int width)
     {
         int sumBase = BaseW.Sum(), sumMin = MinW.Sum();
@@ -54,10 +54,10 @@ internal sealed class WikiDatabaseView : WikiViewBase
     }
     private int[] ColW => ColWFor(Width);
     private int TotalW => ColW.Sum();
-    private int ChipsH => S(52);
-    private int HeadH => S(42);
-    private int RowH => S(48);
-    private int AddH => S(46);
+    private int ChipsH => S(42);
+    private int HeadH => S(34);
+    private int RowH => S(38);
+    private int AddH => S(36);
     private int RowsTop => ChipsH + HeadH;
 
     public WikiDatabaseView()
@@ -108,13 +108,13 @@ internal sealed class WikiDatabaseView : WikiViewBase
     private List<Rectangle> FilterChipRects()
     {
         var list = new List<Rectangle>();
-        using var f = new Font(Font.FontFamily, Font.SizeInPoints * 0.95f);
-        int x = S(8);
+        using var f = new Font(Font.FontFamily, Font.SizeInPoints * 0.9f);
+        int x = S(6);
         foreach (var c in WikiCategory.All)
         {
-            int w = S(40) + TextRenderer.MeasureText(c.Label, f, Size.Empty, TextFormatFlags.NoPadding).Width + S(10);
-            list.Add(new Rectangle(x, S(10), w, S(36)));
-            x += w + S(10);
+            int w = S(32) + TextRenderer.MeasureText(c.Label, f, Size.Empty, TextFormatFlags.NoPadding).Width + S(8);
+            list.Add(new Rectangle(x, S(7), w, S(28)));
+            x += w + S(8);
         }
         return list;
     }
@@ -122,18 +122,18 @@ internal sealed class WikiDatabaseView : WikiViewBase
     private (List<(Rectangle R, string Text)> Chips, Rectangle Add) ChipLayout(Rectangle cell, IReadOnlyList<string> names, string addLabel, bool canAdd)
     {
         var chips = new List<(Rectangle, string)>();
-        using var f = new Font(Font.FontFamily, Font.SizeInPoints * 0.92f);
-        int x = cell.X + S(10), h = S(30), y = cell.Y + (cell.Height - h) / 2;
+        using var f = new Font(Font.FontFamily, Font.SizeInPoints * 0.88f);
+        int x = cell.X + S(8), h = S(24), y = cell.Y + (cell.Height - h) / 2;
         foreach (var n in names)
         {
-            int w = S(36) + TextRenderer.MeasureText(n, f, Size.Empty, TextFormatFlags.NoPadding).Width + S(24);
+            int w = S(28) + TextRenderer.MeasureText(n, f, Size.Empty, TextFormatFlags.NoPadding).Width + S(20);
             chips.Add((new Rectangle(x, y, w, h), n));
-            x += w + S(6);
+            x += w + S(4);
         }
         Rectangle add = Rectangle.Empty;
         if (canAdd)
         {
-            int w = names.Count == 0 ? TextRenderer.MeasureText(addLabel, f, Size.Empty, TextFormatFlags.NoPadding).Width + S(40) : h;
+            int w = names.Count == 0 ? TextRenderer.MeasureText(addLabel, f, Size.Empty, TextFormatFlags.NoPadding).Width + S(32) : h;
             add = new Rectangle(x, y, w, h);
         }
         return (chips, add);
@@ -226,7 +226,7 @@ internal sealed class WikiDatabaseView : WikiViewBase
                 var lay = ChipLayout(cell, names, "분류 추가", true);
                 foreach (var (rect, text) in lay.Chips)
                 {
-                    var xr = new Rectangle(rect.Right - S(24), rect.Y, S(24), rect.Height);
+                    var xr = new Rectangle(rect.Right - S(20), rect.Y, S(20), rect.Height);
                     if (xr.Contains(pt)) { RaiseClasses(row, names.Where(n => !n.Equals(text, StringComparison.OrdinalIgnoreCase)).ToList()); return; }
                 }
                 if (lay.Add.Contains(pt)) PickClass(row, PointToScreen(lay.Add.Location));
@@ -241,7 +241,7 @@ internal sealed class WikiDatabaseView : WikiViewBase
                 var lay = ChipLayout(cell, row.Doc.Labels, "태그 추가", true);
                 foreach (var (rect, text) in lay.Chips)
                 {
-                    var xr = new Rectangle(rect.Right - S(24), rect.Y, S(24), rect.Height);
+                    var xr = new Rectangle(rect.Right - S(20), rect.Y, S(20), rect.Height);
                     if (xr.Contains(pt)) { TagsEdited?.Invoke(row.Doc.Path, row.Doc.Labels.Where(n => !n.Equals(text, StringComparison.OrdinalIgnoreCase)).ToList()); return; }
                 }
                 if (lay.Add.Contains(pt)) AddTag(row.Doc);
@@ -345,8 +345,8 @@ internal sealed class WikiDatabaseView : WikiViewBase
         var p = P;
         if (p == null) return;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var icon = new Font(MainForm.IconFontName(), 12f);
-        using var small = new Font(Font.FontFamily, Font.SizeInPoints * 0.92f);
+        using var icon = new Font(MainForm.IconFontName(), 10f);
+        using var small = new Font(Font.FontFamily, Font.SizeInPoints * 0.88f);
         using var bold = new Font(Font, FontStyle.Bold);
         var line = Themes.Blend(p.Main, p.Fore, 0.1f);
         var surface = WikiUi.Surface(p);
@@ -357,9 +357,9 @@ internal sealed class WikiDatabaseView : WikiViewBase
         {
             var cat = WikiCategory.All[i];
             bool on = filter == cat.Key;
-            FillRounded(g, chipRects[i], S(18), on ? p.AccentSoft : surface, on ? p.Accent : line);
-            TextRenderer.DrawText(g, cat.Glyph, icon, new Rectangle(chipRects[i].X + S(8), chipRects[i].Y, S(26), chipRects[i].Height), on ? p.Accent : p.Fore, Flags | TextFormatFlags.HorizontalCenter);
-            TextRenderer.DrawText(g, cat.Label, small, new Rectangle(chipRects[i].X + S(38), chipRects[i].Y, chipRects[i].Width - S(42), chipRects[i].Height), p.Fore, Flags);
+            FillRounded(g, chipRects[i], S(14), on ? p.AccentSoft : surface, on ? p.Accent : line);
+            TextRenderer.DrawText(g, cat.Glyph, icon, new Rectangle(chipRects[i].X + S(6), chipRects[i].Y, S(22), chipRects[i].Height), on ? p.Accent : p.Fore, Flags | TextFormatFlags.HorizontalCenter);
+            TextRenderer.DrawText(g, cat.Label, small, new Rectangle(chipRects[i].X + S(30), chipRects[i].Y, chipRects[i].Width - S(34), chipRects[i].Height), p.Fore, Flags);
         }
 
         // 표 머리
@@ -372,8 +372,8 @@ internal sealed class WikiDatabaseView : WikiViewBase
         for (int c = 0; c < ColW.Length; c++)
         {
             int x = ColX(c);
-            TextRenderer.DrawText(g, ColGlyphs[c], icon, new Rectangle(x + S(14), ChipsH, S(26), HeadH), p.Dim, Flags | TextFormatFlags.HorizontalCenter);
-            TextRenderer.DrawText(g, ColNames[c], bold, new Rectangle(x + S(46), ChipsH, ColW[c] - S(52), HeadH), p.Fore, Flags);
+            TextRenderer.DrawText(g, ColGlyphs[c], icon, new Rectangle(x + S(10), ChipsH, S(22), HeadH), p.Dim, Flags | TextFormatFlags.HorizontalCenter);
+            TextRenderer.DrawText(g, ColNames[c], bold, new Rectangle(x + S(36), ChipsH, ColW[c] - S(42), HeadH), p.Fore, Flags);
         }
 
         // 줄들
@@ -388,36 +388,36 @@ internal sealed class WikiDatabaseView : WikiViewBase
             var cat = WikiCategory.Find(catKey);
             // 문서 칸: 아이콘 + 제목(분류 줄은 "분류: 이름")
             var c0 = CellRect(r, 0);
-            using (var b = new SolidBrush(Themes.Blend(p.Main, p.Fore, 0.1f))) g.FillEllipse(b, c0.X + S(12), c0.Y + (RowH - S(34)) / 2, S(34), S(34));
-            TextRenderer.DrawText(g, row.IsClass ? "" : cat.Glyph, icon, new Rectangle(c0.X + S(12), c0.Y, S(34), RowH), p.Fore, Flags | TextFormatFlags.HorizontalCenter);
+            using (var b = new SolidBrush(Themes.Blend(p.Main, p.Fore, 0.1f))) g.FillEllipse(b, c0.X + S(8), c0.Y + (RowH - S(26)) / 2, S(26), S(26));
+            TextRenderer.DrawText(g, row.IsClass ? "" : cat.Glyph, icon, new Rectangle(c0.X + S(8), c0.Y, S(26), RowH), p.Fore, Flags | TextFormatFlags.HorizontalCenter);
             if (row.IsClass)
             {
                 int pw = TextRenderer.MeasureText("분류:", Font, Size.Empty, TextFormatFlags.NoPadding).Width;
-                TextRenderer.DrawText(g, "분류:", Font, new Rectangle(c0.X + S(56), c0.Y, pw + S(4), RowH), p.Dim, Flags);
-                TextRenderer.DrawText(g, row.Name, bold, new Rectangle(c0.X + S(56) + pw + S(8), c0.Y, c0.Width - S(64) - pw, RowH), p.Fore, Flags);
+                TextRenderer.DrawText(g, "분류:", Font, new Rectangle(c0.X + S(42), c0.Y, pw + S(4), RowH), p.Dim, Flags);
+                TextRenderer.DrawText(g, row.Name, bold, new Rectangle(c0.X + S(42) + pw + S(6), c0.Y, c0.Width - S(48) - pw, RowH), p.Fore, Flags);
             }
-            else TextRenderer.DrawText(g, row.Name, bold, new Rectangle(c0.X + S(56), c0.Y, c0.Width - S(64), RowH), p.Fore, Flags);
+            else TextRenderer.DrawText(g, row.Name, bold, new Rectangle(c0.X + S(42), c0.Y, c0.Width - S(48), RowH), p.Fore, Flags);
             // 요약
             var c1 = CellRect(r, 1);
             string sum = row.Doc?.Summary ?? row.Cls!.Summary;
             if (editRow != r)
-                TextRenderer.DrawText(g, sum.Length > 0 ? sum.Replace("\n", " ") : "비어 있음", Font, new Rectangle(c1.X + S(14), c1.Y, c1.Width - S(28), RowH), sum.Length > 0 ? p.Fore : Themes.Blend(p.Main, p.Fore, 0.35f), Flags);
+                TextRenderer.DrawText(g, sum.Length > 0 ? sum.Replace("\n", " ") : "비어 있음", Font, new Rectangle(c1.X + S(10), c1.Y, c1.Width - S(20), RowH), sum.Length > 0 ? p.Fore : Themes.Blend(p.Main, p.Fore, 0.35f), Flags);
             // 대분류
             var c2 = CellRect(r, 2);
-            TextRenderer.DrawText(g, cat.Glyph, icon, new Rectangle(c2.X + S(12), c2.Y, S(26), RowH), CategoryEditable(row) ? p.Fore : p.Dim, Flags | TextFormatFlags.HorizontalCenter);
-            TextRenderer.DrawText(g, cat.Label, Font, new Rectangle(c2.X + S(44), c2.Y, c2.Width - S(52), RowH), CategoryEditable(row) ? p.Fore : p.Dim, Flags);
+            TextRenderer.DrawText(g, cat.Glyph, icon, new Rectangle(c2.X + S(8), c2.Y, S(22), RowH), CategoryEditable(row) ? p.Fore : p.Dim, Flags | TextFormatFlags.HorizontalCenter);
+            TextRenderer.DrawText(g, cat.Label, Font, new Rectangle(c2.X + S(34), c2.Y, c2.Width - S(40), RowH), CategoryEditable(row) ? p.Fore : p.Dim, Flags);
             // 분류 칩
             DrawChips(g, p, CellRect(r, 3), ClassNamesOf(row), "분류 추가", "", icon, small, true);
             // 중요도
             var c4 = CellRect(r, 4);
             if (row.Doc != null)
             {
-                int d = S(22), cx = c4.X + S(14), cy = c4.Y + (RowH - d) / 2;
+                int d = S(18), cx = c4.X + S(10), cy = c4.Y + (RowH - d) / 2;
                 using (var pen = new Pen(p.Accent, Math.Max(1.4f, DeviceDpi / 96f * 1.4f))) g.DrawEllipse(pen, cx, cy, d, d);
                 TextRenderer.DrawText(g, Math.Clamp(row.Doc.Importance, 1, 5).ToString(), small, new Rectangle(cx, cy, d, d), p.Accent, Flags | TextFormatFlags.HorizontalCenter);
-                TextRenderer.DrawText(g, WikiViewData.ImportanceLabel(row.Doc.Category, row.Doc.Importance), Font, new Rectangle(cx + d + S(12), c4.Y, c4.Width - d - S(40), RowH), p.Fore, Flags);
+                TextRenderer.DrawText(g, WikiViewData.ImportanceLabel(row.Doc.Category, row.Doc.Importance), Font, new Rectangle(cx + d + S(8), c4.Y, c4.Width - d - S(28), RowH), p.Fore, Flags);
             }
-            else TextRenderer.DrawText(g, "—", Font, new Rectangle(c4.X + S(14), c4.Y, c4.Width - S(28), RowH), Themes.Blend(p.Main, p.Fore, 0.35f), Flags);
+            else TextRenderer.DrawText(g, "—", Font, new Rectangle(c4.X + S(10), c4.Y, c4.Width - S(20), RowH), Themes.Blend(p.Main, p.Fore, 0.35f), Flags);
             // 태그 칩
             if (row.Doc != null) DrawChips(g, p, CellRect(r, 5), row.Doc.Labels, "태그 추가", "", icon, small, false);
         }
@@ -426,8 +426,8 @@ internal sealed class WikiDatabaseView : WikiViewBase
         if (rows.Count == 0) TextRenderer.DrawText(g, "맞는 문서가 없어요.", Font, new Rectangle(S(16), RowsTop, Width, RowH), p.Dim, Flags);
         int ay = RowsTop + rows.Count * RowH + (rows.Count == 0 ? RowH : 0);
         g.ResetClip();
-        TextRenderer.DrawText(g, "+", new Font(Font.FontFamily, 16f), new Rectangle(S(14), ay, S(34), AddH), p.Dim, Flags | TextFormatFlags.HorizontalCenter);
-        TextRenderer.DrawText(g, "추가하기", Font, new Rectangle(S(52), ay, S(200), AddH), p.Fore, Flags);
+        TextRenderer.DrawText(g, "+", new Font(Font.FontFamily, 13f), new Rectangle(S(10), ay, S(28), AddH), p.Dim, Flags | TextFormatFlags.HorizontalCenter);
+        TextRenderer.DrawText(g, "추가하기", Font, new Rectangle(S(42), ay, S(200), AddH), p.Fore, Flags);
     }
 
     private void DrawChips(Graphics g, LibraryPalette p, Rectangle cell, IReadOnlyList<string> names, string addLabel, string glyph, Font icon, Font small, bool folder)
@@ -436,10 +436,10 @@ internal sealed class WikiDatabaseView : WikiViewBase
         var lay = ChipLayout(cell, names, addLabel, true);
         foreach (var (rect, text) in lay.Chips)
         {
-            FillRounded(g, rect, S(7), p.AccentSoft);
-            if (folder) TextRenderer.DrawText(g, glyph, icon, new Rectangle(rect.X + S(6), rect.Y, S(26), rect.Height), p.Fore, Flags | TextFormatFlags.HorizontalCenter);
-            TextRenderer.DrawText(g, text, small, new Rectangle(rect.X + (folder ? S(34) : S(12)), rect.Y, rect.Width - (folder ? S(34) : S(12)) - S(22), rect.Height), p.Fore, Flags);
-            float cx = rect.Right - S(13), cy = rect.Y + rect.Height / 2f, d = S(3);
+            FillRounded(g, rect, S(6), p.AccentSoft);
+            if (folder) TextRenderer.DrawText(g, glyph, icon, new Rectangle(rect.X + S(5), rect.Y, S(20), rect.Height), p.Fore, Flags | TextFormatFlags.HorizontalCenter);
+            TextRenderer.DrawText(g, text, small, new Rectangle(rect.X + (folder ? S(26) : S(8)), rect.Y, rect.Width - (folder ? S(26) : S(8)) - S(18), rect.Height), p.Fore, Flags);
+            float cx = rect.Right - S(11), cy = rect.Y + rect.Height / 2f, d = S(2);
             using var xp = new Pen(p.Dim, Math.Max(1.2f, DeviceDpi / 96f * 1.2f)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
             g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
             g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);

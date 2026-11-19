@@ -137,6 +137,12 @@ public sealed class AppSettings
     /// <summary>아이콘 막대에서 숨긴 항목들. 볼트 파일은 처음엔 숨겨 둔다.</summary>
     public List<string> RailHidden { get; set; } = new() { "files" };
 
+    // ── 집필 도우미(왼쪽 아이콘 막대의 [타입라이터] · [빠른 따옴표]에서 켜고 끈다) ──
+    /// <summary>타입라이터: 글을 쓰고 있는 줄이 늘 화면 가운데에 오도록 부드럽게 스크롤한다.</summary>
+    public bool Typewriter { get; set; }
+    /// <summary>빠른 따옴표: 따옴표를 치면 한 쌍이 만들어지고, 따옴표 앞에서 Enter를 치면 따옴표를 넘어 다음 줄로 간다.</summary>
+    public bool QuickQuotes { get; set; }
+
     // ── 사전 창(왼쪽 아이콘 막대의 [사전]) ──
     /// <summary>사전 창을 마지막으로 닫을 때의 "x,y,너비,높이,접힘(0/1),탭". 비어 있으면 처음 자리.</summary>
     public string DictWindow { get; set; } = "";

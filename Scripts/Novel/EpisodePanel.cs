@@ -1943,7 +1943,7 @@ internal sealed class NovelOverview : Panel
         wikiViews = new WikiViewBase[] { new WikiCardView(), new WikiSimpleView(), dbView, new WikiMindMapView() };
         foreach (var v in wikiViews)
         {
-            v.Font = new Font(ff, v is WikiCardView or WikiSimpleView ? 10f : 11f); // 카테고리별 · 간단히 보기는 작게
+            v.Font = new Font(ff, v is WikiMindMapView ? 11f : 10f); // 카테고리별 · 간단히 보기는 작게
             v.Visible = false;
             v.DocChosen += p => WikiOpenRequested?.Invoke(p);
             v.DocMenuRequested += source.ShowWikiMenu;

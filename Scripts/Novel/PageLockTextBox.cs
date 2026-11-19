@@ -150,7 +150,7 @@ internal sealed class PageLockTextBox : RichTextBox
         SendMessage(Handle, EM_SETRECT, IntPtr.Zero, ref r);
     }
 
-    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ApplySideMargins(); }
+    protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ApplySideMargins(); if (typewriter) TypewriterChanged(); }
     protected override void OnClientSizeChanged(EventArgs e) { base.OnClientSizeChanged(e); ApplySideMargins(); }
 
     // ───────── 글자 서식(선택한 글자 · 커서 이후) ─────────
@@ -208,6 +208,203 @@ internal sealed class PageLockTextBox : RichTextBox
 
     /// <summary>글자색을 고른 글자(없으면 커서 이후)에 적용한다.</summary>
     public void ApplyColor(Color c) => SelectionColor = c;
+
+    // ───────── 빠른 따옴표 · 타입라이터 ─────────
+
+    /// <summary>빠른 따옴표: 따옴표를 치면 한 쌍이 생기고 커서가 그 사이에 온다. 닫는 따옴표를 치면 건너뛰고, 따옴표 앞에서 Enter를 치면 따옴표를 넘어 다음 줄로 간다.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool QuickQuotes { get; set; }
+
+    /// <summary>타입라이터: 글을 쓰는 줄이 늘 화면 가운데에 오게 한다(집필 화면에서 TallScroller가 따라 움직인다).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool TypewriterMode { get => typewriter; set { if (typewriter == value) return; typewriter = value; TypewriterChanged(); } }
+    private bool typewriter;
+
+    // ── 타입라이터 하이라이트(커서 줄 띠 · 쓰는 문단 밖 흐리게) ──
+    // 글 상자 위에 직접 덧칠하면 상자가 글자를 다시 칠할 때마다(칠 때 · 스크롤 · 한글 조합) 덧칠이 지워져 끊기므로,
+    // 클릭이 통과되는 반투명 창(TypewriterOverlay)에 따로 그리고 20ms마다 자리가 바뀌었는지 보고 따라간다.
+    private TypewriterOverlay? twOverlay;
+    private System.Windows.Forms.Timer? twTimer;
+    private (Rectangle Vp, Rectangle Band, Rectangle Para, Color Back, Color Fore)? twLast;
+    private int paraKeySel = -1, paraKeyLen = -1, paraKeyW = -1, paraStart, paraEnd;
+
+    private void TypewriterChanged()
+    {
+        if (typewriter && IsHandleCreated)
+        {
+            if (twTimer == null) { twTimer = new System.Windows.Forms.Timer { Interval = 20 }; twTimer.Tick += TwTick; }
+            twTimer.Start();
+        }
+        else HideOverlay();
+    }
+
+    private void HideOverlay()
+    {
+        twTimer?.Stop();
+        twLast = null;
+        if (twOverlay is { IsDisposed: false, Visible: true }) twOverlay.Hide();
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        HideOverlay();
+        twTimer?.Dispose(); twTimer = null;
+        twOverlay?.Close(); twOverlay?.Dispose(); twOverlay = null;
+        base.OnHandleDestroyed(e);
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        if (!Visible) { if (twOverlay is { IsDisposed: false, Visible: true }) twOverlay.Hide(); twLast = null; }
+        else if (typewriter) twTimer?.Start();
+    }
+
+    private void TwTick(object? s, EventArgs e)
+    {
+        var host = TallHost;
+        var top = TopLevelControl as Form;
+        bool ok = typewriter && host != null && top != null && IsHandleCreated && Visible && top.Visible && top.WindowState != FormWindowState.Minimized;
+        Rectangle vp = Rectangle.Empty;
+        if (ok) { vp = host!.RectangleToScreen(host.ViewportClient); ok = vp.Width >= 10 && vp.Height >= 10; }
+        var band = ok ? ComputeBand() : null;
+        var para = ok ? ComputeParagraph() : null;
+        if (band == null || para == null)
+        {
+            if (twOverlay is { IsDisposed: false, Visible: true }) twOverlay.Hide();
+            twLast = null;
+            return;
+        }
+        var origin = PointToScreen(Point.Empty);
+        var b = band.Value; b.Offset(origin.X - vp.X, origin.Y - vp.Y);
+        var p = para.Value; p.Offset(origin.X - vp.X, origin.Y - vp.Y);
+        var cur = (vp, b, p, BackColor, ForeColor);
+        if (twLast is { } last && last.Equals(cur) && twOverlay is { IsDisposed: false, Visible: true }) return;
+        twLast = cur;
+        if (twOverlay == null || twOverlay.IsDisposed) twOverlay = new TypewriterOverlay();
+        twOverlay.Render(top!, vp, b, p, BackColor, ForeColor);
+    }
+
+    /// <summary>커서가 있는 줄의 띠 자리(이 상자 안 좌표): 높이는 줄 칸(줄 간격 포함), 폭은 옆으로 쭉 전체.</summary>
+    private Rectangle? ComputeBand()
+    {
+        if (!typewriter || !IsHandleCreated) return null;
+        Point pt;
+        try { pt = GetPositionFromCharIndex(Math.Min(SelectionStart, TextLength)); } catch { return null; }
+        return new Rectangle(0, pt.Y, ClientSize.Width, LinePitch(Math.Min(SelectionStart, TextLength), pt));
+    }
+
+    /// <summary>한 줄이 차지하는 높이(줄 간격 포함). 줄 간격을 170% 같이 넓게 주면 한 줄 칸이 글자 크기보다 훨씬 커서, 이웃한 두 줄의 위치 차이로 잰다
+    /// (앞 줄 · 뒷 줄 중 작은 값 — 문단 사이 간격이 낀 쪽은 더 크게 나온다). 이웃이 없으면(글이 한 줄뿐) 글자 크기의 약 1.7배.</summary>
+    private int LinePitch(int sel, Point pt)
+    {
+        int best = int.MaxValue;
+        try
+        {
+            int line = GetLineFromCharIndex(sel);
+            int next = GetFirstCharIndexFromLine(line + 1);
+            if (next > 0 && next <= TextLength) { int d = GetPositionFromCharIndex(next).Y - pt.Y; if (d > 0) best = Math.Min(best, d); }
+            if (line > 0)
+            {
+                int prev = GetFirstCharIndexFromLine(line - 1);
+                if (prev >= 0) { int d = pt.Y - GetPositionFromCharIndex(prev).Y; if (d > 0) best = Math.Min(best, d); }
+            }
+        }
+        catch { }
+        int fontH = (int)Math.Ceiling(Font.Height * ZoomFactor);
+        return best == int.MaxValue || best > fontH * 6 ? (int)Math.Ceiling(fontH * 1.7) : best;
+    }
+
+    /// <summary>커서가 있는 문단의 자리(이 상자 안 좌표). 이 문단은 또렷하게 두고 나머지 글은 흐리게 한다.
+    /// 문단의 처음 · 끝 글자 번호는 커서 · 글 길이 · 폭이 바뀔 때만 다시 센다(글 전체를 읽는 일이라 20ms마다 하지 않게).</summary>
+    private Rectangle? ComputeParagraph()
+    {
+        if (!typewriter || !IsHandleCreated) return null;
+        int sel = Math.Min(SelectionStart, TextLength), len = TextLength, w = ClientSize.Width;
+        if (sel != paraKeySel || len != paraKeyLen || w != paraKeyW)
+        {
+            string t = Text;
+            int cs = Math.Min(sel, t.Length);
+            paraStart = cs <= 0 ? 0 : t.LastIndexOf('\n', cs - 1) + 1;
+            int pe = t.IndexOf('\n', cs);
+            paraEnd = pe < 0 ? t.Length : pe;
+            paraKeySel = sel; paraKeyLen = len; paraKeyW = w;
+        }
+        Point a, b;
+        try { a = GetPositionFromCharIndex(paraStart); b = GetPositionFromCharIndex(Math.Max(paraStart, paraEnd)); } catch { return null; }
+        int lh = LinePitch(sel, GetPositionFromCharIndex(sel));
+        return new Rectangle(0, a.Y, w, Math.Max(0, b.Y - a.Y) + lh);
+    }
+
+    private static char CloseOf(char c) => c switch { '"' => '"', '\'' => '\'', '“' => '”', '‘' => '’', _ => '\0' };
+    private static bool IsCloseQuote(char c) => c is '"' or '\'' or '”' or '’';
+
+    /// <summary>idx 앞, 같은 문단에서 이 따옴표 글자가 몇 번 나왔는가(곧은 따옴표가 여는 쪽인지 닫는 쪽인지 홀짝으로 가린다).</summary>
+    private static int CountBefore(string t, int idx, char c)
+    {
+        int ls = idx <= 0 ? 0 : t.LastIndexOf('\n', idx - 1) + 1, n = 0;
+        for (int k = ls; k < idx; k++) if (t[k] == c) n++;
+        return n;
+    }
+
+    protected override void OnKeyPress(KeyPressEventArgs e)
+    {
+        if (QuickQuotes && !ReadOnly && (CloseOf(e.KeyChar) != '\0' || IsCloseQuote(e.KeyChar)) && HandleQuote(e)) return;
+        base.OnKeyPress(e);
+    }
+
+    /// <summary>따옴표를 처리했으면 true(글자를 직접 넣었으니 기본 입력은 막는다).</summary>
+    private bool HandleQuote(KeyPressEventArgs e)
+    {
+        char c = e.KeyChar, close = CloseOf(c);
+        string t = Text;
+        int i = SelectionStart, len = SelectionLength;
+        if (len == 0 && i < t.Length && t[i] == c && IsCloseQuote(c) && (c is '”' or '’' || CountBefore(t, i, c) % 2 == 1))
+        {
+            // 닫는 따옴표를 치는데 바로 뒤에 같은 따옴표가 있다: 새로 넣지 않고 건너뛴다
+            e.Handled = true;
+            Select(i + 1, 0);
+            return true;
+        }
+        if (close == '\0') return false; // ” ’ 처럼 닫는 쪽만 있는 글자: 건너뛸 게 없으면 그냥 입력
+        if (len > 0)
+        {
+            // 글자를 골라 둔 채 따옴표를 치면 그 글자를 따옴표로 감싼다
+            e.Handled = true;
+            string sel = SelectedText;
+            SelectedText = c + sel + close;
+            Select(i + 1, sel.Length);
+            return true;
+        }
+        char next = i < t.Length ? t[i] : '\0', prev = i > 0 ? t[i - 1] : '\0';
+        bool nextOk = next == '\0' || char.IsWhiteSpace(next) || ")]}”’」』.,!?…".Contains(next);
+        bool straight = c is '"' or '\'';
+        bool opening = !straight || CountBefore(t, i, c) % 2 == 0;                // 곧은 따옴표는 앞에 짝이 안 맞는 게 없을 때만 여는 쪽
+        bool apostrophe = c is '\'' or '‘' && char.IsLetterOrDigit(prev);          // 글자 바로 뒤의 작은따옴표는 아포스트로피로 본다
+        if (!nextOk || !opening || apostrophe) return false;
+        e.Handled = true;
+        SelectedText = c.ToString() + close;
+        Select(i + 1, 0);
+        return true;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (QuickQuotes && !ReadOnly && e.KeyCode == Keys.Enter && !e.Control && !e.Alt && SelectionLength == 0)
+        {
+            // 닫는 따옴표 바로 앞에서 Enter: 따옴표를 넘어서 다음 줄로(따옴표가 줄 끝일 때)
+            string t = Text;
+            int i = SelectionStart;
+            if (i < t.Length && IsCloseQuote(t[i]) && (t[i] is '”' or '’' || CountBefore(t, i, t[i]) % 2 == 1) && (i + 1 >= t.Length || t[i + 1] == '\n'))
+            {
+                e.SuppressKeyPress = e.Handled = true;
+                Select(i + 1, 0);
+                SelectedText = "\n";
+                return;
+            }
+        }
+        base.OnKeyDown(e);
+    }
 
     // ───────── 스크롤 · 붙여넣기 ─────────
 

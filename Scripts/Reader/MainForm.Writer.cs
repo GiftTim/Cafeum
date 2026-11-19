@@ -51,6 +51,16 @@ public partial class MainForm
         // 오른쪽 아래 "글자 수 세기" 위젯은 뺐다(사용자 요청, 2026-11-05). 글자 수는 맨 아래 상태 줄에 그대로 보인다.
 
         mainEditor.SizeChanged += (_, _) => { if (WriterLayout) ApplySideMargin(); };
+        ApplyWriterOptions();
+    }
+
+    /// <summary>사이드바 [타입라이터] · [빠른 따옴표]의 켜짐 상태를 글 상자에 반영한다.</summary>
+    internal void ApplyWriterOptions()
+    {
+        mainEditor.TypewriterMode = AppShared.Settings.Typewriter;
+        mainEditor.QuickQuotes = AppShared.Settings.QuickQuotes;
+        tall?.Relayout();
+        tall?.EnsureCaretVisible();
     }
 
     /// <summary>글 칸이 가운데 오도록 하는 좌우 여백(설정의 여백보다 작아지지는 않는다).</summary>

@@ -21,8 +21,28 @@ internal sealed class TallScroller : Panel
     public TallScroller()
     {
         SetStyle(ControlStyles.ResizeRedraw, true);
-        vbar.Scroll += (_, _) => { pos = vbar.Value; Place(); };
+        vbar.Scroll += (_, _) => { pos = vbar.Value; glide.Stop(); Place(); };
         Controls.Add(vbar);
+        glide.Tick += (_, _) =>
+        {
+            int d = glideTarget - pos;
+            if (Math.Abs(d) <= 1 || !vbar.Visible) { ScrollTo(glideTarget); glide.Stop(); return; }
+            ScrollTo(pos + (int)Math.Round(d * 0.3 + Math.Sign(d) * 0.5)); // 남은 거리의 30%씩 — 점점 느려지며 가운데에 닿는다
+        };
+        Disposed += (_, _) => glide.Dispose();
+    }
+
+    private readonly System.Windows.Forms.Timer glide = new() { Interval = 15 };
+    private int glideTarget;
+
+    /// <summary>타입라이터: 부드럽게 value까지 스크롤한다.</summary>
+    private void GlideTo(int value)
+    {
+        if (!vbar.Visible) return;
+        int max = Math.Max(0, vbar.Maximum - vbar.LargeChange + 1);
+        glideTarget = Math.Clamp(value, 0, max);
+        if (Math.Abs(glideTarget - pos) <= 1) { glide.Stop(); return; }
+        if (!glide.Enabled) glide.Start();
     }
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
@@ -37,9 +57,11 @@ internal sealed class TallScroller : Panel
         Controls.Add(head);
         Controls.Add(box);
         box.TallHost = this;
+        BackColor = box.BackColor;
+        box.BackColorChanged += SyncBack;
         box.TextChanged += OnChanged;
         box.KeyUp += OnCaretMoved;
-        box.MouseUp += OnCaretMoved;
+        box.MouseUp += OnMouseCaret;
         head.SizeChanged += OnChanged;
         pos = 0;
         Relayout();
@@ -50,8 +72,9 @@ internal sealed class TallScroller : Panel
         if (editor == null) return;
         editor.TextChanged -= OnChanged;
         editor.KeyUp -= OnCaretMoved;
-        editor.MouseUp -= OnCaretMoved;
+        editor.MouseUp -= OnMouseCaret;
         editor.TallHost = null;
+        editor.BackColorChanged -= SyncBack;
         if (header != null) header.SizeChanged -= OnChanged;
         if (header != null) Controls.Remove(header);
         Controls.Remove(editor);
@@ -67,7 +90,9 @@ internal sealed class TallScroller : Panel
         BeginInvoke(() => { pending = false; Relayout(); EnsureCaretVisible(); });
     }
 
+    private void SyncBack(object? s, EventArgs e) { if (editor != null) BackColor = editor.BackColor; }
     private void OnCaretMoved(object? s, EventArgs e) => EnsureCaretVisible();
+    private void OnMouseCaret(object? s, EventArgs e) => EnsureCaretVisible(false); // 눌러서 옮긴 커서는 가운데로 끌어오지 않는다
 
     protected override void OnResize(EventArgs eventargs) { base.OnResize(eventargs); Relayout(); }
 
@@ -95,7 +120,7 @@ internal sealed class TallScroller : Panel
                 int lines = editor.GetLineFromCharIndex(Math.Max(0, editor.TextLength)) + 1;
                 contentH = Math.Max(contentH, lines * fh);
                 int minH = Math.Max(0, Height - header.Height);
-                int h = Math.Max(minH, contentH + S(160));
+                int h = Math.Max(minH, contentH + (editor.TypewriterMode ? Math.Max(S(160), Height) : S(160))); // 타입라이터는 맨 끝 줄도 가운데에 올 만큼 아래를 비운다
                 if (editor.Height != h) editor.Height = h;
                 total = header.Height + h;
                 bool want = total > Height;
@@ -121,20 +146,29 @@ internal sealed class TallScroller : Panel
         finally { busy = false; }
     }
 
+    /// <summary>글이 보이는 영역(스크롤바를 뺀 이 패널 안쪽). 타입라이터 하이라이트 창이 이 영역에 맞춘다.</summary>
+    internal Rectangle ViewportClient => new(0, 0, Math.Max(0, Width - (vbar.Visible ? vbar.Width : 0)), Height);
+
     private void Place()
     {
         if (header == null || editor == null) return;
-        header.Location = new Point(0, -pos);
-        editor.Location = new Point(0, header.Height - pos);
+        int ey = header.Height - pos;
+        if (ey < editor.Top) { editor.Location = new Point(0, ey); header.Location = new Point(0, -pos); }  // 글이 위로 올라갈 때: 글 상자를 먼저
+        else { header.Location = new Point(0, -pos); editor.Location = new Point(0, ey); }                   // 글이 아래로 내려올 때: 머리를 먼저
     }
 
-    public void EnsureCaretVisible()
+    public void EnsureCaretVisible(bool recenter = true)
     {
         if (editor == null || !editor.IsHandleCreated) return;
         Point p;
         try { p = editor.GetPositionFromCharIndex(editor.SelectionStart); } catch { return; }
         int lh = (int)Math.Ceiling(editor.Font.Height * editor.ZoomFactor);
         int y = editor.Top + p.Y; // 이 패널 화면 기준(스크롤이 이미 반영된 값)
+        if (editor.TypewriterMode && recenter)
+        {
+            GlideTo(pos + y + lh / 2 - Height / 2); // 커서 줄의 가운데가 화면 가운데에 오도록
+            return;
+        }
         if (y < 0) ScrollTo(pos + y - S(40));
         else if (y + lh > Height) ScrollTo(pos + (y + lh - Height) + S(80));
     }

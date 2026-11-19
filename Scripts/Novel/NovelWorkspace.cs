@@ -39,6 +39,8 @@ internal sealed class NovelWorkspace : Panel
     {
         rail.SetActive("timer", pomo is { Visible: true });
         rail.SetActive("count", focused.CountWidgetOn);
+        rail.SetActive("typewriter", AppShared.Settings.Typewriter);
+        rail.SetActive("quote", AppShared.Settings.QuickQuotes);
         rail.SetActive("dict", dictWin is { IsDisposed: false, Visible: true });
     }
     protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (IsHandleCreated) BeginInvoke(SyncPomodoro); }
@@ -448,6 +450,8 @@ internal sealed class NovelWorkspace : Panel
             case "search": NotReady("검색 보드"); break;
             case "timer": TogglePomodoro(); break; // 뽀모도로 타이머 위젯 켜고 끄기
             case "count": focused.ToggleCountWidget(); break; // 글자 수 세기 위젯 켜고 끄기
+            case "typewriter": ToggleWriterOption(true); break; // 타입라이터 켜고 끄기
+            case "quote": ToggleWriterOption(false); break; // 빠른 따옴표 켜고 끄기
             case "help": HelpRequested?.Invoke(); break;
             case "settings": SettingsRequested?.Invoke(); break;
             case "full": FullScreenRequested?.Invoke(); break;
@@ -484,6 +488,16 @@ internal sealed class NovelWorkspace : Panel
     /// <summary>아직 기능을 넣지 않은 아이콘(검색 보드).</summary>
     private void NotReady(string what) =>
         MessageBox.Show(FindForm(), $"{what}는 아직 준비 중이에요. 아이콘 자리만 먼저 만들어 두었어요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+    /// <summary>[타입라이터] · [빠른 따옴표]를 켜고 끈다(설정에 저장하고, 열려 있는 글 칸들에 바로 반영).</summary>
+    private void ToggleWriterOption(bool typewriter)
+    {
+        var s = AppShared.Settings;
+        if (typewriter) s.Typewriter = !s.Typewriter; else s.QuickQuotes = !s.QuickQuotes;
+        s.Save();
+        left.ApplyWriterOptions();
+        right.ApplyWriterOptions();
+    }
 
     /// <summary>설정 > 아이콘 막대의 순서 · 켜고 끄기를 반영한다.</summary>
     public void ApplyRailSettings() { rail.ApplySettings(AppShared.Settings); SyncRail(); }
@@ -599,6 +613,8 @@ internal sealed class WorkspaceRail : Control
         ("search", "", "검색 보드"),
         ("timer", "\uE916", "뽀모도로 타이머"),
         ("count", "", "글자 수 세기"), // 아이콘은 직접 그린다(WorkspaceRail.OnPaint)
+        ("typewriter", "", "타입라이터 (쓰는 줄을 화면 가운데로)"),
+        ("quote", "", "빠른 따옴표"),
         ("spacer", "", "── 여기부터 아래쪽 ──"),
         ("settings", "", "설정 (Ctrl+,)"),
     };
@@ -649,7 +665,7 @@ internal sealed class WorkspaceRail : Control
         {
             if (k == "spacer") { bottom = true; continue; }
             if (s.RailHidden.Contains(k)) continue;
-            if (k is "tree" or "memo" or "dict" or "search" or "count" && !docMode) continue;
+            if (k is "tree" or "memo" or "dict" or "search" or "count" or "typewriter" or "quote" && !docMode) continue;
             if (IsCustom(k)) { list.Add((k, "", LabelOf(k), bottom)); continue; }
             var c = Catalog.First(x => x.Key == k);
             list.Add((c.Key, c.Glyph, c.Label, bottom));
@@ -723,6 +739,49 @@ internal sealed class WorkspaceRail : Control
         if (i >= 0) Clicked?.Invoke(items[i].Key);
     }
 
+    /// <summary>타입라이터 아이콘: 위로 나온 종이(줄이 적힌 채워진 네모) · 롤러 막대 · 자판 본체(키 점들과 스페이스 막대).</summary>
+    private void DrawTypewriterIcon(Graphics g, Rectangle r, Color c)
+    {
+        float u = DeviceDpi / 96f, cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
+        var cap = System.Drawing.Drawing2D.LineCap.Round;
+        using var pen = new Pen(c, Math.Max(1.3f, 1.5f * u)) { StartCap = cap, EndCap = cap, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
+        using var fill = new SolidBrush(c);
+        // 종이: 채운 둥근 네모 + 안쪽에 배경색 글줄 둘
+        var paper = new RectangleF(cx - 5f * u, cy - 10f * u, 10f * u, 6f * u);
+        using (var pp = LibraryPalette.Rounded(paper, (int)(1.5f * u))) g.FillPath(fill, pp);
+        using (var bg = new Pen(palette?.Side ?? Color.White, Math.Max(1.1f, 1.2f * u)) { StartCap = cap, EndCap = cap })
+        {
+            g.DrawLine(bg, cx - 3f * u, cy - 8.3f * u, cx + 3f * u, cy - 8.3f * u);
+            g.DrawLine(bg, cx - 3f * u, cy - 6f * u, cx + 0.5f * u, cy - 6f * u);
+        }
+        // 롤러: 가로 막대 + 양끝 손잡이
+        g.DrawLine(pen, cx - 7f * u, cy - 2.6f * u, cx + 7f * u, cy - 2.6f * u);
+        g.DrawLine(pen, cx - 9f * u, cy - 2.6f * u, cx - 7f * u, cy - 2.6f * u);
+        g.DrawLine(pen, cx + 7f * u, cy - 2.6f * u, cx + 9f * u, cy - 2.6f * u);
+        // 본체: 아래가 넓은 사다리꼴
+        var body = new[] { new PointF(cx - 7.5f * u, cy - 0.6f * u), new PointF(cx + 7.5f * u, cy - 0.6f * u), new PointF(cx + 9f * u, cy + 9f * u), new PointF(cx - 9f * u, cy + 9f * u) };
+        g.DrawPolygon(pen, body);
+        // 키 점들과 스페이스 막대
+        float d = 1.5f * u;
+        foreach (var x in new[] { -4.5f, -1.5f, 1.5f, 4.5f }) g.FillEllipse(fill, cx + x * u - d / 2, cy + 2.2f * u, d, d);
+        foreach (var x in new[] { -3f, 0f, 3f }) g.FillEllipse(fill, cx + x * u - d / 2, cy + 4.6f * u, d, d);
+        g.DrawLine(pen, cx - 4f * u, cy + 7.3f * u, cx + 4f * u, cy + 7.3f * u);
+    }
+
+    /// <summary>빠른 따옴표 아이콘: 왼쪽 위 “ 와 오른쪽 아래 ” 를 ┐ └ 모양 선으로 이은 모양.</summary>
+    private void DrawQuoteIcon(Graphics g, Rectangle r, Color c)
+    {
+        float u = DeviceDpi / 96f, cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
+        var cap = System.Drawing.Drawing2D.LineCap.Round;
+        using var pen = new Pen(c, Math.Max(1.3f, 1.5f * u)) { StartCap = cap, EndCap = cap, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
+        g.DrawLines(pen, new[] { new PointF(cx + 0.5f * u, cy - 5f * u), new PointF(cx + 8f * u, cy - 5f * u), new PointF(cx + 8f * u, cy - 1f * u) });   // ┐
+        g.DrawLines(pen, new[] { new PointF(cx - 8f * u, cy + 1f * u), new PointF(cx - 8f * u, cy + 5f * u), new PointF(cx - 0.5f * u, cy + 5f * u) });   // └
+        using var f = new Font("Georgia", 13f * u * 0.75f, FontStyle.Bold, GraphicsUnit.Point);
+        var fl = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
+        TextRenderer.DrawText(g, "“", f, new Rectangle((int)(cx - 9f * u), (int)(cy - 11f * u), (int)(9f * u), (int)(12f * u)), c, fl);
+        TextRenderer.DrawText(g, "”", f, new Rectangle((int)(cx + 0f * u), (int)(cy - 1f * u), (int)(9f * u), (int)(12f * u)), c, fl);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var p = palette;
@@ -744,6 +803,8 @@ internal sealed class WorkspaceRail : Control
                 using var b = new SolidBrush(sel ? Themes.Blend(p.Side, p.Fore, p.Dark ? 0.12f : 0.08f) : p.CardHover);
                 g.FillPath(b, path);
             }
+            if (items[i].Key == "typewriter") { DrawTypewriterIcon(g, r, sel ? p.Fore : p.Dim); continue; }
+            if (items[i].Key == "quote") { DrawQuoteIcon(g, r, sel ? p.Fore : p.Dim); continue; }
             if (items[i].Key == "count")
             {
                 int cs = S(20);
@@ -896,6 +957,8 @@ internal sealed class DocPane : PaneFrame
     public string? DocPath { get; private set; }
     /// <summary>이 칸에 열린 에피소드의 글자 수 세기 위젯을 켜고 끈다(에피소드가 아니면 아무 일도 없다).</summary>
     public void ToggleCountWidget() => doc?.ToggleCountWidget();
+    /// <summary>이 칸의 글 상자에 타입라이터 · 빠른 따옴표 설정을 다시 반영한다(에피소드가 아니면 아무 일도 없다).</summary>
+    public void ApplyWriterOptions() => doc?.ApplyWriterOptions();
     /// <summary>글자 수 세기 위젯이 지금 떠 있는가.</summary>
     public bool CountWidgetOn => doc?.GoalWidgetOn ?? false;
     public event Action<DocPane>? FocusRequested;
