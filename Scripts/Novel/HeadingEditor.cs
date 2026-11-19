@@ -7,7 +7,8 @@ namespace Cafeum;
 /// 위키 본문 편집기(Muvel처럼 제목이 바로 제목으로 보이는 글 상자).
 /// 줄 맨 앞에서 "## " · "### "를 치면 그 표시가 사라지고 줄이 항목(큰 제목) · 부항목(작은 제목)으로 바뀐다.
 /// 항목 왼쪽 여백에는 "1." · "1-1." 번호가 흐리게 붙는다 — 글자가 아니라 그려 넣은 것이라 지워지거나 겹치지 않고,
-/// 항목을 넣고 빼면 저절로 다시 매겨진다. 파일에도 이 번호 그대로 "1. 제목" · "1-1. 제목"으로 저장한다(LoadText · ToText).
+/// 항목을 넣고 빼면 저절로 다시 매겨진다. 이 상자가 읽고 내놓는 글(LoadText · ToText)은 "1. 제목" · "1-1. 제목" 모양이고,
+/// 파일에 적을 때 .md는 "## 제목" · "### 제목"으로, .txt는 이 번호 그대로 바꿔 쓴다(WikiDoc). 제목이 아닌데 "1. 글"처럼 보이는 줄에는 보이지 않는 표시(WikiDoc.ListMark)를 붙여 제목과 구분한다.
 /// 제목 줄 끝에서 Enter를 치면 다음 줄은 보통 글, 제목 줄 맨 앞에서 Backspace를 치면 보통 줄로 돌아간다.
 /// 어느 줄이 제목인지는 커서를 움직이지 않고(TOM의 ITextRange로) 읽는다 — 한글을 조합하는 도중에 커서를 옮기면 글자가 깨진다.
 /// </summary>
@@ -56,6 +57,10 @@ internal sealed class HeadingEditor : RichTextBox
     private int LevelOf(Font? f) => f == null ? 0 : LevelOf(f.Size, f.Bold);
     private int LevelOf(float size, bool bold) => size >= h2.Size - 0.1f ? 2 : bold && size >= h3.Size - 0.1f ? 3 : 0;
     private Font FontFor(int level) => level == 2 ? h2 : level == 3 ? h3 : normal;
+
+    /// <summary>제목 줄을 들여 쓰는 폭(px) — 그 앞자리에 번호가 들어간다(번호는 글 칸 왼쪽 끝에 그리고, 본문 글과 같은 줄에 맞춘다).</summary>
+    private int IndentFor(int level) => level == 2 ? TextRenderer.MeasureText("00.", h2, Size.Empty, TextFormatFlags.NoPadding).Width + S(12)
+        : level == 3 ? TextRenderer.MeasureText("0-00.", h3, Size.Empty, TextFormatFlags.NoPadding).Width + S(12) : 0;
 
     // ───────── 커서를 건드리지 않고 서식 읽기(TOM) ─────────
 
@@ -114,7 +119,14 @@ internal sealed class HeadingEditor : RichTextBox
         int off = 0, major = 0, minor = 0;
         foreach (var p in text.Split('\n'))
         {
-            if (p.Trim().Length > 0)
+            if (p.Length == 0 && off == SelectionStart && SelectionLength == 0 && LevelOf(SelectionFont) > 0)
+            {
+                // 막 "## "를 쳐서 아직 글이 없는 제목 줄: 번호만 먼저 보여 준다(목차 · 저장에서는 빠진다)
+                string num = LevelOf(SelectionFont) == 2 ? $"{++major}." : $"{major}-{++minor}.";
+                if (LevelOf(SelectionFont) == 2) minor = 0;
+                list.Add((LevelOf(SelectionFont), num, off, ""));
+            }
+            else if (p.Trim().Length > 0)
             {
                 int level = LevelAt(off);
                 if (level > 0)
@@ -126,10 +138,23 @@ internal sealed class HeadingEditor : RichTextBox
             }
             off += p.Length + 1;
         }
-        bool same = list.Count == heads.Count && list.Zip(heads).All(z => z.First.Equals(z.Second));
+        bool same = list.Where(h => h.Item4.Length > 0).SequenceEqual(heads.Where(h => h.Title.Length > 0));
         heads = list;
         if (IsHandleCreated) Invalidate(new Rectangle(0, 0, Math.Max(1, SideMargin), ClientSize.Height));
-        if (!same) HeadingsChanged?.Invoke(heads.Select(h => (h.Level, $"{h.Num} {h.Title}", h.Offset)).ToList());
+        if (!same) HeadingsChanged?.Invoke(heads.Where(h => h.Title.Length > 0).Select(h => (h.Level, $"{h.Num} {h.Title}", h.Offset)).ToList());
+    }
+
+    /// <summary>글은 아직 없지만 막 "## "를 쳐서 제목 줄이 된 빈 줄이 있다(번호만 보이는 중).</summary>
+    public bool PendingHeading => heads.Any(h => h.Title.Length == 0);
+
+    protected override void OnSelectionChanged(EventArgs e)
+    {
+        base.OnSelectionChanged(e);
+        if (busy || !IsHandleCreated) return;
+        bool hasEmpty = heads.Any(h => h.Title.Length == 0);
+        int s = SelectionStart;
+        bool wantEmpty = SelectionLength == 0 && LineStart(s) == s && LineEnd(s) == s && LevelOf(SelectionFont) > 0;
+        if (hasEmpty != wantEmpty || (hasEmpty && heads.First(h => h.Title.Length == 0).Offset != s)) RecomputeHeads();
     }
 
     protected override void OnTextChanged(EventArgs e)
@@ -165,6 +190,36 @@ internal sealed class HeadingEditor : RichTextBox
         if (m.Msg == WM_PAINT && heads.Count > 0) PaintNumbers();
     }
 
+    /// <summary>커서가 든 문단의 위 · 아래 여백(제목은 밑줄이 들어갈 만큼 띄운다, 보통 글은 0).</summary>
+    private void SpaceAround(int level)
+    {
+        try
+        {
+            if (Tom is not { } doc) return;
+            dynamic para = doc.Range(SelectionStart, SelectionStart).Para;
+            para.SpaceBefore = level == 2 ? 14f : level == 3 ? 10f : 0f;
+            para.SpaceAfter = level > 0 ? 9f : 0f;
+        }
+        catch { }
+    }
+
+    /// <summary>idx 글자가 놓인 줄의 밑선 높이(이 상자 안 y). 못 읽으면 null.</summary>
+    private int? BaselineY(int idx)
+    {
+        try
+        {
+            if (Tom is not { } doc) return null;
+            dynamic range = doc.Range(idx, idx);
+            int x, y;
+            range.GetPoint(56, out x, out y); // tomStart + TA_BASELINE
+            return PointToClient(new Point(x, y)).Y;
+        }
+        catch { return null; }
+    }
+
+    private int AscentPx(Font f) => (int)Math.Round(f.FontFamily.GetCellAscent(f.Style) / (float)f.FontFamily.GetEmHeight(f.Style) * f.SizeInPoints * DeviceDpi / 72f);
+    private int DescentPx(Font f) => (int)Math.Round(f.FontFamily.GetCellDescent(f.Style) / (float)f.FontFamily.GetEmHeight(f.Style) * f.SizeInPoints * DeviceDpi / 72f);
+
     /// <summary>항목 줄 왼쪽 여백에 "1." · "1-1."을 흐리게 그린다.</summary>
     private void PaintNumbers()
     {
@@ -172,14 +227,26 @@ internal sealed class HeadingEditor : RichTextBox
         {
             using var g = Graphics.FromHwnd(Handle);
             var dim = Themes.Blend(BackColor, ForeColor, 0.42f);
-            foreach (var (level, num, offset, _) in heads)
+            var rule = Themes.Blend(BackColor, ForeColor, 0.2f);
+            int right = ClientSize.Width - Math.Min(SideMargin, Math.Max(S(16), (ClientSize.Width - columnWidth) / 2));
+            foreach (var (level, num, offset, title) in heads)
             {
-                if (offset >= TextLength) continue;
+                if (offset > TextLength || (offset == TextLength && TextLength > 0 && Text[^1] != '\n')) continue;
                 var pt = GetPositionFromCharIndex(offset);
                 if (pt.Y > ClientSize.Height || pt.Y < -S(40)) continue;
+                // 제목 줄 밑에 얇은 줄(제목이 여러 줄로 접히면 마지막 줄 밑에)
+                int lastIdx = Math.Min(TextLength, offset + Math.Max(0, title.Length - 1));
+                if (offset <= TextLength && lastIdx >= 0)
+                {
+                    var lp = GetPositionFromCharIndex(lastIdx);
+                    int y = (BaselineY(lastIdx) is int bl ? bl + DescentPx(FontFor(level)) : lp.Y + FontFor(level).Height) + S(6);
+                    if (y >= 0 && y <= ClientSize.Height)
+                        using (var pen = new Pen(rule, Math.Max(1f, DeviceDpi / 96f))) g.DrawLine(pen, pt.X - IndentFor(level), y, right, y);
+                }
                 var f = FontFor(level);
                 var size = TextRenderer.MeasureText(g, num, f, Size.Empty, TextFormatFlags.NoPadding);
-                TextRenderer.DrawText(g, num, f, new Point(pt.X - size.Width - S(10), pt.Y + S(3)), dim, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                int top = BaselineY(offset) is int b0 ? b0 - AscentPx(f) : pt.Y + S(3); // 번호의 밑선을 제목 글자의 밑선에 맞춘다
+                TextRenderer.DrawText(g, num, f, new Point(pt.X - IndentFor(level), top), dim, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             }
         }
         catch { }
@@ -214,7 +281,7 @@ internal sealed class HeadingEditor : RichTextBox
             int off = 0;
             for (int i = 0; i < lines.Length; i++)
             {
-                if (levels[i] > 0 && lines[i].Length > 0) { Select(off, lines[i].Length); SelectionFont = FontFor(levels[i]); }
+                if (levels[i] > 0 && lines[i].Length > 0) { Select(off, lines[i].Length); SelectionFont = FontFor(levels[i]); SelectionIndent = IndentFor(levels[i]); SpaceAround(levels[i]); }
                 off += lines[i].Length + 1;
             }
             Select(0, 0);
@@ -236,8 +303,8 @@ internal sealed class HeadingEditor : RichTextBox
     public string ToText(out List<(int Level, string Text, int Offset)> headings)
     {
         RecomputeHeads();
-        headings = heads.Select(h => (h.Level, $"{h.Num} {h.Title}", h.Offset)).ToList();
-        var byOffset = heads.ToDictionary(h => h.Offset);
+        headings = heads.Where(h => h.Title.Length > 0).Select(h => (h.Level, $"{h.Num} {h.Title}", h.Offset)).ToList();
+        var byOffset = heads.Where(h => h.Title.Length > 0).ToDictionary(h => h.Offset);
         var sb = new StringBuilder();
         int off = 0;
         var parts = Text.Split('\n');
@@ -245,7 +312,8 @@ internal sealed class HeadingEditor : RichTextBox
         {
             if (i > 0) sb.Append("\r\n");
             if (byOffset.TryGetValue(off, out var h)) sb.Append(h.Num).Append(' ').Append(h.Title);
-            else sb.Append(parts[i]);
+            else sb.Append(WikiDoc.HeadingOf(parts[i]).Level > 0 ? WikiDoc.ListMark + parts[i] : parts[i]); // 제목이 아닌데 "1. 글"처럼 보이는 줄은 표시를 붙여 다음에 읽을 때 제목으로 바뀌지 않게
+
             off += parts[i].Length + 1;
         }
         if (sb.Length > 0) sb.Append("\r\n");
@@ -276,6 +344,8 @@ internal sealed class HeadingEditor : RichTextBox
             if (le > ls) { Select(ls, le - ls); SelectionFont = FontFor(level); }
             Select(caret, 0);
             SelectionFont = FontFor(level);
+            SelectionIndent = IndentFor(level);
+            SpaceAround(level);
         }
         finally { busy = false; }
         RecomputeHeads();
@@ -328,6 +398,8 @@ internal sealed class HeadingEditor : RichTextBox
                 SelectedText = "\n";
                 SelectionFont = normal;
                 SelectionColor = ForeColor;
+                SelectionIndent = 0;
+                SpaceAround(0);
                 return;
             }
         }

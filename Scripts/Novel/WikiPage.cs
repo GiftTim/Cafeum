@@ -107,7 +107,8 @@ internal sealed class WikiPage : Panel
         // 본문: "## " · "### "를 치면 그 줄이 바로 제목으로 바뀌는 글 상자(파일에는 ## · ###로 저장)
         body = new HeadingEditor { Dock = DockStyle.Fill };
         body.HeadingsChanged += heads => { if (!loading) SetToc(heads); }; // 항목을 넣고 빼면 목차 번호도 바로
-        body.ContentChanged += () => { if (loading || doc == null) return; bodyHint.Visible = body.TextLength == 0; SaveSoon(); };
+        body.ContentChanged += () => { if (loading || doc == null) return; bodyHint.Visible = body.TextLength == 0 && !body.PendingHeading; SaveSoon(); };
+        body.SelectionChanged += (_, _) => { if (!loading && doc != null) bodyHint.Visible = body.TextLength == 0 && !body.PendingHeading; };
         body.HandleCreated += (_, _) => ApplyBodyMargin();
         body.SizeChanged += (_, _) => ApplyBodyMargin();
         bodyHint = new Label { Text = "## 나 ### 를 치고 띄어 쓰면 항목 · 부항목이 돼요. 위의 목차에 번호와 함께 모여요.", AutoSize = true, UseMnemonic = false, Cursor = Cursors.IBeam, Font = new Font(ff, 11f) };

@@ -5,7 +5,11 @@ using Microsoft.VisualBasic.FileIO;
 namespace Cafeum;
 
 /// <summary>
-/// 위키 문서 한 개 = 작품 폴더 안의 <c>wiki\제목.txt</c>. 메모장으로 열어도 그대로 읽히는 평범한 글이다.
+/// 위키 문서 한 개 = 작품 폴더 안의 <c>wiki\제목.md</c>(새로 만드는 문서). 예전에 만든 <c>제목.txt</c>도 그대로 읽는다. 메모장이나 마크다운 편집기로 열어도 그대로 읽히는 평범한 글이다.
+/// 파일 모양은 두 가지다. <c>.md</c>는 마크다운(맨 위 <c>---</c> 머리말에 속성, 본문 제목은 <c>## </c> · <c>### </c>)으로 저장하고,
+/// <c>.txt</c>는 예전 모양(아래)을 그대로 쓴다. 읽을 때는 확장자와 상관없이 두 모양을 모두 알아본다(예전 모양의 .md도 다음 저장 때 마크다운으로 바뀐다).
+/// 화면의 편집기(HeadingEditor)는 어느 모양이든 같은 "번호 붙은 항목" 글로 다루고, 파일로 읽고 쓸 때만 여기서 바꾼다.
+/// 예전 모양:
 /// 구분선(────) 위는 속성(카테고리 · 설명 · 분류 · 중요도 · 다른 이름, 그 밖의 "이름: 값"은 모두 속성 상자 항목),
 /// 아래는 본문. 본문의 항목은 "1. 제목", 부항목은 "1-1. 제목"으로 적는다(저장할 때 번호를 다시 매긴다).
 /// <code>
@@ -25,7 +29,7 @@ namespace Cafeum;
 internal sealed class WikiDoc
 {
     public const string Separator = "────────────";
-    private static readonly string[] FixedKeys = { "카테고리", "설명", "분류", "중요도", "다른 이름" };
+    private static readonly string[] FixedKeys = { "카테고리", "설명", "요약", "분류", "중요도", "다른 이름", "별칭" }; // 두 모양의 고정 속성 이름(같은 이름의 사용자 속성은 쓸 때 이름 뒤에 공백을 붙여 구분한다)
 
     public string Path { get; set; } = "";
     public string Title => System.IO.Path.GetFileNameWithoutExtension(Path);
@@ -44,36 +48,188 @@ internal sealed class WikiDoc
     {
         var d = new WikiDoc { Path = path };
         var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        // 마크다운 모양: 첫 줄이 "---"이고 다음 "---"까지가 머리말(속성)
+        if (lines.Length > 1 && lines[0].TrimStart('\uFEFF').Trim() == "---")
+        {
+            int end = Array.FindIndex(lines, 1, l => l.Trim() == "---");
+            if (end > 0)
+            {
+                for (int i = 1; i < end; i++) ApplyProperty(d, lines[i], yaml: true);
+                var rest = lines[(end + 1)..].ToList();
+                if (rest.Count > 0 && rest[0].Trim().Length == 0) rest.RemoveAt(0); // 머리말 뒤 빈 줄 하나는 모양 맞추기용
+                d.Body = FromMarkdownBody(string.Join("\r\n", rest));
+                return d;
+            }
+        }
+        // 예전 모양: 구분선(────) 위가 속성, 아래가 본문
         int sep = Array.FindIndex(lines, IsSeparator);
         if (sep >= 0)
         {
-            for (int i = 0; i < sep; i++)
-            {
-                string raw = lines[i];
-                int c = raw.IndexOfAny(new[] { ':', '：' });
-                if (c <= 0) continue;
-                string key = raw[..c].Trim(), val = raw[(c + 1)..].Trim();
-                // 고정 속성 이름과 겹치는 사용자 속성은 저장할 때 이름 뒤에 공백을 붙여 둔다(Serialize) — 그런 줄은 속성 상자 항목으로 읽는다
-                if (FixedKeys.Contains(key) && raw[..c].EndsWith(' ')) { d.Attributes.Add((key, val)); continue; }
-                switch (key)
-                {
-                    case "카테고리": d.Category = WikiCategory.Find(val).Key; break;
-                    case "설명": d.Summary = val.Replace("\\n", "\n"); break;
-                    case "분류": d.Tags = SplitList(val); break;
-                    case "중요도": if (int.TryParse(val, out int imp)) d.Importance = Math.Clamp(imp, 1, 5); break;
-                    case "다른 이름": d.Aliases = SplitList(val); break;
-                    default: d.Attributes.Add((key, val)); break;
-                }
-            }
+            for (int i = 0; i < sep; i++) ApplyProperty(d, lines[i], yaml: false);
             d.Body = string.Join("\r\n", lines[(sep + 1)..]);
         }
         else d.Body = string.Join("\r\n", lines);
         return d;
     }
 
+    /// <summary>속성 한 줄("이름: 값")을 문서에 넣는다. 마크다운 머리말(yaml)은 "요약" · "별칭"과 따옴표 값도 받는다.</summary>
+    private static void ApplyProperty(WikiDoc d, string raw, bool yaml)
+    {
+        int c = raw.IndexOfAny(new[] { ':', '：' });
+        if (c <= 0) return;
+        string key = raw[..c].Trim(), val = raw[(c + 1)..].Trim();
+        // 고정 속성 이름과 겹치는 사용자 속성은 쓸 때 이름 뒤에 공백을 붙여 둔다 — 그런 줄은 속성 상자 항목으로 읽는다
+        if (FixedKeys.Contains(key) && raw[..c].EndsWith(' ')) { d.Attributes.Add((key, yaml ? Unquote(val) : val)); return; }
+        if (yaml && (key == "요약" || key == "설명")) { d.Summary = Unquote(val).Replace("\\n", "\n"); return; }
+        if (yaml && (key == "별칭" || key == "다른 이름")) { d.Aliases = ParseList(val); return; }
+        switch (key)
+        {
+            case "카테고리": d.Category = WikiCategory.Find(yaml ? Unquote(val) : val).Key; break;
+            case "설명": d.Summary = val.Replace("\\n", "\n"); break;
+            case "분류": d.Tags = yaml ? ParseList(val) : SplitList(val); break;
+            case "중요도": if (int.TryParse(yaml ? Unquote(val) : val, out int imp)) d.Importance = Math.Clamp(imp, 1, 5); break;
+            case "다른 이름": d.Aliases = SplitList(val); break;
+            default: d.Attributes.Add((key, yaml ? Unquote(val) : val)); break;
+        }
+    }
+
+    // ── 마크다운 머리말의 값 쓰기 · 읽기(따옴표 · 목록) ──
+
+    /// <summary>한 줄 값이 머리말(YAML)에서 그대로 읽히려면 따옴표가 필요한가.</summary>
+    private static bool NeedsQuote(string v) =>
+        v.Length == 0 || v != v.Trim() || v.IndexOfAny(new[] { ':', '#', '"', '\'', '\\', '\n', '\r', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '%', '@', '`' }) >= 0 || v[0] == '-' || v[0] == '?';
+
+    private static string YamlScalar(string v)
+    {
+        v = v.Replace("\r", "");
+        if (!NeedsQuote(v)) return v;
+        return "\"" + v.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\"";
+    }
+
+    private static string YamlList(IEnumerable<string> items) => "[" + string.Join(", ", items.Select(YamlScalar)) + "]";
+
+    private static string Unquote(string v)
+    {
+        v = v.Trim();
+        if (v.Length >= 2 && v[0] == '"' && v[^1] == '"')
+        {
+            var sb = new StringBuilder();
+            for (int i = 1; i < v.Length - 1; i++)
+            {
+                char ch = v[i];
+                if (ch == '\\' && i + 1 < v.Length - 1)
+                {
+                    char n = v[++i];
+                    sb.Append(n == 'n' ? '\n' : n);
+                }
+                else sb.Append(ch);
+            }
+            return sb.ToString();
+        }
+        if (v.Length >= 2 && v[0] == '\'' && v[^1] == '\'') return v[1..^1].Replace("''", "'");
+        return v;
+    }
+
+    /// <summary>"[a, b]" 또는 "a, b" 목록(항목에 따옴표가 있으면 그 안의 쉼표는 구분으로 치지 않는다).</summary>
+    private static List<string> ParseList(string v)
+    {
+        v = v.Trim();
+        if (v.StartsWith('[') && v.EndsWith(']')) v = v[1..^1];
+        var items = new List<string>();
+        var cur = new StringBuilder();
+        bool inQuote = false;
+        for (int i = 0; i < v.Length; i++)
+        {
+            char ch = v[i];
+            if (ch == '"' && (i == 0 || v[i - 1] != '\\')) inQuote = !inQuote;
+            if (ch == ',' && !inQuote) { items.Add(Unquote(cur.ToString())); cur.Clear(); continue; }
+            cur.Append(ch);
+        }
+        items.Add(Unquote(cur.ToString()));
+        return items.Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+    }
+
+    // ── 본문 제목: 편집기가 다루는 "1. 제목" · "1-1. 제목"과 마크다운 "## 제목" · "### 제목" 사이의 변환 ──
+
+    /// <summary>번호 붙은 항목 줄을 마크다운 제목으로("1. 성격" → "## 성격", "1-1. 버릇" → "### 버릇"). 그 밖의 줄은 그대로.</summary>
+    internal static string ToMarkdownBody(string body)
+    {
+        var lines = body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (lines[i].StartsWith(ListMark)) { lines[i] = lines[i][1..]; continue; } // 제목이 아닌 번호 줄(마크다운 번호 목록)은 표시만 떼고 그대로
+            var (level, text) = HeadingOf(lines[i]);
+            if (level == 2) lines[i] = "## " + text;
+            else if (level == 3) lines[i] = "### " + text;
+        }
+        return string.Join("\r\n", lines);
+    }
+
+    /// <summary>
+    /// 제목이 아닌데 "1. 글"처럼 보이는 줄(마크다운 번호 목록)에 붙이는 보이지 않는 표시(너비 0 글자). 편집기가 그런 줄을 제목으로 읽지 않게 하고,
+    /// 파일에 쓸 때는 떼어 낸다(마크다운에는 표시 없이 "1. 글" 그대로 남는다).
+    /// </summary>
+    internal const char ListMark = '\u200B';
+
+    /// <summary>줄 맨 앞의 구분 표시를 뗀다(예전 모양 .txt에 쓸 때).</summary>
+    internal static string StripListMarks(string body) =>
+        string.Join("\r\n", body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').Select(l => l.StartsWith(ListMark) ? l[1..] : l));
+
+    /// <summary>마크다운 제목을 편집기가 쓰는 번호 붙은 항목 줄로("## 성격" → "1. 성격", 그 밑 "### 버릇" → "1-1. 버릇"). 번호는 차례대로 다시 센다.</summary>
+    internal static string FromMarkdownBody(string body)
+    {
+        var lines = body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        int n2 = 0, n3 = 0;
+        bool fence = false; // ``` 코드 블록 안의 줄은 제목으로 보지 않는다
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            if (line.TrimStart().StartsWith("```")) { fence = !fence; if (HeadingOf(line).Level > 0) lines[i] = ListMark + line; continue; }
+            var m = fence ? System.Text.RegularExpressions.Match.Empty : MdHeadingRegex.Match(line);
+            if (!m.Success)
+            {
+                if (HeadingOf(line).Level > 0) lines[i] = ListMark + line; // "1. 사과" 같은 번호 목록은 제목이 아니다
+                continue;
+            }
+            int hashes = m.Groups[1].Length;
+            string title = m.Groups[2].Value.Trim();
+            if (hashes >= 3) { if (n2 == 0) n2 = 1; n3++; lines[i] = $"{n2}-{n3}. {title}"; }
+            else { n2++; n3 = 0; lines[i] = $"{n2}. {title}"; }
+        }
+        return string.Join("\r\n", lines);
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex MdHeadingRegex =
+        new(@"^(#{1,6})\s+(\S.*)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private static List<string> SplitList(string s) => s.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
 
-    public string Serialize()
+    /// <summary>파일에 적을 글. .md는 마크다운 모양, 그 밖(.txt)은 예전 모양.</summary>
+    public string Serialize() =>
+        string.Equals(System.IO.Path.GetExtension(Path), ".md", StringComparison.OrdinalIgnoreCase) ? SerializeMarkdown() : SerializeLegacy();
+
+    private string SerializeMarkdown()
+    {
+        var sb = new StringBuilder();
+        sb.Append("---\r\n");
+        sb.Append("카테고리: ").Append(YamlScalar(WikiCategory.Find(Category).Label)).Append("\r\n");
+        if (Summary.Length > 0) sb.Append("요약: ").Append(YamlScalar(Summary)).Append("\r\n");
+        if (Tags.Count > 0) sb.Append("분류: ").Append(YamlList(Tags)).Append("\r\n");
+        if (Importance != 1) sb.Append("중요도: ").Append(Importance).Append("\r\n");
+        if (Aliases.Count > 0) sb.Append("별칭: ").Append(YamlList(Aliases)).Append("\r\n");
+        foreach (var (k, v) in Attributes)
+        {
+            string key = k.Replace(":", " ").Replace("：", " ").Trim();
+            if (key.Length == 0) continue;
+            if (FixedKeys.Contains(key)) key += " ";
+            sb.Append(key).Append(": ").Append(YamlScalar(v.Replace("\r", "").Replace("\n", " "))).Append("\r\n");
+        }
+        sb.Append("---\r\n\r\n");
+        sb.Append(ToMarkdownBody(Body));
+        return sb.ToString();
+    }
+
+    private string SerializeLegacy()
     {
         var sb = new StringBuilder();
         sb.Append("카테고리: ").Append(WikiCategory.Find(Category).Label).Append("\r\n");
@@ -89,7 +245,7 @@ internal sealed class WikiDoc
             sb.Append(key).Append(": ").Append(v.Replace("\r", "").Replace("\n", " ")).Append("\r\n");
         }
         sb.Append(Separator).Append("\r\n");
-        sb.Append(Body);
+        sb.Append(StripListMarks(Body));
         return sb.ToString();
     }
 
@@ -128,6 +284,18 @@ internal static class WikiStore
 {
     public static string Dir(string novelDir) => Path.Combine(novelDir, "wiki");
 
+    /// <summary>새 위키 문서의 확장자(마크다운). 예전 문서의 .txt도 목록에 그대로 나온다.</summary>
+    public const string NewExt = ".md";
+    private static readonly string[] Exts = { ".md", ".txt" };
+
+    /// <summary>그 폴더에 그 제목의 위키 문서가 이미 있는가(.md · .txt 어느 쪽이든).</summary>
+    private static bool TitleTaken(string dir, string title, string? exceptPath = null) =>
+        Exts.Any(e =>
+        {
+            string path = Path.Combine(dir, title + e);
+            return File.Exists(path) && !string.Equals(path, exceptPath, StringComparison.OrdinalIgnoreCase);
+        });
+
     public static List<WikiDoc> List(string novelDir)
     {
         var dir = Dir(novelDir);
@@ -135,11 +303,14 @@ internal static class WikiStore
         var docs = new List<WikiDoc>();
         try
         {
-            foreach (var f in Directory.EnumerateFiles(dir, "*.txt"))
-            {
-                if (Path.GetFileName(f).StartsWith('.')) continue;
-                try { docs.Add(Load(f)); } catch { }
-            }
+            foreach (var ext in Exts)
+                foreach (var f in Directory.EnumerateFiles(dir, "*" + ext))
+                {
+                    // 패턴 "*.md"는 .md로 끝나는 이름만이 아니라 같은 모양의 긴 확장자도 잡을 수 있어 한 번 더 확인한다
+                    if (!string.Equals(Path.GetExtension(f), ext, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (Path.GetFileName(f).StartsWith('.')) continue;
+                    try { docs.Add(Load(f)); } catch { }
+                }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         return docs.OrderBy(d => d.Importance).ThenBy(d => d.Title, NaturalStringComparer.Instance).ToList();
@@ -161,8 +332,8 @@ internal static class WikiStore
         Directory.CreateDirectory(dir);
         string name = title.Trim();
         if (!NovelStore.ValidName(name)) throw new IOException(NovelStore.InvalidNameMessage("제목")); // 점으로 시작하는 이름은 숨김 파일이 되어 목록에서 사라진다
-        string path = Path.Combine(dir, name + ".txt");
-        if (File.Exists(path)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {name}");
+        if (TitleTaken(dir, name)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {name}");
+        string path = Path.Combine(dir, name + NewExt);
         var d = new WikiDoc { Path = path, Category = category, Summary = summary.Trim(), Tags = tags };
         Save(d);
         return d;
@@ -172,9 +343,10 @@ internal static class WikiStore
     {
         string title = newTitle.Trim();
         if (!NovelStore.ValidName(title)) throw new IOException(NovelStore.InvalidNameMessage("제목"));
-        string target = Path.Combine(Path.GetDirectoryName(d.Path)!, title + ".txt");
+        string folder = Path.GetDirectoryName(d.Path)!;
+        string target = Path.Combine(folder, title + Path.GetExtension(d.Path)); // 이름을 바꿔도 확장자(.md · .txt)는 그대로 둔다
         if (string.Equals(target, d.Path, StringComparison.Ordinal)) return d.Path;
-        if (!string.Equals(target, d.Path, StringComparison.OrdinalIgnoreCase) && File.Exists(target)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {newTitle}");
+        if (TitleTaken(folder, title, d.Path)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {newTitle}"); // 다른 확장자의 같은 제목도 겹치는 것으로 본다(대 · 소문자만 바꾸는 건 허용)
         File.Move(d.Path, target);
         d.Path = target;
         return target;
