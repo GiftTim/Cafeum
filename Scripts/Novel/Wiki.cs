@@ -324,46 +324,137 @@ internal static class WikiStore
         return docs.OrderBy(d => d.Importance).ThenBy(d => d.Title, NaturalStringComparer.Instance).ToList();
     }
 
-    // ── 분류 목록: 작품마다 wiki\.분류.txt(한 줄에 하나). 문서에 이미 쓰인 분류도 함께 보여 준다 ──
+    // ── 분류 목록: 작품마다 wiki\.분류.txt(한 줄에 하나, 상위 분류가 있으면 "이름<탭>상위"). 분류는 폴더처럼 계층으로 묶고, 한 문서를 여러 분류에 넣을 수 있다 ──
 
     private static string ClassFile(string novelDir) => Path.Combine(Dir(novelDir), ".분류.txt");
 
-    private static List<string> ReadClassCatalog(string novelDir)
+    /// <summary>만들어 둔 분류 하나: 이름, 상위 분류들(여러 개 가능), 대분류(카테고리 키), 요약.</summary>
+    public sealed record ClassInfo(string Name, List<string> Parents, string Category, string Summary);
+
+    private static string EscapeField(string s) => s.Replace("\\", "\\\\").Replace("\r\n", "\n").Replace("\n", "\\n").Replace("\t", " ");
+
+    private static string UnescapeField(string s)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == '\\' && i + 1 < s.Length) { i++; sb.Append(s[i] == 'n' ? '\n' : s[i]); }
+            else sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    private static List<ClassInfo> ReadClassCatalog(string novelDir)
     {
         try
         {
             string f = ClassFile(novelDir);
             if (!File.Exists(f)) return new();
-            return File.ReadAllLines(f, Encoding.UTF8).Select(l => l.Trim()).Where(l => l.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var list = new List<ClassInfo>();
+            foreach (var raw in File.ReadAllLines(f, Encoding.UTF8))
+            {
+                var parts = raw.Split('\t');
+                string name = parts[0].Trim();
+                if (name.Length == 0 || list.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) continue;
+                var parents = parts.Length > 1 ? parts[1].Split('|').Select(x => x.Trim()).Where(x => x.Length > 0).ToList() : new List<string>();
+                string cat = parts.Length > 2 && parts[2].Trim().Length > 0 ? parts[2].Trim() : "none";
+                string summary = parts.Length > 3 ? UnescapeField(parts[3]) : "";
+                list.Add(new ClassInfo(name, parents, cat, summary));
+            }
+            return list;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new(); }
     }
 
-    private static void WriteClassCatalog(string novelDir, List<string> names)
+    private static void WriteClassCatalog(string novelDir, List<ClassInfo> items)
     {
         Directory.CreateDirectory(Dir(novelDir));
-        SafeFile.WriteAllText(ClassFile(novelDir), string.Join("\r\n", names) + (names.Count > 0 ? "\r\n" : ""), new UTF8Encoding(false));
+        var lines = items.Select(c =>
+        {
+            string line = c.Name;
+            if (c.Parents.Count > 0 || c.Category != "none" || c.Summary.Length > 0)
+                line += "\t" + string.Join("|", c.Parents) + "\t" + c.Category + "\t" + EscapeField(c.Summary);
+            return line;
+        }).ToList();
+        SafeFile.WriteAllText(ClassFile(novelDir), string.Join("\r\n", lines) + (lines.Count > 0 ? "\r\n" : ""), new UTF8Encoding(false));
     }
 
     /// <summary>이 작품에서 고를 수 있는 분류들: 만들어 둔 분류 + 문서에 쓰인 분류(많이 쓴 순).</summary>
     public static List<string> KnownClasses(string novelDir) =>
-        ReadClassCatalog(novelDir).Concat(Frequent(List(novelDir).SelectMany(d => d.Tags))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        ReadClassCatalog(novelDir).Select(c => c.Name).Concat(Frequent(List(novelDir).SelectMany(d => d.Tags))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-    /// <summary>새 분류를 목록에 넣는다(이미 있으면 그대로).</summary>
-    public static void AddClass(string novelDir, string name)
+    /// <summary>분류 → 상위 분류들(없으면 빈 목록). 만들어 둔 분류 + 문서에만 쓰인 분류(맨 위 분류로).</summary>
+    public static Dictionary<string, List<string>> ClassParents(string novelDir)
+    {
+        var map = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in ReadClassCatalog(novelDir)) map[c.Name] = c.Parents.ToList();
+        foreach (var n in KnownClasses(novelDir)) map.TryAdd(n, new List<string>());
+        return map;
+    }
+
+    /// <summary>만들어 둔 분류들(요약 · 대분류 · 상위 포함).</summary>
+    public static List<ClassInfo> ClassInfos(string novelDir) => ReadClassCatalog(novelDir);
+
+    /// <summary>만들어 둔 분류의 요약 · 대분류 · 상위를 고친다(null인 항목은 그대로). 목록에 없으면(문서에만 쓰인 분류) 새로 넣는다.</summary>
+    public static void UpdateClass(string novelDir, string name, string? summary = null, string? category = null, List<string>? parents = null)
+    {
+        var list = ReadClassCatalog(novelDir);
+        int i = list.FindIndex(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        var cur = i >= 0 ? list[i] : new ClassInfo(name, new List<string>(), "none", "");
+        var ps = parents == null ? cur.Parents : parents.Where(x => x.Length > 0 && !x.Equals(name, StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var next = new ClassInfo(cur.Name, ps, category ?? cur.Category, summary ?? cur.Summary);
+        if (i >= 0) list[i] = next; else list.Add(next);
+        WriteClassCatalog(novelDir, list);
+    }
+
+    /// <summary>분류 → 대분류(카테고리 키). 만들어 둔 분류만(없는 분류는 미분류로 본다).</summary>
+    public static Dictionary<string, string> ClassCategories(string novelDir)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in ReadClassCatalog(novelDir)) map[c.Name] = c.Category;
+        return map;
+    }
+
+    /// <summary>상위 분류들 중 첫 번째를 따라 맨 위 분류까지 올라가 그 대분류를 돌려준다(상위가 없으면 "none").</summary>
+    public static string RootCategory(string novelDir, string? cls)
+    {
+        var all = ReadClassCatalog(novelDir);
+        string? cur = cls;
+        for (int guard = 0; guard < 16 && cur != null; guard++)
+        {
+            var info = all.FirstOrDefault(c => c.Name.Equals(cur, StringComparison.OrdinalIgnoreCase));
+            if (info == null) return "none";
+            if (info.Parents.Count == 0) return info.Category;
+            cur = info.Parents[0];
+        }
+        return "none";
+    }
+
+    /// <summary>새 분류를 목록에 넣는다(이미 있으면 그대로). parents = 상위 분류들.</summary>
+    public static void AddClass(string novelDir, string name, IEnumerable<string>? parents = null, string category = "none", string summary = "")
     {
         name = name.Trim();
         if (name.Length == 0) return;
         var list = ReadClassCatalog(novelDir);
-        if (list.Contains(name, StringComparer.OrdinalIgnoreCase)) return;
-        list.Add(name);
+        if (list.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;
+        var ps = (parents ?? Array.Empty<string>()).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.Equals(name, StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        list.Add(new ClassInfo(name, ps, string.IsNullOrWhiteSpace(category) ? "none" : category, summary.Trim()));
         WriteClassCatalog(novelDir, list);
     }
 
-    /// <summary>분류를 목록에서 지우고, 그 분류를 쓰던 모든 문서에서도 뺀다.</summary>
+    /// <summary>분류를 목록에서 지우고, 그 분류를 쓰던 모든 문서에서도 뺀다. 그 밑의 분류는 지운 분류의 상위로 올라간다.</summary>
     public static void DeleteClass(string novelDir, string name)
     {
-        var list = ReadClassCatalog(novelDir).Where(c => !c.Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
+        var all = ReadClassCatalog(novelDir);
+        var up = all.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Parents ?? new List<string>();
+        var list = new List<ClassInfo>();
+        foreach (var c in all)
+        {
+            if (c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
+            var ps = c.Parents.Where(x => !x.Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (ps.Count != c.Parents.Count) foreach (var u in up) if (!ps.Contains(u, StringComparer.OrdinalIgnoreCase) && !u.Equals(c.Name, StringComparison.OrdinalIgnoreCase)) ps.Add(u);
+            list.Add(c with { Parents = ps });
+        }
         WriteClassCatalog(novelDir, list);
         foreach (var d in List(novelDir))
             if (d.Tags.RemoveAll(t => t.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0) Save(d);
@@ -412,6 +503,49 @@ internal static class WikiStore
     /// <summary>이 작품의 위키 문서들에 쓰인 속성 이름들(많이 쓴 순, 같으면 이름순). 속성 항목을 고를 때의 목록.</summary>
     public static List<string> KnownAttributeNames(string novelDir) =>
         Frequent(List(novelDir).SelectMany(d => d.Attributes.Select(a => a.Key)));
+
+    // ── 속성 항목 카탈로그: 기본 항목(아이콘 포함) + 문서에 쓰인 항목. 즐겨찾기는 작품마다 wiki\.속성즐겨찾기.txt(없으면 기본 즐겨찾기) ──
+
+    private const string DefaultGlyph = "";
+    /// <summary>기본 항목 (이름, 아이콘 글자, 처음부터 즐겨찾기인가).</summary>
+    private static readonly (string Name, string Glyph, bool Fav)[] DefaultAttributes =
+    {
+        ("나이", "", true), ("능력", "", true), ("랭크", "", true), ("몸무게", DefaultGlyph, true), ("별명", DefaultGlyph, true),
+        ("상태", "", true), ("생일", "", true), ("설명", "", true), ("성격", "", true), ("성별", "", true),
+        ("소속", "", true), ("영문명", "", true), ("위치", "", true), ("이름", DefaultGlyph, true), ("일본어명", "", true),
+        ("제작자", "", true), ("종족", "", true), ("칭호", DefaultGlyph, true), ("키", DefaultGlyph, true), ("한자명", "", true),
+        ("MBTI", DefaultGlyph, true),
+        ("가격", "", false), ("구성원", "", false), ("기간", "", false), ("리더", "", false), ("수도", "", false), ("인원", "", false),
+    };
+
+    public static string AttributeGlyph(string name) =>
+        DefaultAttributes.FirstOrDefault(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).Glyph ?? DefaultGlyph;
+
+    private static string AttrFavFile(string novelDir) => Path.Combine(Dir(novelDir), ".속성즐겨찾기.txt");
+
+    /// <summary>고를 수 있는 속성 항목 전부: 기본 항목 + 문서에 쓰인 항목.</summary>
+    public static List<string> AllAttributeNames(string novelDir) =>
+        DefaultAttributes.Select(a => a.Name).Concat(KnownAttributeNames(novelDir)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>즐겨찾기한 속성 항목들.</summary>
+    public static HashSet<string> AttributeFavorites(string novelDir)
+    {
+        try
+        {
+            string f = AttrFavFile(novelDir);
+            if (File.Exists(f)) return File.ReadAllLines(f, Encoding.UTF8).Select(l => l.Trim()).Where(l => l.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        return DefaultAttributes.Where(a => a.Fav).Select(a => a.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static void SetAttributeFavorite(string novelDir, string name, bool fav)
+    {
+        var set = AttributeFavorites(novelDir);
+        if (fav) set.Add(name); else set.Remove(name);
+        Directory.CreateDirectory(Dir(novelDir));
+        SafeFile.WriteAllText(AttrFavFile(novelDir), string.Join("\r\n", set.OrderBy(n => n, NaturalStringComparer.Instance)) + (set.Count > 0 ? "\r\n" : ""), new UTF8Encoding(false));
+    }
 
     private static List<string> Frequent(IEnumerable<string> names) =>
         names.Select(n => n.Trim()).Where(n => n.Length > 0)
@@ -466,98 +600,17 @@ internal static class WikiStore
     public static void Delete(string path) => FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
 
     /// <summary>[+ 새 위키 문서] 창을 띄워 만든다. 만든 문서 경로(취소하면 null).</summary>
-    public static string? AskCreate(IWin32Window? owner, string novelDir)
+    public static string? AskCreate(IWin32Window? owner, string novelDir, string? initialCategory = null, string? initialClass = null)
     {
-        using var dlg = new WikiCreateDialog(templates: TemplateNames(novelDir));
+        using var dlg = new WikiCreateDialog(novelDir, initialCategory, TemplateNames(novelDir), initialClass);
         if (dlg.ShowDialogOver(owner) != DialogResult.OK) return null;
         try
         {
             WikiDoc? template = dlg.TemplateName is { } tn ? LoadTemplate(novelDir, tn) : null;
             string category = template != null && dlg.CategoryKey == "none" ? template.Category : dlg.CategoryKey; // 카테고리를 따로 고르지 않았으면 템플릿의 카테고리를 쓴다
-            return Create(novelDir, dlg.TitleText, category, dlg.SummaryText, new List<string>(), template).Path;
+            return Create(novelDir, dlg.TitleText, category, dlg.SummaryText, dlg.Classes, template).Path;
         }
         catch (Exception ex) { MessageBox.Show(owner, $"위키 문서를 만들지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); return null; }
-    }
-}
-
-/// <summary>Muvel의 "새 위키 문서" 창: 제목 · 설명 · 카테고리 · [만들기]. 분류 · 태그 · 속성은 문서를 연 화면에서 고른다.</summary>
-internal sealed class WikiCreateDialog : Form
-{
-    private readonly TextBox title, summary;
-    private readonly ComboBox category;
-
-    public string TitleText => title.Text.Trim();
-    public string SummaryText => summary.Text.Trim();
-    public string CategoryKey => WikiCategory.All[Math.Max(0, category.SelectedIndex)].Key;
-
-    private readonly ComboBox? templateBox;
-    private readonly List<string> templateNames;
-    /// <summary>고른 템플릿 이름(고르지 않았으면 null).</summary>
-    public string? TemplateName => templateBox == null || templateBox.SelectedIndex <= 0 ? null : templateNames[templateBox.SelectedIndex - 1];
-
-    public WikiCreateDialog(string? initialCategory = null, IReadOnlyList<string>? templates = null)
-    {
-        templateNames = templates?.ToList() ?? new();
-        Text = "새 위키 문서";
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = MinimizeBox = false;
-        ShowInTaskbar = false;
-        StartPosition = FormStartPosition.CenterParent;
-        AutoScaleMode = AutoScaleMode.Dpi;
-        AutoScaleDimensions = new SizeF(96F, 96F);
-        Font = new Font(NovelStore.UiFontFamily, 10f);
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        Padding = new Padding(18);
-
-        Shown += (_, _) => { Activate(); BringToFront(); }; // 앱 안에서만 앞으로 온다(다른 프로그램 위로 뜨지는 않는다)
-        var root = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, Dock = DockStyle.Fill }; // Dock해야 폼 Padding(여백)이 왼쪽 · 위에도 적용된다
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        Label L(string s) => new() { Text = s, AutoSize = true, Margin = new Padding(0, 0, 0, 4), Font = new Font(Font, FontStyle.Bold) };
-
-        title = new TextBox { Width = 440, PlaceholderText = "문서 제목 (예: 등장인물 이름)", Margin = new Padding(0, 0, 0, 12) };
-        summary = new TextBox { Width = 440, Height = 70, Multiline = true, AcceptsReturn = true, PlaceholderText = "어떤 문서인지 한두 줄로 적어 주세요", Margin = new Padding(0, 0, 0, 12) };
-        category = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200, Margin = new Padding(0, 0, 16, 12) };
-        foreach (var c in WikiCategory.All) category.Items.Add(c.Label);
-        category.SelectedIndex = Array.FindIndex(WikiCategory.All, c => c.Key == (initialCategory ?? "none"));
-
-        root.Controls.Add(L("제목"), 0, 0); root.SetColumnSpan(root.GetControlFromPosition(0, 0)!, 2);
-        root.Controls.Add(title, 0, 1); root.SetColumnSpan(title, 2);
-        root.Controls.Add(L("설명"), 0, 2); root.SetColumnSpan(root.GetControlFromPosition(0, 2)!, 2);
-        root.Controls.Add(summary, 0, 3); root.SetColumnSpan(summary, 2);
-        root.Controls.Add(L("카테고리"), 0, 4);
-        root.Controls.Add(category, 0, 5);
-        if (templateNames.Count > 0)
-        {
-            // 만들어 둔 템플릿이 있을 때만: 고르면 카테고리(미분류일 때) · 분류 · 태그 · 속성 · 본문이 그 틀로 채워진다
-            root.Controls.Add(L("템플릿"), 1, 4);
-            templateBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 224, Margin = new Padding(0, 0, 0, 12) };
-            templateBox.Items.Add("(템플릿 없이)");
-            foreach (var n in templateNames) templateBox.Items.Add(n);
-            templateBox.SelectedIndex = 0;
-            root.Controls.Add(templateBox, 1, 5);
-        }
-
-        var ok = new Button { Text = "✓  만들기", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(96, 32) };
-        var cancel = new Button { Text = "취소", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(84, 32) };
-        var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 6, 0, 0) };
-        buttons.Controls.Add(ok);
-        buttons.Controls.Add(cancel);
-        root.Controls.Add(buttons, 0, 6); root.SetColumnSpan(buttons, 2);
-        Controls.Add(root);
-        AcceptButton = ok;
-        CancelButton = cancel;
-        ok.Click += (_, _) =>
-        {
-            if (!NovelStore.ValidName(title.Text))
-            {
-                MessageBox.Show(this, NovelStore.InvalidNameMessage("제목"), AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                DialogResult = DialogResult.None;
-            }
-        };
-        Shown += (_, _) => title.Focus();
-        Themes.ApplyChrome(this, AppShared.LibraryTheme);
     }
 }
 
@@ -567,7 +620,13 @@ internal sealed class WikiCreateDialog : Form
 /// </summary>
 internal sealed class WikiList : Control
 {
-    private readonly List<(WikiCategory? Header, WikiDoc? Doc, int Count)> rows = new();
+    /// <summary>목록 한 줄: 카테고리 머리(Header) · 분류 폴더(Folder) · 문서(Doc). Depth = 폴더 안 깊이.</summary>
+    private readonly record struct Row(WikiCategory? Header, WikiDoc? Doc, int Count, string? Folder = null, int Depth = 0);
+    private readonly List<Row> rows = new();
+    private readonly HashSet<string> collapsed = new(StringComparer.OrdinalIgnoreCase); // 접어 둔 분류 폴더
+    private List<WikiDoc> lastDocs = new();
+    private IReadOnlyDictionary<string, List<string>>? lastParents;
+    private IReadOnlyDictionary<string, string>? lastCats;
     private readonly VScrollBar scroll = new() { Dock = DockStyle.Right, Visible = false };
     private LibraryPalette? palette;
     private int hover = -1;
@@ -575,6 +634,8 @@ internal sealed class WikiList : Control
 
     public event Action<string>? DocChosen;
     public event Action<string, Point>? MenuRequested;
+    /// <summary>분류 폴더를 우클릭했다(이름, 화면 좌표).</summary>
+    public event Action<string, Point>? FolderMenuRequested;
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool OnMain { get; set; }
@@ -591,20 +652,51 @@ internal sealed class WikiList : Control
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
     private Color Surface => palette == null ? BackColor : OnMain ? palette.Main : palette.Side;
-    private int RowH(int i) => rows[i].Header != null ? Font.Height + S(i == 0 ? 14 : 24) : Font.Height + S(OnMain ? 24 : 16);
+    private int RowH(int i) => rows[i].Header != null ? Font.Height + S(i == 0 ? 14 : 24) : rows[i].Folder != null && rows[i].Doc == null ? Font.Height + S(OnMain ? 22 : 14) : Font.Height + S(OnMain ? 24 : 16);
     private int Offset => scroll.Visible ? scroll.Value : 0;
 
     public void SetPalette(LibraryPalette p) { palette = p; BackColor = Surface; Invalidate(); }
 
-    public void SetDocs(List<WikiDoc> docs)
+    /// <summary>문서들을 보여 준다. 분류는 계층 폴더(parents: 분류 → 상위 분류, 만들어 둔 빈 분류도 폴더로 보인다). 분류에 든 문서는 그 폴더들 안에(여러 분류면 각각), 분류 없는 문서는 카테고리별로.</summary>
+    public void SetDocs(List<WikiDoc> docs, IReadOnlyDictionary<string, List<string>>? parents = null, IReadOnlyDictionary<string, string>? categories = null)
     {
+        lastDocs = docs; lastParents = parents; lastCats = categories;
         rows.Clear();
+        var map = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (parents != null) foreach (var kv in parents) map[kv.Key] = kv.Value;
+        foreach (var t in docs.SelectMany(d => d.Tags)) map.TryAdd(t, new List<string>());
+        List<string> ParentsOf(string n) => map[n].Where(par => !par.Equals(n, StringComparison.OrdinalIgnoreCase) && map.ContainsKey(par)).ToList();
+        List<string> Children(string? par) => map.Keys.Where(k => par == null ? ParentsOf(k).Count == 0 : ParentsOf(k).Contains(par, StringComparer.OrdinalIgnoreCase)).OrderBy(k => k, NaturalStringComparer.Instance).ToList();
+        bool HasContent(string n, HashSet<string> seen) => seen.Add(n) && (docs.Any(d => d.Tags.Contains(n, StringComparer.OrdinalIgnoreCase)) || Children(n).Any(c => HasContent(c, seen)));
+        void AddFolder(string name, int depth, HashSet<string> path)
+        {
+            if (!path.Add(name)) return; // 순환 방지
+            if (parents == null && !HasContent(name, new HashSet<string>(StringComparer.OrdinalIgnoreCase))) return; // 검색 중에는 빈 폴더를 숨긴다
+            var inFolder = docs.Where(d => d.Tags.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList();
+            rows.Add(new Row(null, null, inFolder.Count, name, depth));
+            if (collapsed.Contains(name)) return;
+            foreach (var c in Children(name)) AddFolder(c, depth + 1, new HashSet<string>(path, StringComparer.OrdinalIgnoreCase));
+            foreach (var d in inFolder) rows.Add(new Row(null, d, 0, name, depth + 1));
+        }
+        string CatOf(string n) => categories != null && categories.TryGetValue(n, out var c) ? c : "none";
+        HashSet<string> Subtree(string root, HashSet<string>? seen = null)
+        {
+            seen ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (seen.Add(root)) foreach (var c in Children(root)) Subtree(c, seen);
+            return seen;
+        }
+        // 맨 위 단계 = 대분류(카테고리). 그 밑에 그 대분류의 분류 폴더들(계층), 그 뒤에 분류 없는 문서.
         foreach (var cat in WikiCategory.All)
         {
-            var inCat = docs.Where(d => d.Category == cat.Key).ToList();
-            if (inCat.Count == 0) continue;
-            rows.Add((cat, null, inCat.Count));
-            foreach (var d in inCat) rows.Add((null, d, 0));
+            var roots = Children(null).Where(r => CatOf(r) == cat.Key).ToList();
+            if (parents == null) roots = roots.Where(r => HasContent(r, new HashSet<string>(StringComparer.OrdinalIgnoreCase))).ToList(); // 검색 중에는 빈 폴더를 숨긴다
+            var loose = docs.Where(d => d.Category == cat.Key && d.Tags.Count == 0).ToList();
+            if (roots.Count == 0 && loose.Count == 0) continue;
+            var subtrees = roots.Select(r => Subtree(r)).ToList();
+            int total = loose.Count + docs.Count(d => d.Tags.Count > 0 && subtrees.Any(st => d.Tags.Any(st.Contains)));
+            rows.Add(new Row(cat, null, total));
+            foreach (var root in roots) AddFolder(root, 0, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            foreach (var d in loose) rows.Add(new Row(null, d, 0));
         }
         SyncScroll();
         Invalidate();
@@ -643,7 +735,7 @@ internal sealed class WikiList : Control
     {
         base.OnMouseMove(e);
         int i = IndexAt(e.Y);
-        if (i >= 0 && rows[i].Doc == null) i = -1;
+        if (i >= 0 && rows[i].Doc == null && rows[i].Folder == null) i = -1;
         if (i != hover) { hover = i; Invalidate(); }
         Cursor = i >= 0 ? Cursors.Hand : Cursors.Default;
     }
@@ -654,6 +746,12 @@ internal sealed class WikiList : Control
     {
         base.OnMouseUp(e);
         int i = IndexAt(e.Y);
+        if (i >= 0 && rows[i].Doc == null && rows[i].Folder is string folder)
+        {
+            if (e.Button == MouseButtons.Left) { if (!collapsed.Remove(folder)) collapsed.Add(folder); SetDocs(lastDocs, lastParents, lastCats); }
+            else if (e.Button == MouseButtons.Right) FolderMenuRequested?.Invoke(folder, PointToScreen(e.Location));
+            return;
+        }
         if (i < 0 || rows[i].Doc is not WikiDoc d) return;
         if (e.Button == MouseButtons.Left) DocChosen?.Invoke(d.Path);
         else if (e.Button == MouseButtons.Right) MenuRequested?.Invoke(d.Path, PointToScreen(e.Location));
@@ -677,8 +775,20 @@ internal sealed class WikiList : Control
             int h = RowH(i);
             if (y + h >= 0 && y <= ClientSize.Height)
             {
-                var (header, doc, count) = rows[i];
-                if (header != null)
+                var (header, doc, count, folder, depth) = rows[i];
+                if (header == null && doc == null && folder != null)
+                {
+                    int fi = depth * S(22);
+                    var fr = new Rectangle(pad + fi, y + S(1), w - pad * 2 - fi, h - S(2));
+                    if (i == hover) { using var hp = LibraryPalette.Rounded(fr, S(8)); using var hb = new SolidBrush(OnMain ? Themes.Blend(p.Main, p.Fore, 0.05f) : p.CardHover); g.FillPath(hb, hp); }
+                    bool shut = collapsed.Contains(folder);
+                    TextRenderer.DrawText(g, shut ? "" : "", iconFont, new Rectangle(fr.X + S(6), fr.Y, S(18), fr.Height), p.Dim, flags);
+                    TextRenderer.DrawText(g, "", iconFont, new Rectangle(fr.X + S(28), fr.Y, S(22), fr.Height), p.Accent, flags);
+                    int nw = Math.Min(TextRenderer.MeasureText(folder, bold, Size.Empty, TextFormatFlags.NoPadding).Width, fr.Right - fr.X - S(120));
+                    TextRenderer.DrawText(g, folder, bold, new Rectangle(fr.X + S(54), fr.Y, nw + S(4), fr.Height), p.Fore, flags);
+                    TextRenderer.DrawText(g, count.ToString(), small, new Rectangle(fr.X + S(54) + nw + S(10), fr.Y, S(40), fr.Height), Themes.Blend(Surface, p.Dim, 0.6f), flags);
+                }
+                else if (header != null)
                 {
                     var r = new Rectangle(pad + S(6), y + h - Font.Height - S(6), w - pad * 2, Font.Height + S(4));
                     TextRenderer.DrawText(g, header.Glyph, iconFont, new Rectangle(r.X, r.Y, S(20), r.Height), p.Accent, flags);
@@ -689,7 +799,8 @@ internal sealed class WikiList : Control
                 }
                 else if (doc != null)
                 {
-                    var r = new Rectangle(pad, y + S(1), w - pad * 2, h - S(2));
+                    int ind = depth * S(22);
+                    var r = new Rectangle(pad + ind, y + S(1), w - pad * 2 - ind, h - S(2));
                     bool cur = string.Equals(doc.Path, current, StringComparison.OrdinalIgnoreCase);
                     if (cur || i == hover)
                     {

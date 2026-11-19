@@ -50,7 +50,7 @@ internal sealed class WikiPage : Panel
     public event Action? BackRequested;
     /// <summary>[‹ 돌아가기] · [⋯] 줄을 보일지(워크스페이스 칸 안에서는 칸 머리가 그 일을 한다).</summary>
 [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-    public bool ShowTopBar { get => topBar.Visible; set => topBar.Visible = value; }
+    public bool ShowTopBar { get => topBar.Visible; set { topBar.Visible = value; LayoutScroll(); } }
     /// <summary>칸 머리의 ⋯에서 부르는 문서 메뉴(이름 바꾸기 · 탐색기 · 휴지통).</summary>
     public void ShowMenuAt(Control anchor, Point at) { if (doc == null) return; ShowMoreMenu(); moreMenu?.Show(anchor, at); }
     /// <summary>저장했거나 이름 · 카테고리가 바뀌었다(목록을 다시 그리라고).</summary>
@@ -113,19 +113,20 @@ internal sealed class WikiPage : Panel
         tagStrip.RemoveRequested += t => { if (doc == null || !editable) return; doc.Labels.RemoveAll(x => x.Equals(t, StringComparison.OrdinalIgnoreCase)); tagStrip.SetTags(doc.Labels); head.PerformLayout(); SaveSoon(); };
 
         toc = new TocBox();
-        toc.HeadingChosen += offset => { body.Focus(); body.Select(Math.Min(offset, body.TextLength), 0); body.ScrollToCaret(); };
+        toc.HeadingChosen += offset => { headOffset = head.Height; LayoutScroll(); body.Focus(); body.Select(Math.Min(offset, body.TextLength), 0); body.ScrollToCaret(); };
         attrs = new AttrBox();
         attrs.AddRequested += PickAttribute;
         attrs.ValueChanged += (i, v) => { if (doc == null || !editable || i < 0 || i >= doc.Attributes.Count) return; doc.Attributes[i] = (doc.Attributes[i].Key, v); attrs.SetItems(doc.Attributes); SaveSoon(); };
         attrs.RemoveRequested += i => { if (doc == null || !editable || i < 0 || i >= doc.Attributes.Count) return; doc.Attributes.RemoveAt(i); attrs.SetItems(doc.Attributes); head.PerformLayout(); SaveSoon(); };
 
-        head = new Panel { Dock = DockStyle.Top };
+        head = new Panel(); // 위치는 LayoutScroll이 잡는다(본문과 함께 위로 밀려 올라간다)
         head.Controls.AddRange(new Control[] { crumbLabel, titleLabel, propsToggle, props, toc, attrs });
         head.Layout += (_, _) => LayoutHead();
         head.Paint += PaintHead;
 
         // 본문: "## " · "### "를 치면 그 줄이 바로 제목으로 바뀌는 글 상자(파일에는 ## · ###로 저장)
-        body = new HeadingEditor { Dock = DockStyle.Fill };
+        body = new HeadingEditor();
+        body.WheelIntercept += delta => ScrollHead(delta);
         body.HeadingsChanged += heads => { if (!loading) SetToc(heads); }; // 항목을 넣고 빼면 목차 번호도 바로
         body.ContentChanged += () => { if (loading || doc == null) return; bodyHint.Visible = editable && body.TextLength == 0 && !body.PendingHeading; SaveSoon(); };
         body.SelectionChanged += (_, _) => { if (!loading && doc != null) bodyHint.Visible = editable && body.TextLength == 0 && !body.PendingHeading; };
@@ -138,6 +139,7 @@ internal sealed class WikiPage : Panel
         Controls.Add(body);
         Controls.Add(head);
         Controls.Add(topBar);
+        topBar.BringToFront(); // 위로 밀려 올라간 머리 부분이 위 줄을 덮지 않게
 
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); Save(); };
         Disposed += (_, _) => saveTimer.Dispose();
@@ -220,6 +222,46 @@ internal sealed class WikiPage : Panel
             if (head.Height != y) head.Height = y;
         }
         finally { layingOut = false; }
+        LayoutScroll();
+    }
+
+    /// <summary>머리(속성 · 목차)가 위로 밀려 올라간 높이(px). 본문을 내리면 먼저 머리가 올라가고, 다 올라간 뒤에 본문이 스크롤된다.</summary>
+    private int headOffset;
+    private bool scrollLaying;
+    private AttrPopup? attrPop;
+
+    private void LayoutScroll()
+    {
+        if (scrollLaying || head == null || body == null) return;
+        scrollLaying = true;
+        try
+        {
+            int top = topBar.Visible ? topBar.Height : 0, w = ClientSize.Width;
+            if (head.Width != w) head.Width = w; // 폭이 바뀌면 머리 배치가 다시 돌아 높이가 달라질 수 있다
+            headOffset = Math.Clamp(headOffset, 0, head.Height);
+            int bodyTop = top + head.Height - headOffset;
+            head.SetBounds(0, top - headOffset, w, head.Height);
+            body.SetBounds(0, bodyTop, w, Math.Max(0, ClientSize.Height - bodyTop));
+        }
+        finally { scrollLaying = false; }
+        if (attrPop != null && !attrPop.IsDisposed) attrPop.MoveAnchor(attrs.AddAnchorScreen); // 속성 추가 창이 "+ 속성 추가" 밑을 따라다니게
+    }
+
+    /// <summary>휠로 delta만큼 굴렸다. 머리가 아직 덜 올라갔으면(내릴 때) 또는 본문이 맨 위이고 머리가 올라가 있으면(올릴 때) 머리를 움직이고 true를 돌려준다.</summary>
+    private bool ScrollHead(int delta)
+    {
+        int step = (int)Math.Round(Math.Abs(delta) / 120.0 * S(60));
+        if (step <= 0) return false;
+        if (delta < 0 && headOffset < head.Height) headOffset += step;
+        else if (delta > 0 && headOffset > 0 && body.ScrollY <= 0) headOffset -= step;
+        else return false;
+        LayoutScroll();
+        return true;
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        if (!ScrollHead(e.Delta)) base.OnMouseWheel(e);
     }
 
     private void PaintHead(object? sender, PaintEventArgs e)
@@ -241,7 +283,8 @@ internal sealed class WikiPage : Panel
         bodyHint.Location = new Point(body.SideMargin, 2);
     }
 
-    protected override void OnResize(EventArgs e) { base.OnResize(e); head?.PerformLayout(); head?.Invalidate(); }
+    protected override void OnResize(EventArgs e) { base.OnResize(e); head?.PerformLayout(); head?.Invalidate(); LayoutScroll(); }
+    protected override void OnLayout(LayoutEventArgs e) { base.OnLayout(e); LayoutScroll(); }
 
     public void ApplyTheme(LibraryPalette p)
     {
@@ -291,6 +334,7 @@ internal sealed class WikiPage : Panel
             SetToc(heads);
         }
         finally { loading = false; }
+        headOffset = 0;
         head.PerformLayout();
         head.Invalidate();
         body.ScrollToTop();
@@ -411,11 +455,15 @@ internal sealed class WikiPage : Panel
     private void PickAttribute(Rectangle anchor)
     {
         if (doc == null || !editable || palette == null || PickPopup.JustClosed) return;
-        var choices = WikiStore.KnownAttributeNames(novelDir).Where(n => !doc.Attributes.Any(a => a.Key.Equals(n, StringComparison.OrdinalIgnoreCase))).ToList();
-        var pop = new PickPopup(palette, choices, "항목", "선택할 항목이 없어요", "맞는 항목이 없어요");
+        var choices = WikiStore.AllAttributeNames(novelDir).Where(n => !doc.Attributes.Any(a => a.Key.Equals(n, StringComparison.OrdinalIgnoreCase))).ToList();
+        string dir = novelDir;
+        var pop = new AttrPopup(palette, choices, WikiStore.AttributeFavorites(dir), WikiStore.AttributeGlyph);
         pop.Picked += AddAttribute;
         pop.Created += AddAttribute;
-        pop.ShowBelow(anchor, FindForm(), Math.Max(S(300), anchor.Width));
+        pop.FavoriteToggled += (n, f) => { try { WikiStore.SetAttributeFavorite(dir, n, f); } catch (Exception ex) { AppLog.Write("속성 즐겨찾기를 저장하지 못했어요", ex); } };
+        attrPop = pop;
+        pop.FormClosed += (_, _) => { if (attrPop == pop) attrPop = null; };
+        pop.ShowAt(anchor, FindForm(), Math.Max(S(300), anchor.Width));
     }
 
     private void AddAttribute(string rawName)
@@ -613,6 +661,11 @@ internal sealed class WikiPage : Panel
         private Rectangle RowRect(int i) => new(0, RowHt * (i + 1), Width, RowHt);
         private Rectangle ValueRect(int i) { var r = RowRect(i); return new Rectangle(LabelW, r.Y, Width - LabelW, r.Height); }
         private Rectangle AddRow => RowRect(items.Count);
+        /// <summary>[속성 추가] 줄(비어 있으면 상자 전체)의 화면 좌표.</summary>
+        public Rectangle AddAnchorScreen => RectangleToScreen(items.Count == 0 ? new Rectangle(0, 0, Width, Height) : AddRow);
+        private int XW => readOnly ? 0 : S(34); // 줄 오른쪽 끝의 ✕(지우기) 칸 폭
+        private Rectangle XRect(int i) { var r = RowRect(i); return new Rectangle(r.Right - XW, r.Y, XW, r.Height); }
+        private int hoverX = -1;
 
         private int IndexAt(Point pt)
         {
@@ -631,7 +684,7 @@ internal sealed class WikiPage : Panel
             editor.Text = items[i].Value;
             editor.BackColor = palette != null ? WikiUi.Surface(palette) : Color.White;
             editor.ForeColor = palette?.Fore ?? Color.Black;
-            editor.SetBounds(r.X + S(12), r.Y + (r.Height - editor.PreferredHeight) / 2, r.Width - S(24), editor.PreferredHeight);
+            editor.SetBounds(r.X + S(12), r.Y + (r.Height - editor.PreferredHeight) / 2, r.Width - S(24) - XW, editor.PreferredHeight);
             editor.Visible = true;
             editor.Focus();
             editor.SelectAll();
@@ -651,16 +704,31 @@ internal sealed class WikiPage : Panel
             Invalidate();
         }
 
-        protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); int i = IndexAt(e.Location); if (i != hover) { hover = i; Invalidate(); } Cursor = i >= 0 && !(i < items.Count && e.X < LabelW) ? Cursors.Hand : Cursors.Default; }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hover = -1; Invalidate(); }
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            int i = IndexAt(e.Location);
+            int hx = !readOnly && i >= 0 && i < items.Count && XRect(i).Contains(e.Location) ? i : -1;
+            if (i != hover || hx != hoverX) { hover = i; hoverX = hx; Invalidate(); }
+            Cursor = i >= 0 && !(i < items.Count && e.X < LabelW) ? Cursors.Hand : Cursors.Default;
+        }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hover = -1; hoverX = -1; Invalidate(); }
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
             if (readOnly) return;
             int i = IndexAt(e.Location);
             if (i < 0) return;
-            if (i == items.Count) { if (e.Button == MouseButtons.Left) AddRequested?.Invoke(RectangleToScreen(items.Count == 0 ? new Rectangle(0, 0, Width, Height) : AddRow)); return; }
-            if (e.Button == MouseButtons.Left) { if (e.X >= LabelW) BeginEdit(i); }
+            if (i == items.Count) { if (e.Button == MouseButtons.Left) AddRequested?.Invoke(AddAnchorScreen); return; }
+            if (e.Button == MouseButtons.Left)
+            {
+                if (XRect(i).Contains(e.Location))
+                {
+                    // ✕: 값이 적혀 있으면 한 번 묻고 지운다
+                    if (items[i].Value.Length == 0 || MessageBox.Show(FindForm(), $"'{items[i].Key}' 속성을 지울까요?", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes) RemoveRequested?.Invoke(i);
+                }
+                else if (e.X >= LabelW) BeginEdit(i);
+            }
             else if (e.Button == MouseButtons.Right && e.X < LabelW && MessageBox.Show(FindForm(), $"'{items[i].Key}' 속성을 지울까요?", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes) RemoveRequested?.Invoke(i);
         }
 
@@ -699,9 +767,17 @@ internal sealed class WikiPage : Panel
                 var vr = ValueRect(i);
                 using (var b = new SolidBrush(i == hover && !readOnly ? Themes.Blend(surface, p.Accent, 0.06f) : surface)) g.FillRectangle(b, vr.X, vr.Y, vr.Width, vr.Height - 1);
                 g.DrawLine(gridPen, 0, r.Y, Width, r.Y);
-                TextRenderer.DrawText(g, "\uE8EC", icon, new Rectangle(S(12), r.Y, S(20), r.Height), p.Dim, flags | TextFormatFlags.HorizontalCenter);
+                TextRenderer.DrawText(g, WikiStore.AttributeGlyph(items[i].Key), icon, new Rectangle(S(12), r.Y, S(20), r.Height), p.Dim, flags | TextFormatFlags.HorizontalCenter);
                 TextRenderer.DrawText(g, items[i].Key, bold, new Rectangle(S(38), r.Y, lw - S(46), r.Height), p.Fore, flags);
-                if (editing != i) TextRenderer.DrawText(g, items[i].Value, Font, new Rectangle(vr.X + S(12), vr.Y, vr.Width - S(24), vr.Height), p.Fore, flags);
+                if (editing != i) TextRenderer.DrawText(g, items[i].Value, Font, new Rectangle(vr.X + S(12), vr.Y, vr.Width - S(24) - XW, vr.Height), p.Fore, flags);
+                if (!readOnly)
+                {
+                    var xr = XRect(i);
+                    float cx = xr.X + xr.Width / 2f, cy = xr.Y + xr.Height / 2f, d = S(4);
+                    using var xp = new Pen(hoverX == i ? p.Accent : p.Dim, Math.Max(1.4f, DeviceDpi / 96f * 1.4f)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+                    g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
+                    g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
+                }
             }
             if (!readOnly)
             {

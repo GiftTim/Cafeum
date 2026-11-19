@@ -30,6 +30,22 @@ internal static class PurpleIcons
         return bmp;
     }
 
+    /// <summary>데이터베이스(위키): 겹친 원통 — 위 타원, 양옆 세로선, 아래로 굽은 두 줄.</summary>
+    public static Bitmap Database(int size, Color? color = null)
+    {
+        var bmp = Canvas(size, color ?? Purple, out var g, out var pen);
+        using (g) using (pen)
+        {
+            float s = size, left = 0.18f * s, w = 0.64f * s, eh = 0.20f * s, top = 0.14f * s, bottom = 0.86f * s;
+            g.DrawEllipse(pen, left, top, w, eh);
+            g.DrawLine(pen, left, top + eh / 2, left, bottom - eh / 2);
+            g.DrawLine(pen, left + w, top + eh / 2, left + w, bottom - eh / 2);
+            g.DrawArc(pen, left, top + (bottom - top - eh) / 2, w, eh, 0, 180);
+            g.DrawArc(pen, left, bottom - eh, w, eh, 0, 180);
+        }
+        return bmp;
+    }
+
     /// <summary>이어진 네 점: 왼쪽 위 네모 · 오른쪽 위 동그라미 · 왼쪽 아래 동그라미 · 오른쪽 아래 네모, 가로 두 줄과 오른쪽 세로 한 줄로 연결.</summary>
     public static Bitmap Nodes(int size, Color? color = null)
     {

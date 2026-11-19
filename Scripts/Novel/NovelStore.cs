@@ -592,6 +592,31 @@ internal static class NovelStore
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new(); }
     }
 
+    /// <summary>넣을 경로들에서 참고 자료로 쓸 수 있는 파일을 모은다. 폴더는 그 안(하위 폴더 포함)의 소설 · 만화 · PDF · 한글 문서 · 이미지를 이름 순으로 읽는다.
+    /// 숨김 파일 · 숨김 폴더와 작품의 "참고 자료" 폴더 자체는 건너뛴다.</summary>
+    public static List<string> ExpandReferenceSources(string novelDir, IEnumerable<string> paths)
+    {
+        var result = new List<string>();
+        string own = Path.GetFullPath(ReferenceDir(novelDir));
+        foreach (var p in paths)
+        {
+            if (Directory.Exists(p))
+            {
+                if (string.Equals(Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar), own.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)) continue;
+                try
+                {
+                    var found = new DirectoryInfo(p).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System })
+                        .Where(f => ReferenceExtensions.Contains(f.Extension.ToLowerInvariant()) && !f.Name.StartsWith('.'))
+                        .OrderBy(f => f.FullName, NaturalStringComparer.Instance).Select(f => f.FullName);
+                    result.AddRange(found);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+            else result.Add(p);
+        }
+        return result;
+    }
+
     /// <summary>파일들을 참고 자료 폴더로 복사한다(같은 이름이 있으면 뒤에 숫자). 넣은 파일 경로들을 돌려준다.</summary>
     public static List<string> AddReferences(string novelDir, IEnumerable<string> files)
     {

@@ -151,6 +151,7 @@ internal sealed class HeadingEditor : RichTextBox
         }
         bool same = list.Where(h => h.Item4.Length > 0).SequenceEqual(heads.Where(h => h.Title.Length > 0));
         heads = list;
+        headsTextLen = text.Length;
         if (IsHandleCreated) Invalidate(new Rectangle(0, 0, Math.Max(1, SideMargin), ClientSize.Height));
         if (!same) HeadingsChanged?.Invoke(heads.Where(h => h.Title.Length > 0).Select(h => (h.Level, $"{h.Num} {h.Title}", h.Offset)).ToList());
     }
@@ -173,7 +174,45 @@ internal sealed class HeadingEditor : RichTextBox
         base.OnTextChanged(e);
         if (busy) return;
         RecomputeHeads();
+        QueueNormalize();
         ContentChanged?.Invoke();
+    }
+
+    private bool normalizeQueued;
+    private void QueueNormalize()
+    {
+        if (normalizeQueued || !IsHandleCreated) return;
+        normalizeQueued = true;
+        BeginInvoke(() => { normalizeQueued = false; NormalizeParagraphs(); });
+    }
+
+    /// <summary>줄마다 제목 깊이에 맞는 들여쓰기 · 위아래 여백으로 바로잡는다. 글을 고치다 문단 서식이 앞 줄에서 넘어오거나 빠져서
+    /// (보통 글이 제목처럼 들여 써지고, 제목이 들여쓰기를 잃어 번호가 밖으로 나가는 일) 어긋난 줄만 고친다. 커서는 건드리지 않는다(TOM).</summary>
+    private void NormalizeParagraphs()
+    {
+        if (busy || !IsHandleCreated || Tom is not { } doc) return;
+        try
+        {
+            int off = 0;
+            foreach (var line in Text.Split('\n'))
+            {
+                if (line.Length > 0)
+                {
+                    int level = LevelAt(off);
+                    float want = level == 0 ? 0f : IndentFor(level) * 72f / DeviceDpi; // TOM은 포인트
+                    float before = level == 2 ? 14f : level == 3 ? 10f : level == 4 ? 8f : 0f, after = level > 0 ? 9f : 0f;
+                    dynamic para = doc.Range(off, off).Para;
+                    float cur = (float)para.LeftIndent;
+                    bool badIndent = level == 0 ? cur > 2f : Math.Abs(cur - want) > want * 0.4f;
+                    if (badIndent) para.SetIndents(0f, want, -9999999f);
+                    if (Math.Abs((float)para.SpaceBefore - before) > 0.5f) para.SpaceBefore = before;
+                    if (Math.Abs((float)para.SpaceAfter - after) > 0.5f) para.SpaceAfter = after;
+                }
+                off += line.Length + 1;
+            }
+        }
+        catch { }
+        Invalidate();
     }
 
     // ───────── 글 칸 폭(가운데 정렬) · 번호 그리기 ─────────
@@ -197,8 +236,36 @@ internal sealed class HeadingEditor : RichTextBox
 
     protected override void WndProc(ref Message m)
     {
+        if (m.Msg == WM_MOUSEWHEEL && WheelIntercept != null)
+        {
+            int delta = (short)(((long)m.WParam >> 16) & 0xFFFF);
+            if (WheelIntercept.Invoke(delta)) return;
+        }
         base.WndProc(ref m);
-        if (m.Msg == WM_PAINT && heads.Count > 0) PaintNumbers();
+        if (m.Msg == WM_PAINT && heads.Count > 0)
+        {
+            // 한글을 조합하는 도중에는 글이 바뀌어도 TextChanged가 늦게 와서 항목 위치(heads)가 옛 값이다 — 그대로 그리면 번호 · 밑줄이 엉뚱한 줄 · 자리에 찍힌다.
+            // 글 길이가 달라졌으면 그리기 전에 다시 센다.
+            if (!inPaintRecalc && !busy && Text.Length != headsTextLen)
+            {
+                inPaintRecalc = true;
+                try { RecomputeHeads(); } finally { inPaintRecalc = false; }
+            }
+            PaintNumbers();
+        }
+        else if ((m.Msg == WM_IME_COMPOSITION || m.Msg == WM_IME_ENDCOMPOSITION) && !busy) QueueRecomputeHeads();
+    }
+
+    private const int WM_IME_COMPOSITION = 0x010F, WM_IME_ENDCOMPOSITION = 0x010E;
+    private int headsTextLen = -1;
+    private bool inPaintRecalc, recomputeQueued;
+
+    /// <summary>조합 중 글이 바뀔 때마다 항목 위치를 다시 세고 번호를 다시 그린다(커서는 건드리지 않는다).</summary>
+    private void QueueRecomputeHeads()
+    {
+        if (recomputeQueued || !IsHandleCreated) return;
+        recomputeQueued = true;
+        BeginInvoke(() => { recomputeQueued = false; if (!busy && !inPaintRecalc) { RecomputeHeads(); Invalidate(); } });
     }
 
     /// <summary>커서가 든 문단의 위 · 아래 여백(제목은 밑줄이 들어갈 만큼 띄운다, 보통 글은 0).</summary>
@@ -331,6 +398,22 @@ internal sealed class HeadingEditor : RichTextBox
         return sb.ToString();
     }
 
+    private const int WM_MOUSEWHEEL = 0x020A;
+    /// <summary>휠을 굴렸다(delta). true를 돌려주면 이 상자는 스크롤하지 않는다(위의 머리를 먼저 올리고 내리려고).</summary>
+    public event Func<int, bool>? WheelIntercept;
+
+    /// <summary>글이 위로 스크롤된 높이(px).</summary>
+    public int ScrollY
+    {
+        get
+        {
+            if (!IsHandleCreated) return 0;
+            var pt = Point.Empty;
+            SendMessage(Handle, EM_GETSCROLLPOS, IntPtr.Zero, ref pt);
+            return pt.Y;
+        }
+    }
+
     /// <summary>맨 위로 스크롤하고 커서를 글 맨 앞에.</summary>
     public void ScrollToTop()
     {
@@ -399,10 +482,20 @@ internal sealed class HeadingEditor : RichTextBox
             }
             return;
         }
-        if (e.KeyCode == Keys.Enter && !e.Shift && SelectionLength == 0)
+        if (e.KeyCode == Keys.Enter && e.Shift && SelectionLength > 0)
+        {
+            // Shift+Enter도 일반 Enter와 같게(소프트 줄바꿈 글자가 들어가 줄 · 번호 계산이 어긋나지 않게)
+            e.SuppressKeyPress = e.Handled = true;
+            SelectedText = "\n";
+            return;
+        }
+        if (e.KeyCode == Keys.Enter && SelectionLength == 0)
         {
             int idx = SelectionStart;
-            if (idx == LineEnd(idx) && LevelOf(SelectionFont) > 0)
+            // 제목 줄인지는 커서 자리 글꼴이 아니라 그 줄 첫 글자로 본다(줄 끝 글자가 다른 글꼴이면 SelectionFont가 비거나 어긋나 제목 줄로 안 보이고, 그러면 다음 줄이 들여쓰기 · 서식을 물려받는다)
+            int curLs = LineStart(idx);
+            int lineLevel = LineEnd(idx) > curLs ? LevelAt(curLs) : LevelOf(SelectionFont);
+            if (idx == LineEnd(idx) && lineLevel > 0)
             {
                 // 제목 줄 끝에서 Enter: 다음 줄은 보통 글로
                 e.SuppressKeyPress = e.Handled = true;
@@ -411,6 +504,13 @@ internal sealed class HeadingEditor : RichTextBox
                 SelectionColor = ForeColor;
                 SelectionIndent = 0;
                 SpaceAround(0);
+                return;
+            }
+            if (e.Shift)
+            {
+                // Shift+Enter도 일반 Enter와 같은 새 문단으로(소프트 줄바꿈 글자가 들어가지 않게)
+                e.SuppressKeyPress = e.Handled = true;
+                SelectedText = "\n";
                 return;
             }
         }

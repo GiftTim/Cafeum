@@ -63,7 +63,10 @@ internal sealed class EpisodePanel : Panel
         tree.WikiChosen += (p, split) => (split ? WikiOpenSplitRequested : WikiOpenRequested)?.Invoke(p);
         tree.AddEpisodeRequested += ShowAddDropDown;
         tree.SortRefsRequested += ShowRefSortMenu;
-        tree.AddWikiRequested += CreateWiki;
+        tree.AddWikiRequested += ShowAddWikiMenu;
+        tree.FolderMenuRequested += ShowFolderMenu;
+        tree.WikiFolderDropped += (path, to, from) => { if (!string.Equals(to, from, StringComparison.OrdinalIgnoreCase)) BeginInvoke(() => ChangeWikiClass(path, to, from)); };
+        tree.CategoryMenuRequested += ShowCategoryMenu;
         tree.EpisodeMenuRequested += ShowEpisodeMenu;
         tree.GroupMenuRequested += ShowGroupMenu;
         tree.WikiMenuRequested += ShowWikiMenu;
@@ -139,6 +142,7 @@ internal sealed class EpisodePanel : Panel
     {
         if (NovelPath == null) return;
         WikiDocs = WikiStore.List(NovelPath);
+        tree.SetWikiClasses(WikiStore.ClassParents(NovelPath), WikiStore.ClassCategories(NovelPath));
         tree.SetWiki(WikiDocs);
         card.SetStats(episodes.Count, WikiDocs.Count);
         WikiReloaded?.Invoke();
@@ -200,8 +204,26 @@ internal sealed class EpisodePanel : Panel
         RefsReloaded?.Invoke();
     }
 
-    /// <summary>[참고 자료 +]: 참고할 소설 · 만화 · 이미지 파일을 골라 작품의 "참고 자료" 폴더로 복사해 넣는다.</summary>
+    /// <summary>[참고 자료 +]: 파일 또는 폴더를 골라 작품의 "참고 자료" 폴더로 복사해 넣는다(누르면 [파일 · 폴더] 목록이 뜬다).</summary>
     public void AddReferences()
+    {
+        if (NovelPath == null) return;
+        addDropDown?.Dispose();
+        var font = new Font(NovelStore.UiFontFamily, 9.5f);
+        var gray = Color.FromArgb(150, 148, 146);
+        var panel = new IconMenuPanel(font, DeviceDpi, BackColor, ForeColor);
+        panel.Add("파일", PurpleIcons.Document(S(40), gray), () => BeginInvoke(PickReferenceFiles));
+        panel.Add("폴더", PurpleIcons.Folder(S(40), gray), () => BeginInvoke(PickReferenceFolder));
+        panel.Size = panel.MeasureAll();
+        var dd = addDropDown = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
+        MenuGuard.Attach(dd);
+        dd.Items.Add(new ToolStripControlHost(panel) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = panel.Size });
+        panel.Chosen += () => dd.Close();
+        var at = Cursor.Position;
+        dd.Show(new Point(at.X - S(12), at.Y + S(14))); // 누른 버튼 바로 밑
+    }
+
+    private void PickReferenceFiles()
     {
         if (NovelPath == null) return;
         using var dlg = new OpenFileDialog
@@ -214,11 +236,25 @@ internal sealed class EpisodePanel : Panel
         if (dlg.ShowDialogOver(FindForm()) == DialogResult.OK) AddReferenceFiles(dlg.FileNames);
     }
 
-    /// <summary>파일들을 참고 자료로 넣는다(파일 트리에 끌어다 놓아도 여기로 온다).</summary>
-    public void AddReferenceFiles(IEnumerable<string> files)
+    private void PickReferenceFolder()
     {
         if (NovelPath == null) return;
-        var list = files.ToList();
+        using var dlg = new FolderBrowserDialog { Description = "참고 자료로 넣을 폴더를 고르세요. 그 안(하위 폴더 포함)의 소설 · 만화 · PDF · 한글 문서 · 이미지를 모두 읽어 넣어요.", UseDescriptionForTitle = true };
+        if (dlg.ShowDialogOver(FindForm()) == DialogResult.OK) AddReferenceFiles(new[] { dlg.SelectedPath });
+    }
+
+    /// <summary>파일 · 폴더들을 참고 자료로 넣는다(파일 트리에 끌어다 놓아도 여기로 온다). 폴더는 안의 쓸 수 있는 파일을 모두 읽는다.</summary>
+    public void AddReferenceFiles(IEnumerable<string> paths)
+    {
+        if (NovelPath == null) return;
+        var input = paths.ToList();
+        bool hasFolder = input.Any(Directory.Exists);
+        var list = NovelStore.ExpandReferenceSources(NovelPath, input);
+        if (hasFolder)
+        {
+            if (list.Count == 0) { Warn("폴더 안에 참고 자료로 넣을 수 있는 파일이 없어요(소설 · 만화 zip · PDF · 한글 문서 · 이미지만 돼요)."); return; }
+            if (list.Count > 30 && MessageBox.Show(FindForm(), $"폴더에서 파일 {list.Count}개를 찾았어요. 모두 참고 자료로 복사해 넣을까요?", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        }
         var skipped = list.Where(f => !File.Exists(f) || !NovelStore.ReferenceExtensions.Contains(Path.GetExtension(f).ToLowerInvariant())).ToList();
         try { NovelStore.AddReferences(NovelPath, list); }
         catch (Exception ex) { Warn($"참고 자료를 넣지 못했어요: {ex.Message}"); }
@@ -360,10 +396,13 @@ internal sealed class EpisodePanel : Panel
     }
 
     /// <summary>[+ 새 위키 문서] · Alt+W: 만들고 바로 연다.</summary>
-    public void CreateWiki()
+    public void CreateWiki() => CreateWikiIn(null, null);
+
+    /// <summary>대분류(카테고리) · 분류를 미리 정해 놓고 새 위키 문서를 만든다(마인드맵 점 위 [문서 만들기]).</summary>
+    public void CreateWikiIn(string? category, string? cls)
     {
         if (NovelPath == null) return;
-        if (WikiStore.AskCreate(FindForm(), NovelPath) is string p) { ReloadWiki(); WikiOpenRequested?.Invoke(p); }
+        if (WikiStore.AskCreate(FindForm(), NovelPath, category, cls) is string p) { ReloadWiki(); WikiOpenRequested?.Invoke(p); }
     }
 
     private ContextMenuStrip? menu;
@@ -395,6 +434,142 @@ internal sealed class EpisodePanel : Panel
         Reload();
     }
 
+
+    /// <summary>[새 위키 문서 ▸ 분류]: 맨 위 분류(폴더)를 만든다. 하위 분류는 폴더를 우클릭해서 만든다.</summary>
+    public string? CreateWikiClass(string? parent = null, string? category = null)
+    {
+        if (NovelPath is not string dir) return null;
+        using var dlg = new WikiClassDialog(dir, parent, category);
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return null;
+        try
+        {
+            WikiStore.AddClass(dir, dlg.NameText, dlg.Parents, dlg.CategoryKey, dlg.SummaryText);
+            ReloadWiki();
+            return dlg.NameText;
+        }
+        catch (Exception ex) { MessageBox.Show(FindForm(), $"분류를 만들지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); return null; }
+    }
+
+    private ContextMenuStrip? folderMenu;
+
+    /// <summary>분류 폴더를 우클릭했을 때: 하위 분류 만들기 · 분류 지우기.</summary>
+    public void ShowFolderMenu(string name, Point screen)
+    {
+        folderMenu?.Dispose();
+        var m = folderMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
+        m.Items.Add("하위 분류 만들기…", null, (_, _) => BeginInvoke(() => CreateWikiClass(name)));
+        m.Items.Add("분류 지우기…", null, (_, _) => BeginInvoke(() =>
+        {
+            if (NovelPath is not string dir) return;
+            if (MessageBox.Show(FindForm(), $"'{name}' 분류를 지울까요?\n이 분류에 넣어 둔 문서에서도 빠지고, 하위 분류는 한 단계 위로 올라가요. 문서는 지워지지 않아요.", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            try { WikiStore.DeleteClass(dir, name); ReloadWiki(); }
+            catch (Exception ex) { MessageBox.Show(FindForm(), $"분류를 지우지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }));
+        m.Show(screen);
+    }
+
+    /// <summary>파일 트리 [위키 문서 +]: 에피소드 [+]와 같은 아이콘 목록(문서 · 분류 · 템플릿).</summary>
+    private void ShowAddWikiMenu()
+    {
+        if (NovelPath == null) return;
+        addDropDown?.Dispose();
+        var font = new Font(NovelStore.UiFontFamily, 9.5f);
+        var gray = Color.FromArgb(150, 148, 146);
+        var panel = new IconMenuPanel(font, DeviceDpi, BackColor, ForeColor);
+        panel.Add("문서", PurpleIcons.Document(S(40), gray), () => BeginInvoke(CreateWiki));
+        panel.Add("분류", PurpleIcons.Folder(S(40), gray), () => BeginInvoke(() => CreateWikiClass()));
+        panel.Add("템플릿", PurpleIcons.Copy(S(40), gray), () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
+        panel.Size = panel.MeasureAll();
+        var dd = addDropDown = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
+        MenuGuard.Attach(dd);
+        dd.Items.Add(new ToolStripControlHost(panel) { Margin = Padding.Empty, Padding = Padding.Empty, AutoSize = false, Size = panel.Size });
+        panel.Chosen += () => dd.Close();
+        var at = Cursor.Position;
+        dd.Show(new Point(at.X - S(12), at.Y + S(14))); // 누른 + 바로 밑
+    }
+
+    /// <summary>대분류(카테고리) 줄을 우클릭했을 때: 그 대분류에 분류 만들기.</summary>
+    private void ShowCategoryMenu(string categoryKey, Point screen)
+    {
+        folderMenu?.Dispose();
+        var m = folderMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
+        m.Items.Add("이 대분류에 분류 만들기…", null, (_, _) => BeginInvoke(() => CreateWikiClass(null, categoryKey)));
+        m.Show(screen);
+    }
+
+    /// <summary>문서 우클릭 메뉴의 [분류에 넣기]: 이 작품의 분류(폴더)들이 체크 목록으로 나온다. 여러 분류에 넣을 수 있고, 체크를 끄면 그 분류에서 빠진다.</summary>
+    private ToolStripMenuItem BuildClassMenu(string path)
+    {
+        var top = new ToolStripMenuItem("분류에 넣기");
+        try
+        {
+            if (NovelPath is string nd)
+            {
+                var doc = WikiStore.Load(path);
+                var names = WikiStore.KnownClasses(nd).OrderBy(n => n, NaturalStringComparer.Instance).ToList();
+                foreach (var cname in names)
+                {
+                    bool has = doc.Tags.Contains(cname, StringComparer.OrdinalIgnoreCase);
+                    var item = new ToolStripMenuItem(cname) { Checked = has };
+                    item.Click += (_, _) => BeginInvoke(() => SetWikiClass(path, cname, !has));
+                    top.DropDownItems.Add(item);
+                }
+                if (names.Count > 0) top.DropDownItems.Add(new ToolStripSeparator());
+                if (doc.Tags.Count > 0) top.DropDownItems.Add("모든 분류에서 빼기", null, (_, _) => BeginInvoke(() => ChangeWikiClass(path, null, null, removeAll: true)));
+                top.DropDownItems.Add("새 분류에 넣기…", null, (_, _) => BeginInvoke(() => { if (CreateWikiClass() is string made) SetWikiClass(path, made, true); }));
+            }
+        }
+        catch (Exception ex) { AppLog.Write("분류 메뉴를 만들지 못했어요", ex); }
+        return top;
+    }
+
+    /// <summary>문서를 분류(폴더)에 넣거나 뺀다. 열려 있던 문서 칸은 저장하고 닫았다가 바꾼 뒤 다시 연다.</summary>
+    private void SetWikiClass(string path, string cls, bool add) => ChangeWikiClass(path, add ? cls : null, add ? null : cls);
+
+    /// <summary>위키 문서 하나를 고친다(열려 있던 문서 칸은 저장하고 닫았다가 고친 뒤 다시 연다).</summary>
+    public void EditWikiDoc(string path, Action<WikiDoc> edit)
+    {
+        PathAboutToChange?.Invoke(path);
+        try
+        {
+            var d = WikiStore.Load(path);
+            edit(d);
+            WikiStore.Save(d);
+        }
+        catch (Exception ex) { Warn($"고치지 못했어요: {ex.Message}"); }
+        ReloadWiki();
+        EpisodeRenamed?.Invoke(path, path);
+    }
+
+    /// <summary>만들어 둔 분류의 요약 · 대분류 · 상위 분류를 고친다(null은 그대로).</summary>
+    public void EditWikiClass(string name, string? summary = null, string? category = null, List<string>? parents = null)
+    {
+        if (NovelPath is not string dir) return;
+        try { WikiStore.UpdateClass(dir, name, summary, category, parents); }
+        catch (Exception ex) { Warn($"고치지 못했어요: {ex.Message}"); }
+        ReloadWiki();
+    }
+
+    /// <summary>문서의 분류를 바꾼다: remove 분류에서 빼고(null이면 안 뺀다) add 분류에 넣는다(null이면 안 넣는다). removeAll이면 모든 분류에서 뺀다.</summary>
+    private void ChangeWikiClass(string path, string? add, string? remove, bool removeAll = false)
+    {
+        // 열려 있던 문서 칸은 저장하고 닫았다가, 바꾼 뒤 같은 문서를 다시 연다(이름 바꾸기와 같은 방식 — 칸이 소설 메인으로 바뀌어 버리지 않게)
+        PathAboutToChange?.Invoke(path);
+        try
+        {
+            var d = WikiStore.Load(path);
+            if (removeAll) d.Tags.Clear();
+            if (remove != null) d.Tags.RemoveAll(t => t.Equals(remove, StringComparison.OrdinalIgnoreCase));
+            if (add != null && !d.Tags.Contains(add, StringComparer.OrdinalIgnoreCase)) d.Tags.Add(add);
+            WikiStore.Save(d);
+        }
+        catch (Exception ex) { Warn($"분류를 바꾸지 못했어요: {ex.Message}"); }
+        ReloadWiki();
+        EpisodeRenamed?.Invoke(path, path);
+    }
+
     public void ShowWikiMenu(string path, Point screen)
     {
         menu?.Dispose();
@@ -402,6 +577,7 @@ internal sealed class EpisodePanel : Panel
         MenuGuard.Attach(m);
         m.Items.Add("열기", null, (_, _) => WikiOpenRequested?.Invoke(path));
         m.Items.Add("PIP 모드로 열기", null, (_, _) => PipRequested?.Invoke(path));
+        m.Items.Add(BuildClassMenu(path));
         m.Items.Add("탐색기에서 보기", null, (_, _) => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""));
         m.Items.Add(new ToolStripSeparator());
         m.Items.Add("휴지통으로 보내기", null, (_, _) => BeginInvoke(() =>
@@ -528,7 +704,7 @@ internal sealed class EpisodePanel : Panel
 /// </summary>
 internal sealed class NovelTreeView : Control
 {
-    private enum Kind { Section, Episode, Group, Category, Wiki, Ref }
+    private enum Kind { Section, Episode, Group, Category, Folder, Wiki, Ref }
     private sealed record Row(Kind Kind, string Key, string Text, int Index = 0, WikiCategory? Cat = null, int Count = 0, string? Sub = null);
 
     private readonly VScrollBar scroll = new() { Dock = DockStyle.Right, Visible = false };
@@ -553,6 +729,7 @@ internal sealed class NovelTreeView : Control
     private bool reorder; // 에피소드 줄의 [순서 바꾸기]가 켜져 있다(다시 눌러야 끝, 그동안 끌어서 열기는 쉰다)
     private Point downAt;
     private bool dragging;
+    private int folderDrop = -1; // 위키 문서를 끌어 놓으려는 폴더 · 대분류 줄
 
     public event Action<string, bool>? EpisodeChosen;
     public event Action<string, bool>? WikiChosen;
@@ -564,6 +741,12 @@ internal sealed class NovelTreeView : Control
     /// <summary>그룹 줄을 오른쪽 눌렀다(그룹 이름, 화면 좌표).</summary>
     public event Action<string, Point>? GroupMenuRequested;
     public event Action<string, Point>? WikiMenuRequested;
+    /// <summary>분류 폴더를 우클릭했다(분류 이름, 화면 좌표).</summary>
+    public event Action<string, Point>? FolderMenuRequested;
+    /// <summary>위키 문서를 끌어 분류 폴더 · 대분류 줄에 놓았다(문서 경로, 놓은 폴더 — 대분류 줄이면 null, 끌어 온 폴더 — 폴더 밖 문서면 null). 폴더에 놓으면 옮기고, 대분류 줄에 놓으면 끌어 온 폴더에서 뺀다.</summary>
+    public event Action<string, string?, string?>? WikiFolderDropped;
+    /// <summary>대분류(카테고리) 줄을 우클릭했다(카테고리 키, 화면 좌표).</summary>
+    public event Action<string, Point>? CategoryMenuRequested;
     public event Action<Point>? SnapDragging;
     public event Action<string, Point?>? SnapDropped;
     public event Action<List<string>>? EpisodeOrderChanged;
@@ -612,6 +795,10 @@ internal sealed class NovelTreeView : Control
         groupMap.Clear();
         foreach (var (k, v) in map) groupMap[k] = v;
     }
+    private IReadOnlyDictionary<string, List<string>> wikiParents = new Dictionary<string, List<string>>();
+    private IReadOnlyDictionary<string, string> wikiCats = new Dictionary<string, string>();
+    /// <summary>분류(폴더) 계층 · 대분류 표를 받아 둔다. SetWiki 앞에 부른다.</summary>
+    public void SetWikiClasses(IReadOnlyDictionary<string, List<string>> parents, IReadOnlyDictionary<string, string> cats) { wikiParents = parents; wikiCats = cats; }
     public void SetWiki(List<WikiDoc> docs) { wiki = docs; Rebuild(); }
 
     public long RefreshCounts()
@@ -647,13 +834,41 @@ internal sealed class NovelTreeView : Control
         }
         rows.Add(new Row(Kind.Section, "sec:wiki", "위키 문서", Count: wiki.Count));
         if (!collapsed.Contains("sec:wiki"))
+        {
+            // 대분류(카테고리) → 그 대분류의 분류 폴더들(계층) → 분류 없는 문서
+            var map = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in wikiParents) map[kv.Key] = kv.Value;
+            foreach (var t in wiki.SelectMany(d => d.Tags)) map.TryAdd(t, new List<string>());
+            List<string> ParentsOf(string n) => map[n].Where(par => !par.Equals(n, StringComparison.OrdinalIgnoreCase) && map.ContainsKey(par)).ToList();
+            List<string> Children(string? par) => map.Keys.Where(k => par == null ? ParentsOf(k).Count == 0 : ParentsOf(k).Contains(par, StringComparer.OrdinalIgnoreCase)).OrderBy(k => k, NaturalStringComparer.Instance).ToList();
+            HashSet<string> Subtree(string root, HashSet<string>? seen = null)
+            {
+                seen ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (seen.Add(root)) foreach (var c in Children(root)) Subtree(c, seen);
+                return seen;
+            }
+            string CatOf(string n) => wikiCats.TryGetValue(n, out var c) ? c : "none";
+            void AddFolder(string name, int depth, WikiCategory cat, HashSet<string> path)
+            {
+                if (!path.Add(name)) return; // 순환 방지
+                var inFolder = wiki.Where(d => d.Tags.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList();
+                rows.Add(new Row(Kind.Folder, "fld:" + name, name, depth, cat, inFolder.Count));
+                if (collapsed.Contains("fld:" + name)) return;
+                foreach (var c in Children(name)) AddFolder(c, depth + 1, cat, new HashSet<string>(path, StringComparer.OrdinalIgnoreCase));
+                foreach (var d in inFolder) rows.Add(new Row(Kind.Wiki, d.Path, d.Title, depth + 1, WikiCategory.Find(d.Category), Sub: name));
+            }
             foreach (var cat in WikiCategory.All)
             {
-                var inCat = wiki.Where(d => d.Category == cat.Key).ToList();
-                rows.Add(new Row(Kind.Category, "cat:" + cat.Key, cat.Label, Cat: cat, Count: inCat.Count));
-                if (!collapsed.Contains("cat:" + cat.Key))
-                    foreach (var d in inCat) rows.Add(new Row(Kind.Wiki, d.Path, d.Title, Cat: cat));
+                var roots = Children(null).Where(r => CatOf(r) == cat.Key).ToList();
+                var loose = wiki.Where(d => d.Category == cat.Key && d.Tags.Count == 0).ToList();
+                var subtrees = roots.Select(r => Subtree(r)).ToList();
+                int total = loose.Count + wiki.Count(d => d.Tags.Count > 0 && subtrees.Any(st => d.Tags.Any(st.Contains)));
+                rows.Add(new Row(Kind.Category, "cat:" + cat.Key, cat.Label, Cat: cat, Count: total));
+                if (collapsed.Contains("cat:" + cat.Key)) continue;
+                foreach (var root in roots) AddFolder(root, 0, cat, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                foreach (var d in loose) rows.Add(new Row(Kind.Wiki, d.Path, d.Title, 0, cat));
             }
+        }
         rows.Add(new Row(Kind.Section, "sec:ref", "참고 자료", Count: refs.Count));
         if (!collapsed.Contains("sec:ref"))
             foreach (var f in refs) rows.Add(new Row(Kind.Ref, f, Path.GetFileName(f)));
@@ -714,8 +929,16 @@ internal sealed class NovelTreeView : Control
             }
             if (dragging)
             {
-                SnapDragging?.Invoke(PointToScreen(e.Location));
-                Cursor = Cursors.SizeAll;
+                // 위키 문서를 이 트리의 분류 폴더 · 대분류 줄 위로 끌면 그 줄을 표시한다(놓으면 분류에 넣거나 뺀다)
+                int di = -1;
+                if (dragIndex < rows.Count && rows[dragIndex].Kind == Kind.Wiki && ClientRectangle.Contains(e.Location))
+                {
+                    int t = IndexAt(e.Y);
+                    if (t >= 0 && rows[t].Kind is Kind.Folder or Kind.Category) di = t;
+                }
+                if (di != folderDrop) { folderDrop = di; Invalidate(); }
+                if (di < 0) SnapDragging?.Invoke(PointToScreen(e.Location));
+                Cursor = di >= 0 ? Cursors.Hand : Cursors.SizeAll;
                 return;
             }
         }
@@ -773,7 +996,7 @@ internal sealed class NovelTreeView : Control
         base.OnKeyDown(e);
         if (e.KeyCode != Keys.Escape || !dragging || dragIndex < 0) return;
         if (!reorder) SnapDropped?.Invoke(rows[dragIndex].Key, null); // 끌기 그만두기
-        dragIndex = -1; drop = null; // dragging은 그대로 둬서, 손을 뗄 때 클릭(열기)으로 치지 않게
+        dragIndex = -1; drop = null; folderDrop = -1; // dragging은 그대로 둬서, 손을 뗄 때 클릭(열기)으로 치지 않게
         Invalidate();
     }
 
@@ -810,7 +1033,18 @@ internal sealed class NovelTreeView : Control
             }
             if (dragging)
             {
-                if (dragIndex >= 0 && dragIndex < rows.Count) SnapDropped?.Invoke(rows[dragIndex].Key, PointToScreen(e.Location));
+                if (dragIndex >= 0 && dragIndex < rows.Count)
+                {
+                    var src = rows[dragIndex];
+                    if (src.Kind == Kind.Wiki && folderDrop >= 0 && folderDrop < rows.Count)
+                    {
+                        var target = rows[folderDrop];
+                        SnapDropped?.Invoke(src.Key, null); // 칸에 여는 미리보기는 끈다
+                        WikiFolderDropped?.Invoke(src.Key, target.Kind == Kind.Folder ? target.Text : null, src.Sub);
+                        return;
+                    }
+                    SnapDropped?.Invoke(src.Key, PointToScreen(e.Location));
+                }
                 return;
             }
             if (i < 0) return;
@@ -821,6 +1055,8 @@ internal sealed class NovelTreeView : Control
                 if (r.Kind == Kind.Episode) EpisodeMenuRequested?.Invoke(r.Key, PointToScreen(e.Location));
                 else if (r.Kind == Kind.Group) GroupMenuRequested?.Invoke(r.Text, PointToScreen(e.Location));
                 else if (r.Kind == Kind.Wiki) WikiMenuRequested?.Invoke(r.Key, PointToScreen(e.Location));
+                else if (r.Kind == Kind.Folder) FolderMenuRequested?.Invoke(r.Text, PointToScreen(e.Location));
+                else if (r.Kind == Kind.Category) CategoryMenuRequested?.Invoke(r.Cat!.Key, PointToScreen(e.Location));
                 else if (r.Kind == Kind.Ref) RefMenuRequested?.Invoke(r.Key, PointToScreen(e.Location));
                 return;
             }
@@ -846,6 +1082,7 @@ internal sealed class NovelTreeView : Control
                     break;
                 case Kind.Section:
                 case Kind.Category:
+                case Kind.Folder:
                 case Kind.Group:
                     if (!collapsed.Remove(r.Key)) collapsed.Add(r.Key);
                     Rebuild();
@@ -857,7 +1094,7 @@ internal sealed class NovelTreeView : Control
         }
         finally
         {
-            dragIndex = -1; drop = null;
+            dragIndex = -1; drop = null; folderDrop = -1;
             dragging = false;
             Invalidate();
         }
@@ -984,18 +1221,37 @@ internal sealed class NovelTreeView : Control
                             TextRenderer.DrawText(g, c, small, new Rectangle(rr.Right - cw - S(8), rr.Y, cw + 2, rr.Height), p.Dim, flags);
                             break;
                         }
+                        case Kind.Folder:
+                        {
+                            bool open = !collapsed.Contains(r.Key);
+                            int x0 = rr.X + S(24) + r.Index * S(18);
+                            TextRenderer.DrawText(g, open ? "\uE70D" : "\uE76C", chev, new Rectangle(x0, rr.Y, S(14), rr.Height), p.Dim, flags | TextFormatFlags.HorizontalCenter);
+                            TextRenderer.DrawText(g, "\uE8B7", icon, new Rectangle(x0 + S(18), rr.Y, S(18), rr.Height), p.Accent, flags | TextFormatFlags.HorizontalCenter);
+                            string fc = r.Count.ToString();
+                            int fcw = TextRenderer.MeasureText(fc, small, Size.Empty, TextFormatFlags.NoPadding).Width;
+                            TextRenderer.DrawText(g, fc, small, new Rectangle(rr.Right - fcw - S(8), rr.Y, fcw + 2, rr.Height), p.Dim, flags);
+                            TextRenderer.DrawText(g, r.Text, Font, new Rectangle(x0 + S(40), rr.Y, Math.Max(0, rr.Right - fcw - S(16) - (x0 + S(40))), rr.Height), p.Fore, flags);
+                            break;
+                        }
                         case Kind.Ref:
                             TextRenderer.DrawText(g, NovelStore.ReferenceGlyph(r.Key), icon, new Rectangle(rr.X + S(8), rr.Y, S(18), rr.Height), cur ? p.Accent : p.Dim, flags | TextFormatFlags.HorizontalCenter);
                             TextRenderer.DrawText(g, r.Text, cur ? bold : Font, new Rectangle(rr.X + S(32), rr.Y, rr.Width - S(40), rr.Height), p.Fore, flags);
                             break;
                         case Kind.Wiki:
-                            TextRenderer.DrawText(g, r.Cat!.Glyph, icon, new Rectangle(rr.X + S(42), rr.Y, S(18), rr.Height), cur ? p.Accent : Themes.Blend(p.Side, p.Accent, 0.7f), flags | TextFormatFlags.HorizontalCenter);
-                            TextRenderer.DrawText(g, r.Text, cur ? bold : Font, new Rectangle(rr.X + S(66), rr.Y, rr.Width - S(74), rr.Height), p.Fore, flags);
+                            TextRenderer.DrawText(g, r.Cat!.Glyph, icon, new Rectangle(rr.X + S(42) + r.Index * S(18), rr.Y, S(18), rr.Height), cur ? p.Accent : Themes.Blend(p.Side, p.Accent, 0.7f), flags | TextFormatFlags.HorizontalCenter);
+                            TextRenderer.DrawText(g, r.Text, cur ? bold : Font, new Rectangle(rr.X + S(66) + r.Index * S(18), rr.Y, rr.Width - S(74) - r.Index * S(18), rr.Height), p.Fore, flags);
                             break;
                     }
                 }
             }
             y += h;
+        }
+        if (dragging && folderDrop >= 0 && folderDrop < rows.Count)
+        {
+            var fr = new Rectangle(pad, RowTop(folderDrop) + S(1), w - pad * 2, RowH(rows[folderDrop]) - S(2));
+            using var fp = LibraryPalette.Rounded(fr, S(6));
+            using var fpen = new Pen(p.Accent, Math.Max(1.5f, DeviceDpi / 96f * 1.5f));
+            g.DrawPath(fpen, fp);
         }
         if (dragging && reorder && dropIndex >= 0)
         {
@@ -1621,7 +1877,10 @@ internal sealed class NovelOverview : Panel
     private int sortMode;
     private bool sortDesc;
     private readonly EpisodeList list;
-    private readonly WikiList wikiList;
+    private readonly WikiViewBar wikiBar;
+    private readonly WikiViewBase[] wikiViews;
+    private static int wikiViewMode; // 0 카테고리별 · 1 간단히 · 2 데이터베이스 · 3 마인드맵 (마지막으로 고른 보기를 이어 간다)
+    private WikiViewBase ActiveWikiView => wikiViews[Math.Clamp(wikiViewMode, 0, 3)];
     private readonly RefList refList;
     private int tab; // 0 = 에피소드, 1 = 위키, 2 = 메모
     private string query = "";
@@ -1665,8 +1924,9 @@ internal sealed class NovelOverview : Panel
         reorderButton = new IconButton(IconKind.Select, "순서 관리 모드") { Label = "순서 관리", Font = new Font(ff, 10.5f) };
         reorderButton.Click += (_, _) => { reorderButton.Selected = !reorderButton.Selected; ApplyListMode(); };
         episodesTab = new PillButton("에피소드") { Selected = true, Glyph = "", Font = new Font(ff, 10f, FontStyle.Bold) };
-        episodesTab.GlyphFactory = (sz, col) => PurpleIcons.Book(sz, col); // 위키 · 메모 아이콘과 같은 색(글자색에 맞춤)
+        episodesTab.GlyphFactory = (sz, col) => PurpleIcons.Book(sz, col);
         wikiTab = new PillButton("위키") { Glyph = "", Font = new Font(ff, 10f, FontStyle.Bold) };
+        wikiTab.GlyphFactory = (sz, col) => PurpleIcons.Database(sz, col); // 위키 탭: 데이터베이스 아이콘(글자색에 맞춤)
         memoTab = new PillButton("메모") { Glyph = "", Font = new Font(ff, 10f, FontStyle.Bold) };
         refTab = new PillButton("참고자료") { Glyph = "", Font = new Font(ff, 10f, FontStyle.Bold) };
         episodesTab.Click += (_, _) => SetTab(0);
@@ -1679,10 +1939,37 @@ internal sealed class NovelOverview : Panel
         search.Box.TextChanged += (_, _) => { searchTimer.Stop(); searchTimer.Start(); };
         searchTimer.Tick += (_, _) => { searchTimer.Stop(); ApplyQuery(search.Box.Text.Trim()); };
 
-        wikiList = new WikiList { OnMain = true, Font = new Font(ff, 11f), Visible = false };
-        wikiList.DocChosen += p => WikiOpenRequested?.Invoke(p);
-        wikiList.MenuRequested += source.ShowWikiMenu;
-        source.WikiReloaded += () => wikiList.SetDocs(FilteredWiki());
+        var dbView = new WikiDatabaseView();
+        wikiViews = new WikiViewBase[] { new WikiCardView(), new WikiSimpleView(), dbView, new WikiMindMapView() };
+        foreach (var v in wikiViews)
+        {
+            v.Font = new Font(ff, v is WikiCardView or WikiSimpleView ? 10f : 11f); // 카테고리별 · 간단히 보기는 작게
+            v.Visible = false;
+            v.DocChosen += p => WikiOpenRequested?.Invoke(p);
+            v.DocMenuRequested += source.ShowWikiMenu;
+            v.FolderMenuRequested += source.ShowFolderMenu;
+        }
+        // 데이터베이스 뷰에서 고친 것을 저장한다
+        dbView.SummaryEdited += (path, cls, text) => { if (path != null) source.EditWikiDoc(path, d => d.Summary = text); else if (cls != null) source.EditWikiClass(cls, summary: text); };
+        dbView.CategoryEdited += (path, cls, key) => { if (path != null) source.EditWikiDoc(path, d => d.Category = key); else if (cls != null) source.EditWikiClass(cls, category: key); };
+        dbView.ClassesEdited += (path, cls, list) =>
+        {
+            if (source.NovelPath is string nd) foreach (var n in list) WikiStore.AddClass(nd, n); // 목록에 없던 이름은 새로 만든다
+            if (path != null) source.EditWikiDoc(path, d => d.Tags = list.ToList());
+            else if (cls != null) source.EditWikiClass(cls, parents: list);
+        };
+        dbView.ImportanceEdited += (path, v) => source.EditWikiDoc(path, d => d.Importance = Math.Clamp(v, 1, 5));
+        dbView.TagsEdited += (path, list) => source.EditWikiDoc(path, d => d.Labels = list.ToList());
+        dbView.AddRequested += () => source.CreateWiki();
+        if (wikiViews[3] is WikiMindMapView mapView)
+        {
+            mapView.CreateDocRequested += (cat, cls) => BeginInvoke(() => source.CreateWikiIn(cat, cls));
+            mapView.CreateClassRequested += (cat, parent) => BeginInvoke(() => source.CreateWikiClass(parent, cat));
+            mapView.CreateTemplateRequested += () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information));
+        }
+        wikiBar = new WikiViewBar { Selected = wikiViewMode };
+        wikiBar.SelectedChanged += i => { wikiViewMode = i; ApplyWikiView(); };
+        source.WikiReloaded += RefreshWikiView;
         refList = new RefList { Font = new Font(ff, 11f), Visible = false };
         refList.Chosen += p => RefOpenRequested?.Invoke(p);
         refList.MenuRequested += source.ShowRefMenu;
@@ -1703,7 +1990,7 @@ internal sealed class NovelOverview : Panel
         head = new Panel();
         pageScroll = new VScrollBar { Dock = DockStyle.Right, Visible = false };
         pageScroll.ValueChanged += (_, _) => { newMenu?.Close(); pageOffset = pageScroll.Value; LayoutPage(); }; // 쪽을 내리면 떠 있는 [새 편 쓰기] 목록은 닫는다(화면에 혼자 남아 떠다니지 않게)
-        head.Controls.AddRange(new Control[] { coverBox, settingsButton, metaLabel, titleLabel, descLabel, tagStrip, newButton, folderButton, deleteButton, reorderButton, episodesTab, wikiTab, memoTab, refTab, search });
+        head.Controls.AddRange(new Control[] { coverBox, settingsButton, metaLabel, titleLabel, descLabel, tagStrip, newButton, folderButton, deleteButton, reorderButton, episodesTab, wikiTab, memoTab, refTab, search, wikiBar });
         head.Layout += (_, _) => LayoutHead();
 
         list = new EpisodeList { OnMain = true, Compact = true, Font = new Font(ff, 11f) }; // 간단히 보기(줄 간격 좁게)로 고정
@@ -1721,7 +2008,7 @@ internal sealed class NovelOverview : Panel
         list.SortHeaderClicked += OnHeaderSort;
         list.StatusClicked += CycleStatus;
         Controls.Add(list);
-        Controls.Add(wikiList);
+        foreach (var v in wikiViews) Controls.Add(v);
         Controls.Add(refList);
         Controls.Add(memoBox);
         Controls.Add(head);
@@ -1789,6 +2076,8 @@ internal sealed class NovelOverview : Panel
         bool tools = tab != 2;
         newButton.Visible = tools;
         reorderButton.Visible = tab == 0;
+        wikiBar.Visible = tab == 1;
+        if (tab == 1) { wikiBar.SetBounds(x, y - S(3), wikiBar.FitWidth(), wikiBar.FitHeight()); }
         if (tools)
         {
             int nh = S(32);
@@ -1806,10 +2095,13 @@ internal sealed class NovelOverview : Panel
     private int BodyHeight() => tab switch
     {
         0 => Math.Max(S(120), list.PreferredHeight),
-        1 => Math.Max(S(120), wikiList.PreferredHeight),
+        1 => Math.Max(S(120), ActiveWikiView.PreferredHeightFor(WikiViewWidth())),
         3 => Math.Max(S(120), refList.PreferredHeight),
         _ => Math.Max(S(260), ClientSize.Height - head.Height - S(24)),
     };
+
+    /// <summary>위키 보기가 쓰는 폭: 표 · 마인드맵은 쪽 전체 폭, 나머지는 본문 칸 폭.</summary>
+    private int WikiViewWidth() => ActiveWikiView.Wide ? Math.Max(S(100), AvailWidth - S(48)) : ColumnWidth + S(20);
 
     /// <summary>머리 · 본문을 쪽 스크롤만큼 올려서 놓는다(쪽이 길면 오른쪽에 스크롤바).</summary>
     private void LayoutPage()
@@ -1834,7 +2126,8 @@ internal sealed class NovelOverview : Panel
             head.SetBounds(0, -pageOffset, AvailWidth, head.Height);
             var r = new Rectangle(ColumnLeft - S(10), head.Bottom, ColumnWidth + S(20), body);
             list.Bounds = r;
-            wikiList.Bounds = r;
+            var wv = ActiveWikiView;
+            wv.Bounds = wv.Wide ? new Rectangle(S(24), head.Bottom, Math.Max(S(100), AvailWidth - S(48)), body) : r;
             refList.Bounds = r;
             memoBox.Bounds = new Rectangle(r.X + S(10), r.Y + S(4), Math.Max(0, r.Width - S(20)), Math.Max(0, r.Height - S(8)));
         }
@@ -1877,7 +2170,8 @@ internal sealed class NovelOverview : Panel
         tagStrip.SetPalette(p);
         coverBox.SetPalette(p);
         list.SetPalette(p);
-        wikiList.SetPalette(p);
+        wikiBar.SetPalette(p);
+        foreach (var v in wikiViews) v.SetPalette(p);
         refList.SetPalette(p);
         UpdateDescStyle();
     }
@@ -1934,13 +2228,37 @@ internal sealed class NovelOverview : Panel
         refTab.Selected = t == 3;
         refList.Visible = t == 3;
         list.Visible = t == 0;
-        wikiList.Visible = t == 1;
+        ShowWikiViews(t == 1);
         memoBox.Visible = t == 2;
         newButton.Text = t == 1 ? "새 위키 문서" : t == 3 ? "참고 자료 넣기" : "새 편 쓰기";
         newButton.Size = newButton.GetPreferredSize(Size.Empty);
-        if (t == 1) wikiList.SetDocs(FilteredWiki());
+        if (t == 1) RefreshWikiView();
         if (t == 3) refList.SetFiles(FilteredRefs());
         if (t == 2) memoBox.Focus();
+        head.PerformLayout();
+        PerformLayout();
+    }
+
+    private void ShowWikiViews(bool on)
+    {
+        for (int i = 0; i < wikiViews.Length; i++) wikiViews[i].Visible = on && i == Math.Clamp(wikiViewMode, 0, 3);
+        wikiBar.Visible = on;
+    }
+
+    /// <summary>지금 고른 위키 보기에 자료를 넣는다(위키 탭이 아닐 땐 탭을 열 때 한다).</summary>
+    private void RefreshWikiView()
+    {
+        if (tab != 1 || source.NovelPath is not string dir) return;
+        ActiveWikiView.SetData(WikiViewData.Build(dir, FilteredWiki()));
+        PerformLayout();
+    }
+
+    /// <summary>[카테고리별 · 간단히 · 데이터베이스 · 마인드맵] 중 다른 보기를 골랐다.</summary>
+    private void ApplyWikiView()
+    {
+        wikiBar.Selected = wikiViewMode;
+        ShowWikiViews(tab == 1);
+        RefreshWikiView();
         head.PerformLayout();
         PerformLayout();
     }
@@ -1948,6 +2266,11 @@ internal sealed class NovelOverview : Panel
     private List<string> FilteredRefs() =>
         query.Length == 0 ? source.RefPaths
             : source.RefPaths.Where(p => Path.GetFileName(p).Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+
+    /// <summary>분류(폴더) 계층. 검색 중에는 null(빈 폴더를 숨긴다).</summary>
+    private IReadOnlyDictionary<string, List<string>>? WikiParents() => query.Length == 0 && source.NovelPath is string d ? WikiStore.ClassParents(d) : null;
+
+    private IReadOnlyDictionary<string, string>? WikiCategories() => source.NovelPath is string d ? WikiStore.ClassCategories(d) : null;
 
     private List<WikiDoc> FilteredWiki() =>
         query.Length == 0 ? source.WikiDocs
@@ -1967,7 +2290,7 @@ internal sealed class NovelOverview : Panel
             eps = eps.Where(p => Path.GetFileNameWithoutExtension(p).Contains(q, StringComparison.CurrentCultureIgnoreCase) || NovelStore.ContainsText(p, q));
         list.SetPaths(eps.ToList());
         list.RefreshCounts();
-        wikiList.SetDocs(FilteredWiki());
+        RefreshWikiView();
         refList.SetFiles(FilteredRefs());
     }
 
@@ -2007,9 +2330,10 @@ internal sealed class NovelOverview : Panel
         wikiMenu?.Dispose();
         var font = new Font(NovelStore.UiFontFamily, 9.5f);
         var panel = new IconMenuPanel(font, DeviceDpi, BackColor, ForeColor);
-        panel.Add("문서", PurpleIcons.Document(S(40)), () => BeginInvoke(() => source.CreateWiki()));
-        panel.Add("분류", PurpleIcons.Folder(S(40)), () => BeginInvoke(() => MessageBox.Show(FindForm(), "분류 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
-        panel.Add("템플릿", PurpleIcons.Copy(S(40)), () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
+        var gray = Color.FromArgb(150, 148, 146);
+        panel.Add("문서", PurpleIcons.Document(S(40), gray), () => BeginInvoke(() => source.CreateWiki()));
+        panel.Add("분류", PurpleIcons.Folder(S(40), gray), () => BeginInvoke(() => source.CreateWikiClass()));
+        panel.Add("템플릿", PurpleIcons.Copy(S(40), gray), () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
         panel.Size = panel.MeasureAll();
         var dd = wikiMenu = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
         MenuGuard.Attach(dd);
