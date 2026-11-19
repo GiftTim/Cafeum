@@ -11,7 +11,7 @@ namespace Cafeum;
 /// 화면의 편집기(HeadingEditor)는 어느 모양이든 같은 "번호 붙은 항목" 글로 다루고, 파일로 읽고 쓸 때만 여기서 바꾼다.
 /// 예전 모양:
 /// 구분선(────) 위는 속성(카테고리 · 설명 · 분류 · 중요도 · 다른 이름, 그 밖의 "이름: 값"은 모두 속성 상자 항목),
-/// 아래는 본문. 본문의 항목은 "1. 제목", 부항목은 "1-1. 제목"으로 적는다(저장할 때 번호를 다시 매긴다).
+/// 아래는 본문. 본문의 항목은 "1. 제목", 부항목은 "1-1. 제목", 그 아래는 "1-1-1. 제목"으로 적는다(저장할 때 번호를 다시 매긴다).
 /// <code>
 /// 카테고리: 등장인물
 /// 설명: 카페 주인. 밤에만 문을 연다
@@ -29,13 +29,16 @@ namespace Cafeum;
 internal sealed class WikiDoc
 {
     public const string Separator = "────────────";
-    private static readonly string[] FixedKeys = { "카테고리", "설명", "요약", "분류", "중요도", "다른 이름", "별칭" }; // 두 모양의 고정 속성 이름(같은 이름의 사용자 속성은 쓸 때 이름 뒤에 공백을 붙여 구분한다)
+    private static readonly string[] FixedKeys = { "카테고리", "설명", "요약", "분류", "태그", "중요도", "다른 이름", "별칭" }; // 두 모양의 고정 속성 이름(같은 이름의 사용자 속성은 쓸 때 이름 뒤에 공백을 붙여 구분한다)
 
     public string Path { get; set; } = "";
     public string Title => System.IO.Path.GetFileNameWithoutExtension(Path);
     public string Category { get; set; } = "none";
     public string Summary { get; set; } = "";
+    /// <summary>분류: 이 작품의 위키에서 고른 분류 이름들(화면에서 목록 중에서 고른다).</summary>
     public List<string> Tags { get; set; } = new();
+    /// <summary>태그: 소설 메인의 태그처럼 자유롭게 적는 이름표.</summary>
+    public List<string> Labels { get; set; } = new();
     public int Importance { get; set; } = 1;
     public List<string> Aliases { get; set; } = new();
     public List<(string Key, string Value)> Attributes { get; set; } = new();
@@ -87,6 +90,7 @@ internal sealed class WikiDoc
             case "카테고리": d.Category = WikiCategory.Find(yaml ? Unquote(val) : val).Key; break;
             case "설명": d.Summary = val.Replace("\\n", "\n"); break;
             case "분류": d.Tags = yaml ? ParseList(val) : SplitList(val); break;
+            case "태그": d.Labels = yaml ? ParseList(val) : SplitList(val); break;
             case "중요도": if (int.TryParse(yaml ? Unquote(val) : val, out int imp)) d.Importance = Math.Clamp(imp, 1, 5); break;
             case "다른 이름": d.Aliases = SplitList(val); break;
             default: d.Attributes.Add((key, yaml ? Unquote(val) : val)); break;
@@ -161,6 +165,7 @@ internal sealed class WikiDoc
             var (level, text) = HeadingOf(lines[i]);
             if (level == 2) lines[i] = "## " + text;
             else if (level == 3) lines[i] = "### " + text;
+            else if (level == 4) lines[i] = "#### " + text;
         }
         return string.Join("\r\n", lines);
     }
@@ -179,7 +184,7 @@ internal sealed class WikiDoc
     internal static string FromMarkdownBody(string body)
     {
         var lines = body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-        int n2 = 0, n3 = 0;
+        int n2 = 0, n3 = 0, n4 = 0;
         bool fence = false; // ``` 코드 블록 안의 줄은 제목으로 보지 않는다
         for (int i = 0; i < lines.Length; i++)
         {
@@ -193,8 +198,9 @@ internal sealed class WikiDoc
             }
             int hashes = m.Groups[1].Length;
             string title = m.Groups[2].Value.Trim();
-            if (hashes >= 3) { if (n2 == 0) n2 = 1; n3++; lines[i] = $"{n2}-{n3}. {title}"; }
-            else { n2++; n3 = 0; lines[i] = $"{n2}. {title}"; }
+            if (hashes >= 4) { if (n2 == 0) n2 = 1; if (n3 == 0) n3 = 1; n4++; lines[i] = $"{n2}-{n3}-{n4}. {title}"; }
+            else if (hashes == 3) { if (n2 == 0) n2 = 1; n3++; n4 = 0; lines[i] = $"{n2}-{n3}. {title}"; }
+            else { n2++; n3 = 0; n4 = 0; lines[i] = $"{n2}. {title}"; }
         }
         return string.Join("\r\n", lines);
     }
@@ -215,6 +221,7 @@ internal sealed class WikiDoc
         sb.Append("카테고리: ").Append(YamlScalar(WikiCategory.Find(Category).Label)).Append("\r\n");
         if (Summary.Length > 0) sb.Append("요약: ").Append(YamlScalar(Summary)).Append("\r\n");
         if (Tags.Count > 0) sb.Append("분류: ").Append(YamlList(Tags)).Append("\r\n");
+        if (Labels.Count > 0) sb.Append("태그: ").Append(YamlList(Labels)).Append("\r\n");
         if (Importance != 1) sb.Append("중요도: ").Append(Importance).Append("\r\n");
         if (Aliases.Count > 0) sb.Append("별칭: ").Append(YamlList(Aliases)).Append("\r\n");
         foreach (var (k, v) in Attributes)
@@ -235,6 +242,7 @@ internal sealed class WikiDoc
         sb.Append("카테고리: ").Append(WikiCategory.Find(Category).Label).Append("\r\n");
         if (Summary.Length > 0) sb.Append("설명: ").Append(Summary.Replace("\r", "").Replace("\n", "\\n")).Append("\r\n");
         if (Tags.Count > 0) sb.Append("분류: ").Append(string.Join(", ", Tags)).Append("\r\n");
+        if (Labels.Count > 0) sb.Append("태그: ").Append(string.Join(", ", Labels)).Append("\r\n");
         if (Importance != 1) sb.Append("중요도: ").Append(Importance).Append("\r\n");
         if (Aliases.Count > 0) sb.Append("다른 이름: ").Append(string.Join(", ", Aliases)).Append("\r\n");
         foreach (var (k, v) in Attributes)
@@ -249,16 +257,16 @@ internal sealed class WikiDoc
         return sb.ToString();
     }
 
-    /// <summary>본문 한 줄이 항목 · 부항목인지: "3. 제목" → (2, "제목"), "3-1. 제목" → (3, "제목"), 아니면 (0, 줄 그대로).</summary>
+    /// <summary>본문 한 줄이 항목 · 부항목인지: "3. 제목" → (2, "제목"), "3-1. 제목" → (3, "제목"), "3-1-2. 제목" → (4, "제목"), 아니면 (0, 줄 그대로).</summary>
     public static (int Level, string Text) HeadingOf(string line)
     {
         var m = HeadingRegex.Match(line);
         if (!m.Success) return (0, line);
-        return (m.Groups[2].Success ? 3 : 2, m.Groups[3].Value);
+        return (m.Groups[3].Success ? 4 : m.Groups[2].Success ? 3 : 2, m.Groups[4].Value);
     }
 
     private static readonly System.Text.RegularExpressions.Regex HeadingRegex =
-        new(@"^(\d{1,3})(-\d{1,3})?\.\s+(\S.*)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        new(@"^(\d{1,3})(-\d{1,3})?(-\d{1,3})?\.\s+(\S.*)$", System.Text.RegularExpressions.RegexOptions.Compiled);
 }
 
 /// <summary>위키 카테고리(Muvel과 같은 여덟 가지). 글리프는 Segoe Fluent/MDL2 아이콘.</summary>
@@ -316,6 +324,101 @@ internal static class WikiStore
         return docs.OrderBy(d => d.Importance).ThenBy(d => d.Title, NaturalStringComparer.Instance).ToList();
     }
 
+    // ── 분류 목록: 작품마다 wiki\.분류.txt(한 줄에 하나). 문서에 이미 쓰인 분류도 함께 보여 준다 ──
+
+    private static string ClassFile(string novelDir) => Path.Combine(Dir(novelDir), ".분류.txt");
+
+    private static List<string> ReadClassCatalog(string novelDir)
+    {
+        try
+        {
+            string f = ClassFile(novelDir);
+            if (!File.Exists(f)) return new();
+            return File.ReadAllLines(f, Encoding.UTF8).Select(l => l.Trim()).Where(l => l.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new(); }
+    }
+
+    private static void WriteClassCatalog(string novelDir, List<string> names)
+    {
+        Directory.CreateDirectory(Dir(novelDir));
+        SafeFile.WriteAllText(ClassFile(novelDir), string.Join("\r\n", names) + (names.Count > 0 ? "\r\n" : ""), new UTF8Encoding(false));
+    }
+
+    /// <summary>이 작품에서 고를 수 있는 분류들: 만들어 둔 분류 + 문서에 쓰인 분류(많이 쓴 순).</summary>
+    public static List<string> KnownClasses(string novelDir) =>
+        ReadClassCatalog(novelDir).Concat(Frequent(List(novelDir).SelectMany(d => d.Tags))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>새 분류를 목록에 넣는다(이미 있으면 그대로).</summary>
+    public static void AddClass(string novelDir, string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0) return;
+        var list = ReadClassCatalog(novelDir);
+        if (list.Contains(name, StringComparer.OrdinalIgnoreCase)) return;
+        list.Add(name);
+        WriteClassCatalog(novelDir, list);
+    }
+
+    /// <summary>분류를 목록에서 지우고, 그 분류를 쓰던 모든 문서에서도 뺀다.</summary>
+    public static void DeleteClass(string novelDir, string name)
+    {
+        var list = ReadClassCatalog(novelDir).Where(c => !c.Equals(name, StringComparison.OrdinalIgnoreCase)).ToList();
+        WriteClassCatalog(novelDir, list);
+        foreach (var d in List(novelDir))
+            if (d.Tags.RemoveAll(t => t.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0) Save(d);
+    }
+
+    // ── 템플릿: 작품마다 wiki\.템플릿\이름.md. 카테고리 · 분류 · 태그 · 속성 · 본문을 틀로 저장해 두고 새 문서를 만들 때 고른다 ──
+
+    private static string TemplateDir(string novelDir) => Path.Combine(Dir(novelDir), ".템플릿");
+
+    public static List<string> TemplateNames(string novelDir)
+    {
+        try
+        {
+            if (!Directory.Exists(TemplateDir(novelDir))) return new();
+            return Directory.EnumerateFiles(TemplateDir(novelDir), "*.md").Select(Path.GetFileNameWithoutExtension).Where(n => !string.IsNullOrEmpty(n)).Select(n => n!)
+                .OrderBy(n => n, NaturalStringComparer.Instance).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new(); }
+    }
+
+    public static WikiDoc LoadTemplate(string novelDir, string name) => Load(Path.Combine(TemplateDir(novelDir), name + ".md"));
+
+    /// <summary>이 문서의 카테고리 · 분류 · 태그 · 속성 이름 · 본문을 템플릿으로 저장한다(속성 값은 비워 둔다). 같은 이름이 있으면 덮어쓴다.</summary>
+    public static void SaveTemplate(string novelDir, string name, WikiDoc source)
+    {
+        name = name.Trim();
+        if (!NovelStore.ValidName(name)) throw new IOException(NovelStore.InvalidNameMessage("템플릿 이름"));
+        Directory.CreateDirectory(TemplateDir(novelDir));
+        var t = new WikiDoc
+        {
+            Path = Path.Combine(TemplateDir(novelDir), name + ".md"),
+            Category = source.Category, Importance = source.Importance,
+            Tags = source.Tags.ToList(), Labels = source.Labels.ToList(),
+            Attributes = source.Attributes.Select(a => (a.Key, "")).ToList(),
+            Body = source.Body,
+        };
+        Save(t);
+    }
+
+    public static void DeleteTemplate(string novelDir, string name)
+    {
+        string f = Path.Combine(TemplateDir(novelDir), name + ".md");
+        if (File.Exists(f)) FileSystem.DeleteFile(f, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+    }
+
+    /// <summary>이 작품의 위키 문서들에 쓰인 속성 이름들(많이 쓴 순, 같으면 이름순). 속성 항목을 고를 때의 목록.</summary>
+    public static List<string> KnownAttributeNames(string novelDir) =>
+        Frequent(List(novelDir).SelectMany(d => d.Attributes.Select(a => a.Key)));
+
+    private static List<string> Frequent(IEnumerable<string> names) =>
+        names.Select(n => n.Trim()).Where(n => n.Length > 0)
+            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, NaturalStringComparer.Instance)
+            .Select(g => g.First()).ToList();
+
     public static WikiDoc Load(string path)
     {
         string text;
@@ -326,7 +429,7 @@ internal static class WikiStore
 
     public static void Save(WikiDoc d) => SafeFile.WriteAllText(d.Path, d.Serialize(), new UTF8Encoding(false));
 
-    public static WikiDoc Create(string novelDir, string title, string category, string summary, List<string> tags)
+    public static WikiDoc Create(string novelDir, string title, string category, string summary, List<string> tags, WikiDoc? template = null)
     {
         string dir = Dir(novelDir);
         Directory.CreateDirectory(dir);
@@ -335,6 +438,14 @@ internal static class WikiStore
         if (TitleTaken(dir, name)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {name}");
         string path = Path.Combine(dir, name + NewExt);
         var d = new WikiDoc { Path = path, Category = category, Summary = summary.Trim(), Tags = tags };
+        if (template != null)
+        {
+            d.Tags = template.Tags.Concat(tags).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            d.Labels = template.Labels.ToList();
+            d.Importance = template.Importance;
+            d.Attributes = template.Attributes.ToList();
+            d.Body = template.Body;
+        }
         Save(d);
         return d;
     }
@@ -357,26 +468,36 @@ internal static class WikiStore
     /// <summary>[+ 새 위키 문서] 창을 띄워 만든다. 만든 문서 경로(취소하면 null).</summary>
     public static string? AskCreate(IWin32Window? owner, string novelDir)
     {
-        using var dlg = new WikiCreateDialog();
+        using var dlg = new WikiCreateDialog(templates: TemplateNames(novelDir));
         if (dlg.ShowDialogOver(owner) != DialogResult.OK) return null;
-        try { return Create(novelDir, dlg.TitleText, dlg.CategoryKey, dlg.SummaryText, dlg.Tags).Path; }
+        try
+        {
+            WikiDoc? template = dlg.TemplateName is { } tn ? LoadTemplate(novelDir, tn) : null;
+            string category = template != null && dlg.CategoryKey == "none" ? template.Category : dlg.CategoryKey; // 카테고리를 따로 고르지 않았으면 템플릿의 카테고리를 쓴다
+            return Create(novelDir, dlg.TitleText, category, dlg.SummaryText, new List<string>(), template).Path;
+        }
         catch (Exception ex) { MessageBox.Show(owner, $"위키 문서를 만들지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); return null; }
     }
 }
 
-/// <summary>Muvel의 "새 위키 문서" 창: 제목 · 설명 · 카테고리 · 분류 · [만들기].</summary>
+/// <summary>Muvel의 "새 위키 문서" 창: 제목 · 설명 · 카테고리 · [만들기]. 분류 · 태그 · 속성은 문서를 연 화면에서 고른다.</summary>
 internal sealed class WikiCreateDialog : Form
 {
-    private readonly TextBox title, summary, tags;
+    private readonly TextBox title, summary;
     private readonly ComboBox category;
 
     public string TitleText => title.Text.Trim();
     public string SummaryText => summary.Text.Trim();
     public string CategoryKey => WikiCategory.All[Math.Max(0, category.SelectedIndex)].Key;
-    public List<string> Tags => tags.Text.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
 
-    public WikiCreateDialog(string? initialCategory = null)
+    private readonly ComboBox? templateBox;
+    private readonly List<string> templateNames;
+    /// <summary>고른 템플릿 이름(고르지 않았으면 null).</summary>
+    public string? TemplateName => templateBox == null || templateBox.SelectedIndex <= 0 ? null : templateNames[templateBox.SelectedIndex - 1];
+
+    public WikiCreateDialog(string? initialCategory = null, IReadOnlyList<string>? templates = null)
     {
+        templateNames = templates?.ToList() ?? new();
         Text = "새 위키 문서";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = MinimizeBox = false;
@@ -400,16 +521,23 @@ internal sealed class WikiCreateDialog : Form
         category = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200, Margin = new Padding(0, 0, 16, 12) };
         foreach (var c in WikiCategory.All) category.Items.Add(c.Label);
         category.SelectedIndex = Array.FindIndex(WikiCategory.All, c => c.Key == (initialCategory ?? "none"));
-        tags = new TextBox { Width = 224, PlaceholderText = "쉼표로 여러 개", Margin = new Padding(0, 0, 0, 12) };
 
         root.Controls.Add(L("제목"), 0, 0); root.SetColumnSpan(root.GetControlFromPosition(0, 0)!, 2);
         root.Controls.Add(title, 0, 1); root.SetColumnSpan(title, 2);
         root.Controls.Add(L("설명"), 0, 2); root.SetColumnSpan(root.GetControlFromPosition(0, 2)!, 2);
         root.Controls.Add(summary, 0, 3); root.SetColumnSpan(summary, 2);
         root.Controls.Add(L("카테고리"), 0, 4);
-        root.Controls.Add(L("분류"), 1, 4);
         root.Controls.Add(category, 0, 5);
-        root.Controls.Add(tags, 1, 5);
+        if (templateNames.Count > 0)
+        {
+            // 만들어 둔 템플릿이 있을 때만: 고르면 카테고리(미분류일 때) · 분류 · 태그 · 속성 · 본문이 그 틀로 채워진다
+            root.Controls.Add(L("템플릿"), 1, 4);
+            templateBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 224, Margin = new Padding(0, 0, 0, 12) };
+            templateBox.Items.Add("(템플릿 없이)");
+            foreach (var n in templateNames) templateBox.Items.Add(n);
+            templateBox.SelectedIndex = 0;
+            root.Controls.Add(templateBox, 1, 5);
+        }
 
         var ok = new Button { Text = "✓  만들기", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(96, 32) };
         var cancel = new Button { Text = "취소", DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(84, 32) };

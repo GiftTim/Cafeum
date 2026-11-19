@@ -5,10 +5,10 @@ namespace Cafeum;
 
 /// <summary>
 /// 위키 본문 편집기(Muvel처럼 제목이 바로 제목으로 보이는 글 상자).
-/// 줄 맨 앞에서 "## " · "### "를 치면 그 표시가 사라지고 줄이 항목(큰 제목) · 부항목(작은 제목)으로 바뀐다.
-/// 항목 왼쪽 여백에는 "1." · "1-1." 번호가 흐리게 붙는다 — 글자가 아니라 그려 넣은 것이라 지워지거나 겹치지 않고,
-/// 항목을 넣고 빼면 저절로 다시 매겨진다. 이 상자가 읽고 내놓는 글(LoadText · ToText)은 "1. 제목" · "1-1. 제목" 모양이고,
-/// 파일에 적을 때 .md는 "## 제목" · "### 제목"으로, .txt는 이 번호 그대로 바꿔 쓴다(WikiDoc). 제목이 아닌데 "1. 글"처럼 보이는 줄에는 보이지 않는 표시(WikiDoc.ListMark)를 붙여 제목과 구분한다.
+/// 줄 맨 앞에서 "## " · "### " · "#### "를 치면 그 표시가 사라지고 줄이 항목(큰 제목) · 부항목 · 세부항목(작은 제목)으로 바뀐다.
+/// 항목 왼쪽 여백에는 "1." · "1.1" · "1.1.1" 번호가 흐리게 붙는다 — 글자가 아니라 그려 넣은 것이라 지워지거나 겹치지 않고,
+/// 항목을 넣고 빼면 저절로 다시 매겨진다. 이 상자가 읽고 내놓는 글(LoadText · ToText)은 "1. 제목" · "1-1. 제목" · "1-1-1. 제목" 모양이고(화면에 보이는 번호와 달리 파일 번호는 "-"로 잇는다),
+/// 파일에 적을 때 .md는 "## 제목" · "### 제목" · "#### 제목"으로, .txt는 이 번호 그대로 바꿔 쓴다(WikiDoc). 제목이 아닌데 "1. 글"처럼 보이는 줄에는 보이지 않는 표시(WikiDoc.ListMark)를 붙여 제목과 구분한다.
 /// 제목 줄 끝에서 Enter를 치면 다음 줄은 보통 글, 제목 줄 맨 앞에서 Backspace를 치면 보통 줄로 돌아간다.
 /// 어느 줄이 제목인지는 커서를 움직이지 않고(TOM의 ITextRange로) 읽는다 — 한글을 조합하는 도중에 커서를 옮기면 글자가 깨진다.
 /// </summary>
@@ -21,12 +21,12 @@ internal sealed class HeadingEditor : RichTextBox
     [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
     private const int WM_PAINT = 0x0F, WM_SETREDRAW = 0x0B, EM_SETRECT = 0xB3, EM_GETSCROLLPOS = 0x4DD, EM_SETSCROLLPOS = 0x4DE, EM_GETOLEINTERFACE = 0x43C;
 
-    private readonly Font normal, h2, h3;
+    private readonly Font normal, h2, h3, h4;
     private bool busy;
     private int columnWidth = 760;
     private dynamic? tom; // ITextDocument
-    /// <summary>지금 글의 항목들(깊이, 번호, 이 상자 안 위치, 제목).</summary>
-    private List<(int Level, string Num, int Offset, string Title)> heads = new();
+    /// <summary>지금 글의 항목들(깊이, 화면에 보이는 번호 "1." · "1.1" · "1.1.1", 이 상자 안 위치, 제목, 파일에 적는 번호 "1." · "1-1." · "1-1-1.").</summary>
+    private List<(int Level, string Num, int Offset, string Title, string FileNum)> heads = new();
 
     /// <summary>사용자가 글을 고쳤다(불러오기 중의 변화는 빼고).</summary>
     public event Action? ContentChanged;
@@ -44,23 +44,25 @@ internal sealed class HeadingEditor : RichTextBox
         normal = new Font(NovelStore.UiFontFamily, 11f);
         h2 = new Font(NovelStore.UiFontFamily, 16f, FontStyle.Bold);
         h3 = new Font(NovelStore.UiFontFamily, 13f, FontStyle.Bold);
+        h4 = new Font(NovelStore.UiFontFamily, 12f, FontStyle.Bold);
         Font = normal;
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { normal.Dispose(); h2.Dispose(); h3.Dispose(); }
+        if (disposing) { normal.Dispose(); h2.Dispose(); h3.Dispose(); h4.Dispose(); }
         base.Dispose(disposing);
     }
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
     private int LevelOf(Font? f) => f == null ? 0 : LevelOf(f.Size, f.Bold);
-    private int LevelOf(float size, bool bold) => size >= h2.Size - 0.1f ? 2 : bold && size >= h3.Size - 0.1f ? 3 : 0;
-    private Font FontFor(int level) => level == 2 ? h2 : level == 3 ? h3 : normal;
+    private int LevelOf(float size, bool bold) => size >= h2.Size - 0.1f ? 2 : bold && size >= h3.Size - 0.1f ? 3 : bold && size >= h4.Size - 0.1f ? 4 : 0;
+    private Font FontFor(int level) => level == 2 ? h2 : level == 3 ? h3 : level == 4 ? h4 : normal;
 
     /// <summary>제목 줄을 들여 쓰는 폭(px) — 그 앞자리에 번호가 들어간다(번호는 글 칸 왼쪽 끝에 그리고, 본문 글과 같은 줄에 맞춘다).</summary>
     private int IndentFor(int level) => level == 2 ? TextRenderer.MeasureText("00.", h2, Size.Empty, TextFormatFlags.NoPadding).Width + S(12)
-        : level == 3 ? TextRenderer.MeasureText("0-00.", h3, Size.Empty, TextFormatFlags.NoPadding).Width + S(12) : 0;
+        : level == 3 ? TextRenderer.MeasureText("0.00", h3, Size.Empty, TextFormatFlags.NoPadding).Width + S(12)
+        : level == 4 ? TextRenderer.MeasureText("0.00.00", h4, Size.Empty, TextFormatFlags.NoPadding).Width + S(12) : 0;
 
     // ───────── 커서를 건드리지 않고 서식 읽기(TOM) ─────────
 
@@ -114,26 +116,35 @@ internal sealed class HeadingEditor : RichTextBox
     /// <summary>항목 목록을 새로 세고 번호를 매긴다. 바뀌었으면 여백을 다시 그리고 HeadingsChanged.</summary>
     private void RecomputeHeads()
     {
-        var list = new List<(int, string, int, string)>();
+        var list = new List<(int, string, int, string, string)>();
         string text = Text;
-        int off = 0, major = 0, minor = 0;
+        int off = 0, major = 0, minor = 0, sub = 0;
+        // 깊이별 번호를 올리고 (화면 번호, 파일 번호)를 돌려준다. 위 단계 없이 아래 단계가 먼저 나오면 1로 친다(파일을 다시 읽을 때와 같게).
+        (string, string) Number(int level)
+        {
+            if (level == 2) { major++; minor = 0; sub = 0; return ($"{major}.", $"{major}."); }
+            if (major == 0) major = 1;
+            if (level == 3) { minor++; sub = 0; return ($"{major}.{minor}", $"{major}-{minor}."); }
+            if (minor == 0) minor = 1;
+            sub++;
+            return ($"{major}.{minor}.{sub}", $"{major}-{minor}-{sub}.");
+        }
         foreach (var p in text.Split('\n'))
         {
             if (p.Length == 0 && off == SelectionStart && SelectionLength == 0 && LevelOf(SelectionFont) > 0)
             {
                 // 막 "## "를 쳐서 아직 글이 없는 제목 줄: 번호만 먼저 보여 준다(목차 · 저장에서는 빠진다)
-                string num = LevelOf(SelectionFont) == 2 ? $"{++major}." : $"{major}-{++minor}.";
-                if (LevelOf(SelectionFont) == 2) minor = 0;
-                list.Add((LevelOf(SelectionFont), num, off, ""));
+                int lv = LevelOf(SelectionFont);
+                var (num, fnum) = Number(lv);
+                list.Add((lv, num, off, "", fnum));
             }
             else if (p.Trim().Length > 0)
             {
                 int level = LevelAt(off);
                 if (level > 0)
                 {
-                    string num = level == 2 ? $"{++major}." : $"{major}-{++minor}.";
-                    if (level == 2) minor = 0;
-                    list.Add((level, num, off, p.Trim()));
+                    var (num, fnum) = Number(level);
+                    list.Add((level, num, off, p.Trim(), fnum));
                 }
             }
             off += p.Length + 1;
@@ -197,7 +208,7 @@ internal sealed class HeadingEditor : RichTextBox
         {
             if (Tom is not { } doc) return;
             dynamic para = doc.Range(SelectionStart, SelectionStart).Para;
-            para.SpaceBefore = level == 2 ? 14f : level == 3 ? 10f : 0f;
+            para.SpaceBefore = level == 2 ? 14f : level == 3 ? 10f : level == 4 ? 8f : 0f;
             para.SpaceAfter = level > 0 ? 9f : 0f;
         }
         catch { }
@@ -229,7 +240,7 @@ internal sealed class HeadingEditor : RichTextBox
             var dim = Themes.Blend(BackColor, ForeColor, 0.42f);
             var rule = Themes.Blend(BackColor, ForeColor, 0.2f);
             int right = ClientSize.Width - Math.Min(SideMargin, Math.Max(S(16), (ClientSize.Width - columnWidth) / 2));
-            foreach (var (level, num, offset, title) in heads)
+            foreach (var (level, num, offset, title, _) in heads)
             {
                 if (offset > TextLength || (offset == TextLength && TextLength > 0 && Text[^1] != '\n')) continue;
                 var pt = GetPositionFromCharIndex(offset);
@@ -311,7 +322,7 @@ internal sealed class HeadingEditor : RichTextBox
         for (int i = 0; i < parts.Length; i++)
         {
             if (i > 0) sb.Append("\r\n");
-            if (byOffset.TryGetValue(off, out var h)) sb.Append(h.Num).Append(' ').Append(h.Title);
+            if (byOffset.TryGetValue(off, out var h)) sb.Append(h.FileNum).Append(' ').Append(h.Title);
             else sb.Append(WikiDoc.HeadingOf(parts[i]).Level > 0 ? WikiDoc.ListMark + parts[i] : parts[i]); // 제목이 아닌데 "1. 글"처럼 보이는 줄은 표시를 붙여 다음에 읽을 때 제목으로 바뀌지 않게
 
             off += parts[i].Length + 1;
@@ -358,7 +369,7 @@ internal sealed class HeadingEditor : RichTextBox
         {
             int idx = SelectionStart, ls = LineStart(idx);
             string prefix = Text.Substring(ls, idx - ls);
-            int level = prefix switch { "###" => 3, "##" => 2, "#" => 2, _ => 0 };
+            int level = prefix switch { "####" => 4, "###" => 3, "##" => 2, "#" => 2, _ => 0 };
             if (level > 0)
             {
                 e.Handled = true;

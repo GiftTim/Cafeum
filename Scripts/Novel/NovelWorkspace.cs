@@ -766,6 +766,8 @@ internal class PaneFrame : Panel
     public event Action? CloseRequested;
     public event Action<Control, Point>? MoreRequested;
     public event Action? HeaderClicked;
+    /// <summary>머리줄의 [수정 | 보기] 스위치(⋯ 왼쪽). 위키 문서를 볼 때만 켠다.</summary>
+    public ModeSwitch Mode => header.Switch;
 
     public PaneFrame(string glyph, string title, bool showMore = false)
     {
@@ -806,15 +808,22 @@ internal class PaneFrame : Panel
         public int DotStyle;
         public event Action? CloseClicked, Clicked;
         public event Action<Point>? MoreClicked;
+        public readonly ModeSwitch Switch = new() { Visible = false };
 
         public PaneHeader()
         {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             Font = new Font(NovelStore.UiFontFamily, 9f);
+            Controls.Add(Switch);
+        }
+        protected override void OnLayout(LayoutEventArgs e)
+        {
+            base.OnLayout(e);
+            Switch.Location = new Point(MoreRect.Left - Switch.Width - S(6), (Height - Switch.Height) / 2);
         }
         private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
-        public void SetPalette(LibraryPalette p) { palette = p; Invalidate(); }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = S(34); }
+        public void SetPalette(LibraryPalette p) { palette = p; Switch.BackColor = p.Main; Switch.SetPalette(p); Invalidate(); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = S(34); PerformLayout(); }
         private Rectangle CloseRect => new(Width - S(30), (Height - S(24)) / 2, S(24), S(24));
         private Rectangle MoreRect => new(Width - S(56), (Height - S(24)) / 2, S(24), S(24));
         protected override void OnMouseMove(MouseEventArgs e)
@@ -978,6 +987,10 @@ internal sealed class DocPane : PaneFrame
         {
             wiki = new WikiPage { Dock = DockStyle.Fill, ShowTopBar = false };
             if (palette != null) wiki.ApplyTheme(palette);
+            Mode.Editing = !wiki.ViewMode;
+            Mode.Visible = true;
+            Mode.EditingChanged += OnModeSwitched;
+            wiki.ViewModeChanged += v => Mode.Editing = !v;
             wiki.Changed += () => owner.Tree.ReloadWiki();
             wiki.BackRequested += () => { ShowOverview(); ContentChanged?.Invoke(); };
             Body.Controls.Add(wiki);
@@ -1133,8 +1146,12 @@ internal sealed class DocPane : PaneFrame
     private static WikiDoc? TryLoadWiki(string path) { try { return WikiStore.Load(path); } catch { return null; } }
 
     /// <summary>열린 문서를 저장하고 닫는다(칸은 그대로).</summary>
+    private void OnModeSwitched() { if (wiki != null) wiki.ViewMode = !Mode.Editing; }
+
     public void CloseContent()
     {
+        Mode.Visible = false;
+        Mode.EditingChanged -= OnModeSwitched;
         if (refTabs.Count > 0)
         {
             var open = refTabs.ToList();

@@ -2131,6 +2131,11 @@ internal sealed class TagStrip : Control
     private Rectangle addRect;
     private bool hoverAdd;
     private int hoverX = -1; // 마우스가 올라간 ×의 칩 번호
+    private bool readOnly;
+
+    /// <summary>보기 전용(위키 보기 모드): ×와 [새 태그 추가]가 없고, 태그가 없으면 높이 0.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)] public bool ReadOnly { get => readOnly; set { if (readOnly == value) return; readOnly = value; if (value) EndEdit(); Parent?.PerformLayout(); Invalidate(); } }
+    public int Count => tags.Count;
 
     public event Action<string>? RemoveRequested;
     /// <summary>입력칸에서 Enter로 태그 하나가 적혔다(받는 쪽이 저장하고 SetTags로 다시 알려 준다).</summary>
@@ -2231,15 +2236,17 @@ internal sealed class TagStrip : Control
     public int FitHeight(int width)
     {
         chips.Clear();
+        if (readOnly && tags.Count == 0) { addRect = Rectangle.Empty; return 0; }
         int x = 0, y = 0, h = ChipH, gap = S(6);
         foreach (var t in tags)
         {
-            int cw = TextRenderer.MeasureText(t, Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(12) + S(20); // 글자 양옆 여백 + 오른쪽 ×자리
+            int cw = TextRenderer.MeasureText(t, Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(12) + (readOnly ? 0 : S(20)); // 글자 양옆 여백 + 오른쪽 ×자리
             cw = Math.Min(cw, Math.Max(S(50), width));
             if (x > 0 && x + cw > width) { x = 0; y += h + gap; }
             chips.Add((new Rectangle(x, y, cw, h), t));
             x += cw + gap;
         }
+        if (readOnly) { addRect = Rectangle.Empty; return y + h; }
         int aw = TextRenderer.MeasureText("새 태그 추가", Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(34);
         if (x > 0 && x + aw > width) { x = 0; y += h + gap; }
         addRect = new Rectangle(x, y, aw, h);
@@ -2251,6 +2258,7 @@ internal sealed class TagStrip : Control
 
     private int XIndexAt(Point pt)
     {
+        if (readOnly) return -1;
         for (int i = 0; i < chips.Count; i++) if (XRect(chips[i].Rect).Contains(pt)) return i;
         return -1;
     }
@@ -2269,6 +2277,7 @@ internal sealed class TagStrip : Control
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (readOnly) return;
         if (e.Button == MouseButtons.Left)
         {
             int xi = XIndexAt(e.Location);
@@ -2303,8 +2312,9 @@ internal sealed class TagStrip : Control
                 using (var b = new SolidBrush(Themes.Blend(p.Main, p.Fore, 0.05f))) g.FillPath(b, path);
                 using (var pen = new Pen(p.Line)) g.DrawPath(pen, path);
             }
-            var textRect = new Rectangle(rect.X + S(6), rect.Y, rect.Width - S(20) - S(6), rect.Height);
+            var textRect = new Rectangle(rect.X + S(6), rect.Y, rect.Width - (readOnly ? 0 : S(20)) - S(6), rect.Height);
             TextRenderer.DrawText(g, tag, Font, textRect, p.Dim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+            if (readOnly) continue;
             // 오른쪽 ×(누르면 이 태그를 지운다)
             var xr = XRect(rect);
             float cx = xr.X + xr.Width / 2f - S(1), cy = xr.Y + xr.Height / 2f, d = 2.8f * u;
