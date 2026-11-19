@@ -11,11 +11,13 @@ internal static class NovelFiles
     public const string MetaFileName = ".cafeum.json";
     public const string MemoFileName = ".cafeum-memo.json";
     public const string MemoGroupFileName = ".cafeum-memo-groups.json";
+    /// <summary>메모 휴지통(버린 메모들).</summary>
+    public const string MemoTrashFileName = ".cafeum-memo-trash.json";
     /// <summary>글자 서식을 담은 .rtf 보관 폴더.</summary>
     public const string FormatDirName = ".cafeum-fmt";
 
     private const string NewPrefix = ".cafeum", OldPrefix = ".caffeum";
-    private static readonly string[] AllNames = { MetaFileName, MemoFileName, MemoGroupFileName, FormatDirName };
+    private static readonly string[] AllNames = { MetaFileName, MemoFileName, MemoGroupFileName, MemoTrashFileName, FormatDirName };
     private static readonly HashSet<string> checkedDirs = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object gate = new();
 

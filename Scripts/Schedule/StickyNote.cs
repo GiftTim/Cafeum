@@ -136,6 +136,10 @@ internal static class MemoStore
     // ───────── 메모 그룹(에피소드 그룹처럼: 이름 순서는 .cafeum-memo-groups.json, 메모마다 Group) ─────────
 
     public const string DefaultGroupName = "새 메모 그룹";
+    /// <summary>그룹 밖 메모들이 모여 있는 기본 그룹의 이름(지울 수 없다). 소설 메인의 메모와 사이드바 목록이 같은 이름을 쓴다.</summary>
+    public const string DefaultGroupLabel = "기본그룹";
+    /// <summary>줄 · 카드에 붙은 그룹 이름을 저장되는 그룹(기본그룹이면 null)으로.</summary>
+    public static string? RealGroup(string? shown) => shown == DefaultGroupLabel ? null : shown;
     private sealed record GroupEntry(List<string> List, DateTime Folder);
     private static readonly Dictionary<string, GroupEntry> GroupCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -166,7 +170,7 @@ internal static class MemoStore
     {
         var groups = Groups(novelDir);
         string name = DefaultGroupName;
-        for (int i = 2; groups.Contains(name); i++) name = $"{DefaultGroupName} {i}";
+        for (int i = 2; groups.Contains(name) || name == DefaultGroupLabel; i++) name = $"{DefaultGroupName} {i}";
         groups.Add(name);
         SaveGroups(novelDir);
         return name;
@@ -180,7 +184,7 @@ internal static class MemoStore
         int at = groups.IndexOf(oldName);
         if (newName.Length == 0 || newName == oldName || at < 0) return oldName;
         string final = newName;
-        for (int i = 2; groups.Contains(final); i++) final = $"{newName} {i}";
+        for (int i = 2; groups.Contains(final) || final == DefaultGroupLabel; i++) final = $"{newName} {i}";
         groups[at] = final;
         foreach (var n in Get(novelDir).Where(n => n.Group == oldName)) n.Group = final;
         SaveGroups(novelDir);
@@ -1174,10 +1178,9 @@ internal sealed class StickyListPanel : Panel
         var notes = dir == null ? new List<MemoNote>() : MemoStore.Get(dir)
             .Where(n => q.Length == 0 || n.Text.Contains(q, StringComparison.CurrentCultureIgnoreCase) || (n.Title ?? "").Contains(q, StringComparison.CurrentCultureIgnoreCase))
             .ToList();
-        string? GroupOf(MemoNote n) => n.Group != null && groups.Contains(n.Group) ? n.Group : null; // 없어진 그룹이면 그룹 밖
+        string GroupOf(MemoNote n) => n.Group != null && groups.Contains(n.Group) ? n.Group : MemoStore.DefaultGroupLabel; // 없어진 그룹이면 기본그룹
         var plan = new List<(string? Group, MemoNote? Note)>();
-        foreach (var n in notes.Where(n => GroupOf(n) == null)) plan.Add((null, n));
-        foreach (var g in groups)
+        foreach (var g in new[] { MemoStore.DefaultGroupLabel }.Concat(groups))
         {
             var members = notes.Where(n => GroupOf(n) == g).ToList();
             if (q.Length > 0 && members.Count == 0) continue;
@@ -1215,7 +1218,7 @@ internal sealed class StickyListPanel : Panel
         cards.Controls.AddRange(items.ToArray());
         bool none = dir == null || (MemoStore.Get(dir).Count == 0 && groups.Count == 0);
         empty.Text = none ? "아직 메모가 없어요.\n[+ 메모 쓰기]로 시작해 보세요." : "찾는 메모가 없어요.";
-        empty.Visible = plan.Count == 0;
+        empty.Visible = plan.All(x => x.Note == null) && (q.Length > 0 || groups.Count == 0);
         cards.ResumeLayout();
         LayoutCards();
     }
@@ -1231,7 +1234,7 @@ internal sealed class StickyListPanel : Panel
             else if (c.Tag is string) { c.SetBounds(pad + indent, y, Math.Max(S(40), w - indent), h); y += h + gap; } // 그룹 안 메모는 조금 들여서
             else { c.SetBounds(pad, y, w, h); y += h + gap; }
         }
-        empty.SetBounds(pad, S(30), w, S(60));
+        empty.SetBounds(pad, items.Count > 0 ? y + S(10) : S(30), w, S(60));
     }
 
     // ───────── 꾹 눌러 순서 바꾸기 ─────────
@@ -1248,10 +1251,10 @@ internal sealed class StickyListPanel : Panel
         if (shown.Count == 0) return null;
         int gap = S(8);
         var hit = shown.FirstOrDefault(c => pt.Y < c.Bottom) ?? shown[^1];
-        if (hit is StickyGroupHeader h) return new MemoDrop(null, false, h.GroupName, h.Bottom + gap / 4);
+        if (hit is StickyGroupHeader h) return new MemoDrop(null, false, MemoStore.RealGroup(h.GroupName), h.Bottom + gap / 4);
         var card = (StickyCard)hit;
         bool after = pt.Y > card.Top + card.Height / 2;
-        return new MemoDrop(card.Note, after, card.Tag as string, after ? card.Bottom + gap / 2 : card.Top - gap / 2);
+        return new MemoDrop(card.Note, after, MemoStore.RealGroup(card.Tag as string), after ? card.Bottom + gap / 2 : card.Top - gap / 2);
     }
 
     private void ShowDrop(StickyCard dragged, Point screen)
@@ -1293,7 +1296,8 @@ internal sealed class StickyListPanel : Panel
         string d = dir, group = head.GroupName;
         var m = new ContextMenuStrip { Font = Font, ShowImageMargin = false };
         MenuGuard.Attach(m);
-        m.Items.Add("이 그룹에 새 메모", null, (_, _) => BeginInvoke(() => { collapsed.Remove(group); StickyNotes.NewNote(d, null, group); }));
+        m.Items.Add("이 그룹에 새 메모", null, (_, _) => BeginInvoke(() => { collapsed.Remove(group); StickyNotes.NewNote(d, null, MemoStore.RealGroup(group)); }));
+        if (group == MemoStore.DefaultGroupLabel) { m.Closed += (_, _) => BeginInvoke(m.Dispose); m.Show(screen); return; } // 기본그룹은 이름을 바꾸거나 지울 수 없다
         m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(() =>
         {
             using var dlg = new NovelInputDialog("그룹 이름 바꾸기", "그룹 이름", group);
@@ -1321,7 +1325,7 @@ internal sealed class StickyListPanel : Panel
         MenuGuard.Attach(m);
         m.Items.Add("메모 열기", null, (_, _) => StickyNotes.Open(d, card.Note, null));
         // 그룹으로 옮기기(에피소드처럼): 있는 그룹들 · 새 그룹 만들어 넣기 / 그룹에서 빼기
-        string? now = card.Tag as string;
+        string? now = MemoStore.RealGroup(card.Tag as string);
         var moveTo = new ToolStripMenuItem("그룹으로 옮기기");
         foreach (var g in MemoStore.Groups(d))
         {
@@ -1409,7 +1413,7 @@ internal static class StickyNotes
     {
         var sw = near as StickyNoteWindow;
         var n = MemoNote.Create(sw?.Note.Color ?? 0);
-        n.Group = group ?? sw?.Note.Group;
+        n.Group = group; // 정하지 않으면 기본그룹(열려 있던 메모의 그룹을 이어받지 않는다)
         MemoStore.Get(novelDir).Insert(0, n);
         Open(novelDir, n, near).FocusTitle();
     }

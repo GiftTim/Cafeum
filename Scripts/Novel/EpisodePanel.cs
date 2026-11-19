@@ -1898,9 +1898,9 @@ internal sealed class NovelOverview : Panel
     /// <summary>제목 오른쪽의 환경설정 버튼.</summary>
     public event Action? SettingsRequested;
     private readonly SearchField search;
-    private readonly TextBox memoBox;
+    private readonly MemoView memoView;
+    private readonly MemoActionBar memoBar = new() { Visible = false };
     private readonly System.Windows.Forms.Timer searchTimer = new() { Interval = 250 };
-    private readonly System.Windows.Forms.Timer memoTimer = new() { Interval = 600 };
     private int sortMode;
     private bool sortDesc;
     private readonly EpisodeList list;
@@ -1913,8 +1913,6 @@ internal sealed class NovelOverview : Panel
     private readonly RefList refList;
     private int tab; // 0 = 에피소드, 1 = 위키, 2 = 메모
     private string query = "";
-    private bool loadingMemo;
-    private string? memoDir; // 메모 칸에 지금 들어 있는 글이 속한 작품 폴더
     private LibraryPalette? palette;
 
     public event Action<string>? OpenRequested;
@@ -1945,7 +1943,7 @@ internal sealed class NovelOverview : Panel
         tagStrip.RemoveRequested += RemoveTag;
         tagStrip.TagSubmitted += AddTagText;
         newButton = new PillButton("새 편 쓰기") { Primary = true, Glyph = "", Font = new Font(ff, 10.5f, FontStyle.Bold) };
-        newButton.Click += (_, _) => { if (tab == 1) ShowWikiMenu(); else if (tab == 3) source.AddReferences(); else ShowNewMenu(); };
+        newButton.Click += (_, _) => { if (tab == 1) ShowWikiMenu(); else if (tab == 3) source.AddReferences(); else if (tab == 2) memoView.NewMemo(); else ShowNewMenu(); };
         folderButton = new PillButton("탐색기에서 열기") { Compact = true, Glyph = "", Font = new Font(ff, 9.5f) };
         folderButton.Click += (_, _) => { if (source.NovelPath != null) System.Diagnostics.Process.Start("explorer.exe", $"\"{source.NovelPath}\""); };
         deleteButton = new PillButton("소설 삭제하기") { Compact = true, Glyph = "", Font = new Font(ff, 9.5f) };
@@ -2000,15 +1998,15 @@ internal sealed class NovelOverview : Panel
         };
         source.RefsReloaded += () => refList.SetFiles(FilteredRefs());
 
-        memoBox = new TextBox { Multiline = true, AcceptsReturn = true, AcceptsTab = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical, Font = new Font(ff, 11.5f), Visible = false, PlaceholderText = "이 소설에 대한 메모를 자유롭게 남겨 보세요. 자동으로 저장돼요." };
-        memoBox.TextChanged += (_, _) => { if (!loadingMemo) { memoTimer.Stop(); memoTimer.Start(); } };
-        memoBox.Leave += (_, _) => SaveMemoNow();
-        memoTimer.Tick += (_, _) => SaveMemoNow();
+        memoView = new MemoView { Visible = false };
+        memoBar.NewClicked += memoView.NewMemo;
+        memoBar.SelectAllClicked += memoView.SelectAll;
+        memoBar.DeleteClicked += memoView.DeleteSelected;
 
         head = new Panel();
         pageScroll = new VScrollBar { Dock = DockStyle.Right, Visible = false };
         pageScroll.ValueChanged += (_, _) => { newMenu?.Close(); pageOffset = pageScroll.Value; LayoutPage(); }; // 쪽을 내리면 떠 있는 [새 편 쓰기] 목록은 닫는다(화면에 혼자 남아 떠다니지 않게)
-        head.Controls.AddRange(new Control[] { coverBox, settingsButton, metaLabel, titleLabel, descLabel, tagStrip, newButton, folderButton, deleteButton, reorderButton, episodesTab, wikiTab, memoTab, refTab, search, wikiBar });
+        head.Controls.AddRange(new Control[] { coverBox, settingsButton, metaLabel, titleLabel, descLabel, tagStrip, newButton, folderButton, deleteButton, reorderButton, episodesTab, wikiTab, memoTab, refTab, search, wikiBar, memoBar });
         head.Layout += (_, _) => LayoutHead();
 
         list = new EpisodeList { OnMain = true, Compact = true, Font = new Font(ff, 11f) }; // 간단히 보기(줄 간격 좁게)로 고정
@@ -2028,12 +2026,12 @@ internal sealed class NovelOverview : Panel
         Controls.Add(list);
         foreach (var v in wikiViews) Controls.Add(v);
         Controls.Add(refList);
-        Controls.Add(memoBox);
+        Controls.Add(memoView);
         Controls.Add(head);
         Controls.Add(pageScroll);
         Resize += (_, _) => { head.PerformLayout(); LayoutPage(); };
         source.Reloaded += Sync;
-        Disposed += (_, _) => { SaveMemoNow(); searchTimer.Dispose(); memoTimer.Dispose(); };
+        Disposed += (_, _) => { searchTimer.Dispose(); };
     }
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
@@ -2085,21 +2083,28 @@ internal sealed class NovelOverview : Panel
         bool below = room < S(180);
         int sw = below ? Math.Min(w, S(320)) : Math.Min(room, S(320));
         int sy = below ? y + tabH + S(10) : y + (tabH - S(36)) / 2;
-        search.SetBounds(below ? x : x + w - sw - S(30), sy, sw, S(36)); // 오른쪽 도구 줄(새 편 쓰기)과 오른쪽 끝을 맞춘다
-        search.Visible = tab != 2;
+        search.SetBounds(below ? x : x + w + S(2) - sw, sy, sw, S(36)); // 오른쪽 도구 줄(새 편 쓰기)과 오른쪽 끝을 맞춘다
+        search.Visible = true; // 메모 탭에서는 이 검색칸이 메모를 걸러 준다
         y += tabH + S(18);
-        if (below && tab != 2) y += S(36) + S(10);
+        if (below) y += S(36) + S(10);
 
         // 도구 줄(오른쪽): [순서 관리] [+ 새 편 쓰기]
-        bool tools = tab != 2;
+        bool tools = tab != 2; // 메모 탭의 [새 메모]는 메모 화면 아래쪽 줄에 있다
         newButton.Visible = tools;
         reorderButton.Visible = tab == 0;
         wikiBar.Visible = tab == 1;
+        memoBar.Visible = tab == 2;
+        if (tab == 2)
+        {
+            int mh = S(36);
+            memoBar.SetBounds(x + w + S(2) - memoBar.FitWidth(), y, memoBar.FitWidth(), mh);
+            y += mh + S(12);
+        }
         if (tab == 1) { wikiBar.SetBounds(x, y - S(3), wikiBar.FitWidth(), wikiBar.FitHeight()); }
         if (tools)
         {
             int nh = S(32);
-            newButton.SetBounds(x + w - newButton.Width - S(30), y, newButton.Width, nh);
+            newButton.SetBounds(x + w + S(2) - newButton.Width, y, newButton.Width, nh);
             int ix = newButton.Left - S(10);
             reorderButton.Size = new Size(reorderButton.WidthFor(nh), nh);
             reorderButton.Location = new Point(ix - reorderButton.Width, y);
@@ -2115,6 +2120,7 @@ internal sealed class NovelOverview : Panel
         0 => Math.Max(S(120), list.PreferredHeight),
         1 => Math.Max(S(120), ActiveWikiView.PreferredHeightFor(WikiViewWidth())),
         3 => Math.Max(S(120), refList.PreferredHeight),
+        2 => Math.Max(memoView.PreferredHeight, ClientSize.Height - head.Height - S(24)), // 메모: 왼쪽 목록(휴지통까지)이 잘리지 않게 모자라면 쪽이 내려간다
         _ => Math.Max(S(260), ClientSize.Height - head.Height - S(24)),
     };
 
@@ -2147,7 +2153,7 @@ internal sealed class NovelOverview : Panel
             var wv = ActiveWikiView;
             wv.Bounds = wv.Wide ? new Rectangle(S(24), head.Bottom, Math.Max(S(100), AvailWidth - S(48)), body) : r;
             refList.Bounds = r;
-            memoBox.Bounds = new Rectangle(r.X + S(10), r.Y + S(4), Math.Max(0, r.Width - S(20)), Math.Max(0, r.Height - S(8)));
+            memoView.Bounds = new Rectangle(r.X, r.Y + S(4), r.Width, Math.Max(0, r.Height - S(8)));
         }
         finally { inPageLayout = false; }
         // 스크롤바가 생기고 없어지면 폭이 달라지니 한 번 더(창 핸들이 생기기 전에는 BeginInvoke를 못 쓰니 그때는 다음 배치 때 맞춰진다)
@@ -2178,8 +2184,8 @@ internal sealed class NovelOverview : Panel
         descLabel.BackColor = Themes.Blend(p.Main, p.Fore, p.Dark ? 0.09f : 0.07f); // 소개는 연한 회색 상자
         titleLabel.ForeColor = p.Fore;
         metaLabel.ForeColor = p.Dim;
-        memoBox.BackColor = p.Main;
-        memoBox.ForeColor = p.Fore;
+        memoView.SetPalette(p);
+        memoBar.SetPalette(p);
         foreach (var b in new[] { newButton, folderButton, deleteButton, episodesTab, wikiTab, memoTab, refTab }) b.SetPalette(p);
         deleteButton.TextColor = p.Dark ? Color.FromArgb(0xFF, 0x6B, 0x6B) : Color.FromArgb(0xE0, 0x2B, 0x2B);
         reorderButton.SetPalette(p);
@@ -2219,13 +2225,7 @@ internal sealed class NovelOverview : Panel
         list.SetGroups(source.GroupNames, source.GroupMap);
         refList.SetMeta(meta.RefStatus, meta.RefFavorites);
         ApplyQuery(query, force: true);
-        if (!string.Equals(memoDir, dir, StringComparison.OrdinalIgnoreCase))
-        {
-            SaveMemoNow(); // 이전 작품의 메모를 먼저 그 작품에 저장하고, 새 작품의 메모로 바꾼다(칸에 포커스가 있어도)
-            memoDir = dir;
-            loadingMemo = true; memoBox.Text = meta.Memo ?? ""; loadingMemo = false;
-        }
-        else if (!memoBox.Focused) { loadingMemo = true; memoBox.Text = meta.Memo ?? ""; loadingMemo = false; }
+        memoView.SetNovel(dir); // 작품이 바뀌면 이전 작품의 메모를 저장하고 새 작품의 메모를 불러온다
         UpdateDescStyle();
         head.PerformLayout();
         PerformLayout();
@@ -2238,7 +2238,6 @@ internal sealed class NovelOverview : Panel
 
     private void SetTab(int t)
     {
-        SaveMemoNow();
         tab = t;
         episodesTab.Selected = t == 0;
         wikiTab.Selected = t == 1;
@@ -2247,12 +2246,11 @@ internal sealed class NovelOverview : Panel
         refList.Visible = t == 3;
         list.Visible = t == 0;
         ShowWikiViews(t == 1);
-        memoBox.Visible = t == 2;
-        newButton.Text = t == 1 ? "새 위키 문서" : t == 3 ? "참고 자료 넣기" : "새 편 쓰기";
+        memoView.Visible = t == 2;
+        newButton.Text = t == 1 ? "새 위키 문서" : t == 2 ? "새 메모" : t == 3 ? "참고 자료 넣기" : "새 편 쓰기";
         newButton.Size = newButton.GetPreferredSize(Size.Empty);
         if (t == 1) RefreshWikiView();
         if (t == 3) refList.SetFiles(FilteredRefs());
-        if (t == 2) memoBox.Focus();
         head.PerformLayout();
         PerformLayout();
     }
@@ -2308,6 +2306,7 @@ internal sealed class NovelOverview : Panel
             eps = eps.Where(p => Path.GetFileNameWithoutExtension(p).Contains(q, StringComparison.CurrentCultureIgnoreCase) || NovelStore.ContainsText(p, q));
         list.SetPaths(eps.ToList());
         list.RefreshCounts();
+        memoView.SetQuery(q);
         RefreshWikiView();
         refList.SetFiles(FilteredRefs());
     }
@@ -2446,15 +2445,6 @@ internal sealed class NovelOverview : Panel
         string next = names[(Array.IndexOf(names, list.StatusOf(path)) + 1) % names.Length];
         NovelStore.SaveStatus(path, next);
         if (source.NovelPath is string dir) list.SetStatuses(dir, NovelStore.LoadMeta(dir).Status);
-    }
-
-    /// <summary>메모 칸의 글을, 그 글을 불러온 작품(memoDir)에 저장한다(작품이 바뀐 뒤에 이전 작품의 글이 새 작품에 들어가지 않게).</summary>
-    private void SaveMemoNow()
-    {
-        memoTimer.Stop();
-        if (loadingMemo || memoDir is not string dir || !Directory.Exists(dir)) return; // 폴더 이름이 바뀐 뒤라면 옛 폴더를 다시 만들지 않는다
-        if ((NovelStore.LoadMeta(dir).Memo ?? "") == memoBox.Text) return;
-        NovelStore.SaveMemo(dir, memoBox.Text);
     }
 }
 
