@@ -100,7 +100,7 @@ internal sealed class WikiPage : Panel
         }
         Row("카테고리", categoryBox);
         Row("중요도", stars);
-        Row("설명", summaryBox);
+        Row("요약", summaryBox);
         Row("분류", classes);
         Row("태그", tagStrip);
         props.Layout += (_, _) => { if (!layingOut) head.PerformLayout(); }; // 태그 입력칸이 열리고 닫힐 때 높이를 다시 잡는다

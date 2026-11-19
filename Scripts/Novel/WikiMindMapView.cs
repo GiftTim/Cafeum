@@ -6,7 +6,7 @@ namespace Cafeum;
 /// 마인드맵 보기(옵시디언 그래프처럼): 문서 · 분류 · 대분류 · 작품이 점으로, 연결이 선으로 놓이고 물리 시뮬레이션으로 서로 밀고 당기며 자리를 잡는다.
 /// 점은 연결이 많을수록 크다. 점에 마우스를 올리면 그 점과 이어진 것만 또렷하고 나머지는 흐려진다.
 /// 점을 끌어 옮기고(놓으면 다시 자리를 잡는다), 빈 곳을 끌어 화면을 옮기고, 휠로 확대 · 축소, 오른쪽 위 버튼으로 전체 맞추기.
-/// 문서 점을 누르면 그 문서가 열린다.
+/// 점을 두 번 누르면 문서는 그 문서가, 대분류 · 분류는 그 쪽이 열린다.
 /// </summary>
 internal sealed class WikiMindMapView : WikiViewBase
 {
@@ -20,10 +20,13 @@ internal sealed class WikiMindMapView : WikiViewBase
         public PointF Pos, Vel;
         public bool Pinned;
         public int Degree;
+        /// <summary>작품 점에 표지 그림이 들어갈 때 더 키우는 반지름.</summary>
+        public float Extra;
         public readonly List<Node> Links = new();
-        public float Radius => Kind switch { NodeKind.Root => 9f + MathF.Sqrt(Degree) * 1.2f, NodeKind.Category => 3.4f + MathF.Sqrt(Degree) * 0.4f, NodeKind.Class => 2.6f + MathF.Sqrt(Degree) * 0.6f, _ => 3.5f + MathF.Sqrt(Degree) * 1.3f };
+        public float Radius => Kind switch { NodeKind.Root => 9f + Extra + MathF.Sqrt(Degree) * 1.2f, NodeKind.Category => 3.4f + MathF.Sqrt(Degree) * 0.4f, NodeKind.Class => 2.6f + MathF.Sqrt(Degree) * 0.6f, _ => 3.5f + MathF.Sqrt(Degree) * 1.3f };
     }
 
+    private Bitmap? cover;
     private readonly List<Node> nodes = new();
     private readonly List<(Node A, Node B)> edges = new();
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 16 };
@@ -52,7 +55,7 @@ internal sealed class WikiMindMapView : WikiViewBase
     public WikiMindMapView()
     {
         timer.Tick += (_, _) => Step();
-        Disposed += (_, _) => timer.Dispose();
+        Disposed += (_, _) => { timer.Dispose(); cover?.Dispose(); };
     }
 
     protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) timer.Stop(); else if (alpha > 0.02f) timer.Start(); }
@@ -81,6 +84,10 @@ internal sealed class WikiMindMapView : WikiViewBase
         void Link(Node a, Node b) { if (a == b || a.Links.Contains(b)) return; a.Links.Add(b); b.Links.Add(a); a.Degree++; b.Degree++; edges.Add((a, b)); }
 
         var root = New(NodeKind.Root, Data.NovelName);
+        cover?.Dispose();
+        cover = Data.NovelDir.Length > 0 ? NovelStore.LoadCover(Data.NovelDir) : null; // 가운데 작품 점에 올릴 표지 사진
+        if (cover != null) root.Extra = 14f;
+        root.Pos = PointF.Empty; root.Pinned = true; // 가운데 작품 점은 움직이지 않게 고정(사진이 흔들려 보이지 않게)
         var cats = new Dictionary<string, Node>();
         foreach (var c in WikiCategory.All) { var n = New(NodeKind.Category, c.Label); n.CategoryKey = c.Key; cats[c.Key] = n; Link(root, n); }
         var classes = new Dictionary<string, Node>(StringComparer.OrdinalIgnoreCase);
@@ -306,17 +313,31 @@ internal sealed class WikiMindMapView : WikiViewBase
         var d = drag;
         bool wasMoved = dragMoved || movedPan;
         drag = null; panning = false; dragMoved = false; movedPan = false;
-        if (d != null) d.Pinned = false;
+        if (d != null && d.Kind != NodeKind.Root) d.Pinned = false; // 작품(가운데) 점은 늘 제자리에 둔다
         if (wasMoved) { if (d != null) Reheat(); return; }
         if (fitRect.Contains(e.Location) && e.Button == MouseButtons.Left) { Fit(); Invalidate(); return; }
         var n = d ?? NodeAt(e.Location);
         if (n == null) return;
         if (n.Kind == NodeKind.Doc && n.DocPath != null)
         {
-            if (e.Button == MouseButtons.Left) RaiseDoc(n.DocPath);
-            else if (e.Button == MouseButtons.Right) RaiseDocMenu(n.DocPath, PointToScreen(e.Location));
+            if (e.Button == MouseButtons.Right) RaiseDocMenu(n.DocPath, PointToScreen(e.Location)); // 문서는 두 번 눌러야 열린다
         }
         else if (n.Kind == NodeKind.Class && e.Button == MouseButtons.Right) RaiseFolderMenu(n.Label, PointToScreen(e.Location));
+    }
+
+    /// <summary>점을 두 번 누르면: 문서는 그 문서, 분류 · 대분류는 그 쪽을 연다.</summary>
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+        if (e.Button != MouseButtons.Left) return;
+        var n = NodeAt(e.Location);
+        if (n == null) return;
+        switch (n.Kind)
+        {
+            case NodeKind.Doc when n.DocPath != null: { string dp = n.DocPath; BeginInvoke(() => RaiseDoc(dp)); break; }
+            case NodeKind.Class: { string cn = n.Label; BeginInvoke(() => RaiseClass(cn)); break; }
+            case NodeKind.Category when n.CategoryKey != null: { string ck = n.CategoryKey; BeginInvoke(() => RaiseCategory(ck)); break; }
+        }
     }
 
     /// <summary>휠로 확대 · 축소(커서 아래 점이 그대로 있게). 옵시디언 그래프처럼 이 보기 위에서는 휠이 쪽이 아니라 그래프를 움직인다.</summary>
@@ -387,6 +408,21 @@ internal sealed class WikiMindMapView : WikiViewBase
                         float q = r * 0.78f;
                         using var b = new SolidBrush(Dimmed(baseColor));
                         g.FillRectangle(b, s.X - q, s.Y - q, q * 2, q * 2);
+                        break;
+                    }
+                    case NodeKind.Root when cover != null: // 작품: 표지 사진을 동그랗게 오려 올린다
+                    {
+                        using var circle = new GraphicsPath();
+                        circle.AddEllipse(s.X - r, s.Y - r, r * 2, r * 2);
+                        var saved = g.Save();
+                        g.SetClip(circle, CombineMode.Intersect);
+                        int side = Math.Min(cover.Width, cover.Height);
+                        var src = new Rectangle((cover.Width - side) / 2, (cover.Height - side) / 3, side, side); // 세로로 긴 표지는 위쪽 가운데를 보여 준다
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(cover, new Rectangle((int)MathF.Round(s.X - r), (int)MathF.Round(s.Y - r), (int)MathF.Round(r * 2), (int)MathF.Round(r * 2)), src, GraphicsUnit.Pixel);
+                        g.Restore(saved);
+                        using var ring = new Pen(Dimmed(p.Accent), Math.Max(2f, DeviceDpi / 96f * 2.2f));
+                        g.DrawEllipse(ring, s.X - r, s.Y - r, r * 2, r * 2);
                         break;
                     }
                     default: // 작품 · 문서: 동그라미

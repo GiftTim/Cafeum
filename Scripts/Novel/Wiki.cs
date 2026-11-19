@@ -329,7 +329,17 @@ internal static class WikiStore
     private static string ClassFile(string novelDir) => Path.Combine(Dir(novelDir), ".분류.txt");
 
     /// <summary>만들어 둔 분류 하나: 이름, 상위 분류들(여러 개 가능), 대분류(카테고리 키), 요약.</summary>
-    public sealed record ClassInfo(string Name, List<string> Parents, string Category, string Summary);
+    public sealed record ClassInfo(string Name, List<string> Parents, string Category, string Summary)
+    {
+        /// <summary>중요도(별 1~5). 문서의 중요도와 같은 눈금.</summary>
+        public int Importance { get; init; } = 1;
+        /// <summary>분류의 속성 표(이름, 값).</summary>
+        public List<(string Key, string Value)> Attributes { get; init; } = new();
+        /// <summary>분류의 태그들.</summary>
+        public List<string> Tags { get; init; } = new();
+    }
+
+    private static string Clean(string s) => s.Replace('\u001E', ' ').Replace('\u001F', ' ');
 
     private static string EscapeField(string s) => s.Replace("\\", "\\\\").Replace("\r\n", "\n").Replace("\n", "\\n").Replace("\t", " ");
 
@@ -359,7 +369,16 @@ internal static class WikiStore
                 var parents = parts.Length > 1 ? parts[1].Split('|').Select(x => x.Trim()).Where(x => x.Length > 0).ToList() : new List<string>();
                 string cat = parts.Length > 2 && parts[2].Trim().Length > 0 ? parts[2].Trim() : "none";
                 string summary = parts.Length > 3 ? UnescapeField(parts[3]) : "";
-                list.Add(new ClassInfo(name, parents, cat, summary));
+                int imp = parts.Length > 4 && int.TryParse(parts[4].Trim(), out var iv) ? Math.Clamp(iv, 1, 5) : 1;
+                var attrList = new List<(string, string)>();
+                if (parts.Length > 5)
+                    foreach (var pair in UnescapeField(parts[5]).Split('\u001E', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        int cut = pair.IndexOf('\u001F');
+                        if (cut > 0) attrList.Add((pair[..cut], pair[(cut + 1)..]));
+                    }
+                var tagList = parts.Length > 6 ? UnescapeField(parts[6]).Split('\u001E', StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>();
+                list.Add(new ClassInfo(name, parents, cat, summary) { Importance = imp, Attributes = attrList, Tags = tagList });
             }
             return list;
         }
@@ -372,8 +391,11 @@ internal static class WikiStore
         var lines = items.Select(c =>
         {
             string line = c.Name;
-            if (c.Parents.Count > 0 || c.Category != "none" || c.Summary.Length > 0)
-                line += "\t" + string.Join("|", c.Parents) + "\t" + c.Category + "\t" + EscapeField(c.Summary);
+            if (c.Parents.Count > 0 || c.Category != "none" || c.Summary.Length > 0 || c.Importance != 1 || c.Attributes.Count > 0 || c.Tags.Count > 0)
+                line += "\t" + string.Join("|", c.Parents) + "\t" + c.Category + "\t" + EscapeField(c.Summary)
+                    + (c.Importance != 1 || c.Attributes.Count > 0 || c.Tags.Count > 0 ? "\t" + c.Importance : "")
+                    + (c.Attributes.Count > 0 || c.Tags.Count > 0 ? "\t" + EscapeField(string.Join('\u001E', c.Attributes.Select(a => Clean(a.Key) + '\u001F' + Clean(a.Value)))) : "")
+                    + (c.Tags.Count > 0 ? "\t" + EscapeField(string.Join('\u001E', c.Tags.Select(Clean))) : "");
             return line;
         }).ToList();
         SafeFile.WriteAllText(ClassFile(novelDir), string.Join("\r\n", lines) + (lines.Count > 0 ? "\r\n" : ""), new UTF8Encoding(false));
@@ -396,13 +418,13 @@ internal static class WikiStore
     public static List<ClassInfo> ClassInfos(string novelDir) => ReadClassCatalog(novelDir);
 
     /// <summary>만들어 둔 분류의 요약 · 대분류 · 상위를 고친다(null인 항목은 그대로). 목록에 없으면(문서에만 쓰인 분류) 새로 넣는다.</summary>
-    public static void UpdateClass(string novelDir, string name, string? summary = null, string? category = null, List<string>? parents = null)
+    public static void UpdateClass(string novelDir, string name, string? summary = null, string? category = null, List<string>? parents = null, int? importance = null, List<(string Key, string Value)>? attributes = null, List<string>? tags = null)
     {
         var list = ReadClassCatalog(novelDir);
         int i = list.FindIndex(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         var cur = i >= 0 ? list[i] : new ClassInfo(name, new List<string>(), "none", "");
         var ps = parents == null ? cur.Parents : parents.Where(x => x.Length > 0 && !x.Equals(name, StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var next = new ClassInfo(cur.Name, ps, category ?? cur.Category, summary ?? cur.Summary);
+        var next = cur with { Parents = ps, Category = category ?? cur.Category, Summary = summary ?? cur.Summary, Importance = importance is int iv ? Math.Clamp(iv, 1, 5) : cur.Importance, Attributes = attributes ?? cur.Attributes, Tags = tags ?? cur.Tags };
         if (i >= 0) list[i] = next; else list.Add(next);
         WriteClassCatalog(novelDir, list);
     }

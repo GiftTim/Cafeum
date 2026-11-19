@@ -82,6 +82,12 @@ internal abstract class WikiViewBase : Control
     public event Action<string>? DocChosen;
     public event Action<string, Point>? DocMenuRequested;
     public event Action<string, Point>? FolderMenuRequested;
+    /// <summary>분류(이름) 점 · 글자를 눌렀다(그 분류의 쪽을 열라고).</summary>
+    public event Action<string>? ClassChosen;
+    /// <summary>대분류(키)를 눌렀다.</summary>
+    public event Action<string>? CategoryChosen;
+    protected void RaiseClass(string name) => ClassChosen?.Invoke(name);
+    protected void RaiseCategory(string key) => CategoryChosen?.Invoke(key);
 
     protected void RaiseDoc(string path) => DocChosen?.Invoke(path);
     protected void RaiseDocMenu(string path, Point screen) => DocMenuRequested?.Invoke(path, screen);
@@ -115,10 +121,10 @@ internal abstract class WikiViewBase : Control
     }
 }
 
-/// <summary>위키 탭 맨 위의 보기 전환 막대: [카테고리별 보기 | 간단히 보기 | 데이터베이스 뷰 | 마인드맵 보기]. 고른 쪽만 이름이 보인다.</summary>
+/// <summary>위키 탭 맨 위의 보기 전환 막대: [간단히 보기 | 마인드맵 보기]. 고른 쪽만 이름이 보인다.</summary>
 internal sealed class WikiViewBar : Control
 {
-    public static readonly string[] Names = { "카테고리별 보기", "간단히 보기", "데이터베이스 뷰", "마인드맵 보기" };
+    public static readonly string[] Names = { "간단히 보기", "마인드맵 보기" };
     private LibraryPalette? p;
     private int selected, hover = -1;
     public event Action<int>? SelectedChanged;
@@ -137,7 +143,7 @@ internal sealed class WikiViewBar : Control
     public void SetPalette(LibraryPalette pal) { p = pal; Invalidate(); }
 
     private int SegW(int i) => i == selected ? S(46) + TextRenderer.MeasureText(Names[i], Font, Size.Empty, TextFormatFlags.NoPadding).Width : S(44);
-    public int FitWidth() { int w = S(6); for (int i = 0; i < 4; i++) w += SegW(i); return w; }
+    public int FitWidth() { int w = S(6); for (int i = 0; i < Names.Length; i++) w += SegW(i); return w; }
     public int FitHeight() => S(38);
 
     private Rectangle SegRect(int i)
@@ -147,7 +153,7 @@ internal sealed class WikiViewBar : Control
         return new Rectangle(x, S(3), SegW(i), Height - S(6));
     }
 
-    private int At(Point pt) { for (int i = 0; i < 4; i++) if (SegRect(i).Contains(pt)) return i; return -1; }
+    private int At(Point pt) { for (int i = 0; i < Names.Length; i++) if (SegRect(i).Contains(pt)) return i; return -1; }
 
     protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); int i = At(e.Location); if (i != hover) { hover = i; Invalidate(); } }
     protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hover = -1; Invalidate(); }
@@ -171,7 +177,7 @@ internal sealed class WikiViewBar : Control
             using var pen = new Pen(p.Line);
             g.DrawPath(pen, path);
         }
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < Names.Length; i++)
         {
             var r = SegRect(i);
             bool sel = i == selected;
@@ -190,7 +196,7 @@ internal sealed class WikiViewBar : Control
             }
             var ic = new Rectangle(r.X + S(sel ? 12 : 12), r.Y, S(20), r.Height);
             Color col = sel ? p.Accent : (i == hover ? p.Fore : p.Dim);
-            DrawIcon(g, i, ic, col);
+            DrawIcon(g, i == 0 ? 1 : 3, ic, col);
             if (sel) TextRenderer.DrawText(g, Names[i], Font, new Rectangle(r.X + S(38), r.Y, r.Width - S(42), r.Height), p.Fore,
                 TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         }

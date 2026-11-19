@@ -81,7 +81,7 @@ internal sealed class WikiSimpleView : WikiViewBase
         base.OnMouseMove(e);
         int i = HitAt(e.Location);
         if (i != hover) { hover = i; Invalidate(); }
-        Cursor = i >= 0 && hits[i].DocPath != null ? Cursors.Hand : Cursors.Default;
+        Cursor = i >= 0 ? Cursors.Hand : Cursors.Default;
     }
     protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hover = -1; Invalidate(); }
 
@@ -97,6 +97,17 @@ internal sealed class WikiSimpleView : WikiViewBase
             else if (e.Button == MouseButtons.Right) RaiseDocMenu(h.DocPath, PointToScreen(e.Location));
         }
         else if (h.Folder && e.Button == MouseButtons.Right) RaiseFolderMenu(h.Text, PointToScreen(e.Location));
+        else if (h.Folder && e.Button == MouseButtons.Left) RaiseClass(h.Text); // 분류를 누르면 그 분류의 쪽
+    }
+
+    /// <summary>왼쪽의 대분류 이름 칸을 두 번 누르면 그 대분류의 쪽을 연다.</summary>
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+        if (e.Button != MouseButtons.Left) return;
+        DoLayout(Width);
+        foreach (var row in rows)
+            if (new Rectangle(0, row.R.Y, LabelW, row.R.Height).Contains(e.Location)) { string key = row.Cat.Key; BeginInvoke(() => RaiseCategory(key)); return; }
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -135,8 +146,8 @@ internal sealed class WikiSimpleView : WikiViewBase
             var h = hits[i];
             if (h.Folder)
             {
-                TextRenderer.DrawText(g, "", icon, new Rectangle(h.R.X, h.R.Y, S(20), h.R.Height), p.Dim, Flags | TextFormatFlags.HorizontalCenter);
-                TextRenderer.DrawText(g, h.Text, small, new Rectangle(h.R.X + S(24), h.R.Y, h.R.Width - S(24), h.R.Height), p.Dim, Flags);
+                TextRenderer.DrawText(g, "", icon, new Rectangle(h.R.X, h.R.Y, S(20), h.R.Height), (i == hover ? p.Accent : p.Dim), Flags | TextFormatFlags.HorizontalCenter);
+                TextRenderer.DrawText(g, h.Text, small, new Rectangle(h.R.X + S(24), h.R.Y, h.R.Width - S(24), h.R.Height), (i == hover ? p.Accent : p.Dim), Flags);
             }
             else
             {

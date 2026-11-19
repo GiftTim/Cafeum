@@ -145,6 +145,7 @@ internal sealed class NovelWorkspace : Panel
         Tree.PipRequested += p => OpenPip(p);
         Tree.WikiOpenRequested += p => Open(p, split: false);
         Tree.WikiOpenSplitRequested += p => Open(p, split: true);
+        Tree.GroupOpenRequested += (k, key) => OpenGroup(k, key); // 파일 트리 분류 줄의 [분류 문서 열기]
         Tree.CanvasRequested += g => { if (NovelPath is string d) Open(CanvasStore.PathFor(d, g), split: false); }; // 에피소드 그룹의 캔버스
         Tree.SnapDragging += ShowSnap;
         Tree.SnapDropped += DropSnap;
@@ -234,6 +235,17 @@ internal sealed class NovelWorkspace : Panel
     }
 
     /// <summary>문서를 연다. 이미 어느 칸에 열려 있으면 그 칸을 고른다. split이면 옆 칸에.</summary>
+    /// <summary>대분류("category", 키) · 분류("class", 이름)의 쪽을 지금 고른 칸에 연다(이미 열려 있으면 그 칸으로).</summary>
+    public void OpenGroup(string kind, string key)
+    {
+        if (!outer.Panel1Collapsed && !chromeHidden && !restoring) SetTreeVisible(false); // 대분류 · 분류 쪽은 파일 트리를 닫고 넓게 본다
+        string vp = DocPane.GroupPath(kind, key);
+        var already = new[] { left, right }.FirstOrDefault(p => (p == left || !inner.Panel2Collapsed) && string.Equals(p.DocPath, vp, StringComparison.OrdinalIgnoreCase));
+        if (already != null) { FocusPane(already); return; }
+        focused.OpenGroup(kind, key);
+        FocusPane(focused);
+    }
+
     public void Open(string path, bool split)
     {
         string full = Path.GetFullPath(path);
@@ -366,7 +378,7 @@ internal sealed class NovelWorkspace : Panel
         focused = pane;
         SyncFocusVisuals();
         Tree.MarkCurrent(pane.DocPath);
-        TitleChanged?.Invoke(pane.DocPath is string p ? Path.GetFileNameWithoutExtension(p) : Path.GetFileName(NovelPath ?? ""));
+        TitleChanged?.Invoke(pane.DocPath is string p && !DocPane.IsGroupPath(p) ? Path.GetFileNameWithoutExtension(p) : Path.GetFileName(NovelPath ?? ""));
     }
 
     private void SyncFocusVisuals()
@@ -830,9 +842,13 @@ internal class PaneFrame : Panel
     /// <summary>머리줄의 [수정 | 보기] 스위치(⋯ 왼쪽). 위키 문서를 볼 때만 켠다.</summary>
     public ModeSwitch Mode => header.Switch;
 
+    /// <summary>머리줄의 [<] 뒤로 가기를 눌렀다.</summary>
+    public event Action? BackClicked;
+
     public PaneFrame(string glyph, string title, bool showMore = false)
     {
         header = new PaneHeader { Dock = DockStyle.Top, Glyph = glyph, Title = title, ShowMore = showMore };
+        header.BackClicked += () => BackClicked?.Invoke();
         header.CloseClicked += () => CloseRequested?.Invoke();
         header.MoreClicked += pt => MoreRequested?.Invoke(header, pt);
         header.Clicked += () => HeaderClicked?.Invoke();
@@ -855,6 +871,9 @@ internal class PaneFrame : Panel
 [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool ShowMore { set { header.ShowMore = value; header.Invalidate(); } }
 [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    /// <summary>머리줄 [⋯] 왼쪽의 [<] 뒤로 가기.</summary>
+    public bool ShowBack { set { header.ShowBack = value; header.Invalidate(); } }
+[System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     /// <summary>머리줄 오른쪽 끝 [×](칸 닫기). 소설 메인 화면 한 칸뿐일 때는 할 일이 없어서 숨긴다.</summary>
     public bool ShowClose { set { header.ShowClose = value; header.Invalidate(); } }
 
@@ -863,11 +882,11 @@ internal class PaneFrame : Panel
     private sealed class PaneHeader : Control
     {
         private LibraryPalette? palette;
-        private int hover; // 0 없음, 1 ⋯, 2 ×
+        private int hover; // 0 없음, 1 ⋯, 2 ×, 3 <
         public string Glyph = "", Title = "";
-        public bool ShowMore, Dot, ShowClose = true;
+        public bool ShowMore, ShowBack, Dot, ShowClose = true;
         public int DotStyle;
-        public event Action? CloseClicked, Clicked;
+        public event Action? CloseClicked, Clicked, BackClicked;
         public event Action<Point>? MoreClicked;
         public readonly ModeSwitch Switch = new() { Visible = false };
 
@@ -887,10 +906,11 @@ internal class PaneFrame : Panel
         protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Height = S(34); PerformLayout(); }
         private Rectangle CloseRect => new(Width - S(30), (Height - S(24)) / 2, S(24), S(24));
         private Rectangle MoreRect => new(Width - S(56), (Height - S(24)) / 2, S(24), S(24));
+        private Rectangle BackRect => new(Width - S(86), (Height - S(24)) / 2, S(24), S(24));
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            int h = ShowClose && CloseRect.Contains(e.Location) ? 2 : ShowMore && MoreRect.Contains(e.Location) ? 1 : 0;
+            int h = ShowClose && CloseRect.Contains(e.Location) ? 2 : ShowMore && MoreRect.Contains(e.Location) ? 1 : ShowBack && BackRect.Contains(e.Location) ? 3 : 0;
             if (h != hover) { hover = h; Invalidate(); }
             Cursor = h > 0 ? Cursors.Hand : Cursors.Default;
         }
@@ -901,6 +921,7 @@ internal class PaneFrame : Panel
             if (e.Button != MouseButtons.Left) return;
             if (ShowClose && CloseRect.Contains(e.Location)) CloseClicked?.Invoke();
             else if (ShowMore && MoreRect.Contains(e.Location)) MoreClicked?.Invoke(new Point(MoreRect.Left, MoreRect.Bottom));
+            else if (ShowBack && BackRect.Contains(e.Location)) BackClicked?.Invoke();
             else Clicked?.Invoke();
         }
 
@@ -926,10 +947,11 @@ internal class PaneFrame : Panel
                 using (var op = new Pen(Color.FromArgb(150, 148, 146), Math.Max(1.2f, DeviceDpi / 96f * 1.3f))) g.DrawEllipse(op, dx, dy, d, d);
                 g.SmoothingMode = prevSm;
             }
-            foreach (var (r, glyph, h) in new[] { (CloseRect, "", 2), (MoreRect, "", 1) })
+            foreach (var (r, glyph, h) in new[] { (CloseRect, "", 2), (MoreRect, "", 1), (BackRect, "", 3) })
             {
                 if (h == 1 && !ShowMore) continue;
                 if (h == 2 && !ShowClose) continue;
+                if (h == 3 && !ShowBack) continue;
                 if (hover == h) using (var hb = new SolidBrush(p.CardHover)) using (var hp = LibraryPalette.Rounded(r, S(5))) g.FillPath(hb, hp);
                 using var f = new Font(MainForm.IconFontName(), 8f);
                 TextRenderer.DrawText(g, glyph, f, r, p.Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
@@ -951,6 +973,9 @@ internal sealed class DocPane : PaneFrame
     private readonly Label pipNote = new() { Text = "PIP 모드에서 진행 중", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Visible = false, UseMnemonic = false, AutoSize = false };
     private WikiPage? wiki;
     private PlotCanvasPage? canvas; // 에피소드 그룹의 플롯 캔버스
+    private WikiGroupPage? group;   // 대분류 · 분류 쪽
+    private readonly List<(string Kind, string Key)> groupBack = new(); // 대분류 · 분류 쪽에서 거쳐 온 쪽들([<] 뒤로 가기)
+    private Action? groupReload;
     private NovelOverview? overview;
     private LibraryPalette? palette;
 
@@ -972,6 +997,7 @@ internal sealed class DocPane : PaneFrame
         base.CloseRequested += () => CloseRequested?.Invoke(this);
         HeaderClicked += () => FocusRequested?.Invoke(this);
         MoreRequested += ShowPaneMenu;
+        BackClicked += () => { FocusRequested?.Invoke(this); GroupBack(); };
         Body.ControlAdded += (_, e) => Hook(e.Control!);
         tabStrip.Height = LogicalToDeviceUnits(36);
         pipNote.Font = new Font(NovelStore.UiFontFamily, 16f);
@@ -1021,8 +1047,73 @@ internal sealed class DocPane : PaneFrame
         base.SetPalette(p);
         wiki?.ApplyTheme(p);
         canvas?.ApplyTheme(p);
+        group?.SetPalette(p);
         overview?.ApplyTheme(p);
         tabStrip.SetPalette(p);
+    }
+
+    private const string GroupPrefix = "wikigroup|";
+    /// <summary>대분류 · 분류 쪽은 파일이 아니라서 이런 가짜 경로로 칸이 무엇을 열었는지 가린다.</summary>
+    public static string GroupPath(string kind, string key) => GroupPrefix + kind + "|" + key;
+    public static bool IsGroupPath(string? path) => path != null && path.StartsWith(GroupPrefix, StringComparison.Ordinal);
+
+    /// <summary>대분류 · 분류 쪽을 이 칸에 연다(있던 문서는 저장하고 닫는다).</summary>
+    public void OpenGroup(string kind, string key, bool fromBack = false)
+    {
+        var prev = group != null ? (group.Kind, group.Key) : ((string, string)?)null;
+        CloseContent();
+        if (prev is (string pk, string pn) && !fromBack && (pk != kind || pn != key)) groupBack.Add((pk, pn));
+        else if (prev == null) groupBack.Clear();
+        DocPath = GroupPath(kind, key);
+        var g = group = new WikiGroupPage { Dock = DockStyle.Fill };
+        if (palette != null) g.SetPalette(palette);
+        g.BackRequested += () => { ShowOverview(); ContentChanged?.Invoke(); };
+        g.DocChosen += p => owner.Open(p, split: false);
+        g.GroupChosen += (k, name) => OpenGroup(k, name);
+        g.ClassAttrsEdited += (name, attrs) =>
+        {
+            owner.Tree.EditWikiClass(name, attributes: attrs);
+            g.SetData(WikiViewData.Build(owner.NovelPath ?? "", owner.Tree.WikiDocs));
+        };
+        g.ClassTagsEdited += (name, tags) =>
+        {
+            owner.Tree.EditWikiClass(name, tags: tags);
+            g.SetData(WikiViewData.Build(owner.NovelPath ?? "", owner.Tree.WikiDocs));
+        };
+        groupReload = () =>
+        {
+            if (group != g || owner.NovelPath is not string nd) return;
+            var d = WikiViewData.Build(nd, owner.Tree.WikiDocs);
+            if (kind == "class" && !d.Parents.ContainsKey(key)) { GroupBack(); return; } // 지워진 분류
+            g.SetData(d);
+        };
+        owner.Tree.WikiReloaded += groupReload;
+        g.ClassEdited += (name, summary, cat, parents, imp) =>
+        {
+            owner.Tree.EditWikiClass(name, summary, cat, parents, imp);
+            g.SetData(WikiViewData.Build(owner.NovelPath ?? "", owner.Tree.WikiDocs));
+        };
+        Body.Controls.Add(g);
+        g.BringToFront();
+        g.Open(WikiViewData.Build(owner.NovelPath ?? "", owner.Tree.WikiDocs), kind, key);
+        Glyph = kind == "category" ? WikiCategory.Find(key).Glyph : "";
+        Title = g.TitleText;
+        ShowMore = true;
+        ShowBack = true;
+        if (overview != null) overview.Visible = false;
+        ContentChanged?.Invoke();
+    }
+
+    /// <summary>[<] 뒤로 가기: 거쳐 온 대분류 · 분류 쪽이 있으면 그리로, 없으면 작품 화면으로.</summary>
+    private void GroupBack()
+    {
+        if (groupBack.Count > 0)
+        {
+            var (k, n) = groupBack[^1];
+            groupBack.RemoveAt(groupBack.Count - 1);
+            OpenGroup(k, n, fromBack: true);
+        }
+        else { ShowOverview(); ContentChanged?.Invoke(); }
     }
 
     private static bool IsWiki(string path) =>
@@ -1240,6 +1331,14 @@ internal sealed class DocPane : PaneFrame
             wiki.Dispose();
             wiki = null;
         }
+        ShowBack = false;
+        if (groupReload != null) { owner.Tree.WikiReloaded -= groupReload; groupReload = null; }
+        if (group != null)
+        {
+            Body.Controls.Remove(group);
+            group.Dispose();
+            group = null;
+        }
         if (canvas != null)
         {
             canvas.Save();
@@ -1260,6 +1359,7 @@ internal sealed class DocPane : PaneFrame
             overview.SettingsRequested += () => owner.RaiseSettings();
             overview.OpenRequested += p => owner.Open(p, split: false);
             overview.WikiOpenRequested += p => owner.Open(p, split: false);
+            overview.GroupOpenRequested += (k, key) => owner.OpenGroup(k, key);
             overview.RefOpenRequested += p => owner.Open(p, split: false);
             overview.DeleteRequested += dir =>
             {
@@ -1300,11 +1400,29 @@ internal sealed class DocPane : PaneFrame
         ShowMore = false;
     }
 
+    private ContextMenuStrip? groupMenu;
+
+    /// <summary>대분류 · 분류 쪽의 [⋯]: 이 곳에 문서 · 분류 만들기, 분류는 지우기까지.</summary>
+    private void ShowGroupMenu(Control anchor, Point at)
+    {
+        if (group == null) return;
+        string kind = group.Kind, key = group.Key;
+        var screen = anchor.PointToScreen(at);
+        if (kind == "class") { owner.Tree.ShowFolderMenu(key, screen); return; }
+        groupMenu?.Dispose();
+        var m = groupMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
+        m.Items.Add("이 대분류에 문서 만들기…", null, (_, _) => BeginInvoke(() => owner.Tree.CreateWikiIn(key, null)));
+        m.Items.Add("이 대분류에 분류 만들기…", null, (_, _) => BeginInvoke(() => owner.Tree.CreateWikiClass(null, key)));
+        m.Show(screen);
+    }
+
     private void ShowPaneMenu(Control anchor, Point at)
     {
         FocusRequested?.Invoke(this);
         if (doc != null) { doc.ShowMainMenu(anchor, at); return; } // 회차: 문서 메뉴(파일 · 편집 · 보기 · 서식 …)
         if (canvas != null) { canvas.ShowMenuAt(anchor, at); return; } // 캔버스: 내보내기 · 가져오기 · 설정
+        if (group != null) { ShowGroupMenu(anchor, at); return; } // 대분류 · 분류 쪽: 만들기 · 지우기
         wiki?.ShowMenuAt(anchor, at);
     }
 
