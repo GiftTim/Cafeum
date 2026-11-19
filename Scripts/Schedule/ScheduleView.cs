@@ -125,17 +125,25 @@ internal static class ScheduleStore
     public static void Remove(ScheduleEntry e) { All.Remove(e); Save(); }
 
     /// <summary>며칠짜리 일정에서 그날(day)만 지운다: 가장자리면 줄어들고, 중간이면 앞뒤 둘로 갈라진다. 하루짜리는 그냥 지운다.</summary>
-    public static void RemoveDay(ScheduleEntry e, DateTime day)
+    public static void RemoveDay(ScheduleEntry e, DateTime day) { RemoveDayQuiet(e, day); Save(); }
+
+    /// <summary>여러 일정을 한 번에 지운다(그날 기준: 며칠짜리는 그날만 빠진다). 저장은 맨 끝에 한 번만 한다.</summary>
+    public static void RemoveMany(IEnumerable<ScheduleEntry> list, DateTime day)
     {
-        if (!IsMulti(e) || !TryParse(e.Date, out var s) || !TryParse(e.EndDate, out var f) || day.Date < s || day.Date > f) { Remove(e); return; }
+        foreach (var e in list.ToList()) RemoveDayQuiet(e, day);
+        Save();
+    }
+
+    private static void RemoveDayQuiet(ScheduleEntry e, DateTime day)
+    {
+        if (!IsMulti(e) || !TryParse(e.Date, out var s) || !TryParse(e.EndDate, out var f) || day.Date < s || day.Date > f) { All.Remove(e); return; }
         day = day.Date;
-        if (day == s) { e.Date = Key(day.AddDays(1)); if (day.AddDays(1) == f) e.EndDate = ""; Save(); return; }
-        if (day == f) { e.EndDate = day.AddDays(-1) == s ? "" : Key(day.AddDays(-1)); Save(); return; }
+        if (day == s) { e.Date = Key(day.AddDays(1)); if (day.AddDays(1) == f) e.EndDate = ""; return; }
+        if (day == f) { e.EndDate = day.AddDays(-1) == s ? "" : Key(day.AddDays(-1)); return; }
         // 중간: 뒤쪽 조각을 새 일정으로
         var tail = new ScheduleEntry { Date = Key(day.AddDays(1)), EndDate = day.AddDays(1) == f ? "" : Key(f), Text = e.Text, Done = e.Done, Cal = e.Cal, StartMin = e.StartMin, DurMin = e.DurMin, Place = e.Place, Note = e.Note };
         e.EndDate = day.AddDays(-1) == s ? "" : Key(day.AddDays(-1));
         All.Insert(All.IndexOf(e) + 1, tail);
-        Save();
     }
 
     /// <summary>colors of the 7 that no schedule uses yet (ignoreId: the schedule being edited keeps its own color)</summary>
@@ -977,6 +985,13 @@ internal sealed class ScheduleView : Panel
         private DateTime day = DateTime.Today;
         private int scroll, hotRow = -1;
         private readonly List<(Rectangle R, ScheduleEntry E)> rows = new();
+        // 여러 개 고르기: 줄을 누른 채 위아래로 끌면 그 사이 일정이 골라지고, 고른 게 있으면 아래에 [삭제 · 취소] 줄만 뜬다
+        private readonly HashSet<string> sel = new();
+        private int anchorRow = -1;
+        private bool dragging, suppressClick;
+        private Point downAt;
+        private Rectangle delRect, cancelRect;
+        private readonly System.Windows.Forms.Timer scrollTimer = new() { Interval = 40 };
 
         /// <summary>일정을 눌렀다(보기 · 수정 창을 여는 쪽이 받는다).</summary>
         public event Action<ScheduleEntry, Point>? EntryClicked;
@@ -990,6 +1005,44 @@ internal sealed class ScheduleView : Panel
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             TabStop = false;
             Height = 312;
+            scrollTimer.Tick += (_, _) => AutoScroll();
+            Disposed += (_, _) => scrollTimer.Dispose();
+        }
+
+        private int BarH() => sel.Count > 0 ? S(52) : 0;
+        private int MaxScroll(int count) => Math.Max(0, count * S(46) - (Height - HeadH() - BarH()) + S(8));
+        private int RowAtY(int y, int count) => count == 0 ? -1 : Math.Clamp((y - HeadH() + scroll) / S(46), 0, count - 1);
+
+        private void UpdateDragSel(int y)
+        {
+            var list = DayList();
+            if (anchorRow < 0 || anchorRow >= list.Count) return;
+            int cur = RowAtY(y, list.Count);
+            sel.Clear();
+            for (int i = Math.Min(anchorRow, cur); i <= Math.Max(anchorRow, cur); i++) sel.Add(list[i].Id);
+            Invalidate();
+        }
+
+        /// <summary>끌다가 위 · 아래 끝에 닿으면 그쪽으로 저절로 넘어가며 계속 고른다.</summary>
+        private void AutoScroll()
+        {
+            if (!dragging) { scrollTimer.Stop(); return; }
+            var pt = PointToClient(Cursor.Position);
+            int max = MaxScroll(DayList().Count);
+            if (pt.Y < HeadH() + S(24)) scroll = Math.Max(0, scroll - S(24));
+            else if (pt.Y > Height - BarH() - S(24)) scroll = Math.Min(max, scroll + S(24));
+            else return;
+            UpdateDragSel(pt.Y);
+        }
+
+        private void DeleteSelected()
+        {
+            var targets = ScheduleStore.All.Where(en => sel.Contains(en.Id)).ToList();
+            if (targets.Count == 0) { sel.Clear(); Invalidate(); return; }
+            if (MessageBox.Show(FindForm(), $"선택한 일정 {targets.Count}개를 삭제할까요?\n되돌릴 수 없어요.", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+            ScheduleStore.RemoveMany(targets, day);
+            sel.Clear();
+            Invalidate();
         }
 
         private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
@@ -997,7 +1050,7 @@ internal sealed class ScheduleView : Panel
         public void SetPalette(LibraryPalette pal) { p = pal; BackColor = pal.Side; Invalidate(); }
 
         /// <summary>보여 줄 날짜를 바꾼다(달력에서 날짜를 눌렀을 때).</summary>
-        public void SetDay(DateTime d) { d = d.Date; if (d != day) scroll = 0; day = d; Invalidate(); }
+        public void SetDay(DateTime d) { d = d.Date; if (d != day) { scroll = 0; sel.Clear(); } day = d; Invalidate(); }
 
         private List<ScheduleEntry> DayList()
         {
@@ -1031,9 +1084,30 @@ internal sealed class ScheduleView : Panel
             Invalidate();
         }
 
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            suppressClick = false; dragging = false; anchorRow = -1;
+            if (e.Button != MouseButtons.Left || e.Y < HeadH() || e.Y >= Height - BarH()) return;
+            int idx = (e.Y - HeadH() + scroll) / S(46);
+            if (idx >= 0 && idx < DayList().Count) { anchorRow = idx; downAt = e.Location; }
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            if (dragging) { dragging = false; scrollTimer.Stop(); suppressClick = true; Invalidate(); }
+            anchorRow = -1;
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            if ((e.Button & MouseButtons.Left) != 0 && anchorRow >= 0)
+            {
+                if (!dragging && Math.Abs(e.Y - downAt.Y) > S(6)) { dragging = true; scrollTimer.Start(); }
+                if (dragging) { UpdateDragSel(e.Y); return; }
+            }
             int h = rows.FindIndex(r => r.R.Contains(e.Location));
             Cursor = h >= 0 || RelRect().Contains(e.Location) ? Cursors.Hand : Cursors.Default;
             if (h != hotRow) { hotRow = h; Invalidate(); }
@@ -1044,6 +1118,15 @@ internal sealed class ScheduleView : Panel
         protected override void OnMouseClick(MouseEventArgs e)
         {
             base.OnMouseClick(e);
+            if (suppressClick) { suppressClick = false; return; }
+            if (sel.Count > 0 && e.Button == MouseButtons.Left)
+            {
+                // 고른 게 있으면 삭제 · 취소만 된다(줄을 누르면 고름이 켜졌다 꺼질 뿐 일정은 열리지 않는다)
+                if (delRect.Contains(e.Location)) DeleteSelected();
+                else if (cancelRect.Contains(e.Location)) { sel.Clear(); Invalidate(); }
+                else foreach (var (rr, en) in rows) if (rr.Contains(e.Location)) { if (!sel.Remove(en.Id)) sel.Add(en.Id); Invalidate(); break; }
+                return;
+            }
             if (e.Button == MouseButtons.Left && RelRect().Contains(e.Location)) { TodayClicked?.Invoke(); return; }
             if (e.Button != MouseButtons.Left || e.Y < HeadH()) return;
             foreach (var (r, en) in rows)
@@ -1069,7 +1152,7 @@ internal sealed class ScheduleView : Panel
             // 1) 일정 줄을 먼저 그린다(글자는 영역 밖으로도 그려질 수 있어서, 아래에서 머리 영역을 다시 덮는다)
             var list = DayList();
             var area = new Rectangle(0, headH, Width, Height - headH);
-            scroll = Math.Clamp(scroll, 0, Math.Max(0, list.Count * S(46) - area.Height + S(8)));
+            scroll = Math.Clamp(scroll, 0, MaxScroll(list.Count));
             if (list.Count == 0)
             {
                 using var nf = new Font(ff, 9.5f);
@@ -1085,7 +1168,8 @@ internal sealed class ScheduleView : Panel
                     var r = new Rectangle(S(10), area.Top + i * S(46) - scroll, Width - S(20), S(42));
                     if (r.Bottom < area.Top || r.Top > area.Bottom) continue;
                     rows.Add((r, en));
-                    if (hotRow >= 0 && rows.Count - 1 == hotRow) { using var hb = new SolidBrush(pal.CardHover); using var hp = LibraryPalette.Rounded(r, S(8)); g.FillPath(hb, hp); }
+                    if (sel.Contains(en.Id)) { using var sb2 = new SolidBrush(Themes.Blend(pal.Side, pal.Accent, pal.Dark ? 0.28f : 0.18f)); using var sp = LibraryPalette.Rounded(r, S(8)); g.FillPath(sb2, sp); }
+                    else if (hotRow >= 0 && rows.Count - 1 == hotRow) { using var hb = new SolidBrush(pal.CardHover); using var hp = LibraryPalette.Rounded(r, S(8)); g.FillPath(hb, hp); }
                     var col = ScheduleStore.CalOf(en.Cal).ColorValue;
                     using (var bar = new SolidBrush(en.Done ? Themes.Blend(pal.Side, col, 0.4f) : col))
                     using (var bp = LibraryPalette.Rounded(new Rectangle(r.X + S(8), r.Y + S(6), S(5), r.Height - S(12)), S(2))) g.FillPath(bar, bp);
@@ -1115,6 +1199,23 @@ internal sealed class ScheduleView : Panel
                 using (var hf = new Font(ff, 9f))
                     TextRenderer.DrawText(g, holName, hf, new Rectangle(wx0, S(29), Math.Max(10, Width - wx0 - S(10)), S(18)), holCol!.Value, left);
             using (var lp = new Pen(pal.Line)) g.DrawLine(lp, S(16), headH - S(8), Width - S(16), headH - S(8));
+
+            // 3) 여러 개를 골랐으면 맨 아래에 [삭제 · 취소] 줄만 둔다
+            delRect = cancelRect = Rectangle.Empty;
+            if (sel.Count > 0)
+            {
+                var bar = new Rectangle(0, Height - BarH(), Width, BarH());
+                using (var bb = new SolidBrush(pal.Side)) g.FillRectangle(bb, bar);
+                using (var lp2 = new Pen(pal.Line)) g.DrawLine(lp2, 0, bar.Top, Width, bar.Top);
+                using var bf = new Font(ff, 9.5f, FontStyle.Bold);
+                TextRenderer.DrawText(g, $"{sel.Count}개 선택됨", bf, new Rectangle(S(16), bar.Top, Width / 2 - S(16), bar.Height), pal.Fore, left);
+                delRect = new Rectangle(Width - S(16) - S(72), bar.Top + S(8), S(72), bar.Height - S(16));
+                cancelRect = new Rectangle(delRect.Left - S(8) - S(64), delRect.Top, S(64), delRect.Height);
+                using (var path = LibraryPalette.Rounded(delRect, S(8))) using (var fb = new SolidBrush(Color.FromArgb(0xE0, 0x2B, 0x2B))) g.FillPath(fb, path);
+                TextRenderer.DrawText(g, "삭제", bf, delRect, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                using (var path = LibraryPalette.Rounded(cancelRect, S(8))) using (var cp = new Pen(pal.Line)) g.DrawPath(cp, path);
+                TextRenderer.DrawText(g, "취소", bf, cancelRect, pal.Fore, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            }
         }
     }
 
