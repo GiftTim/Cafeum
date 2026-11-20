@@ -147,6 +147,16 @@ public sealed class AppSettings
     /// <summary>사전 창을 마지막으로 닫을 때의 "x,y,너비,높이,접힘(0/1),탭". 비어 있으면 처음 자리.</summary>
     public string DictWindow { get; set; } = "";
 
+    // ── 라마(Ollama): 도구 > AI (라마) ──
+    /// <summary>Ollama 주소. 내 PC에서 돌아가는 Ollama를 쓰니 글이 밖으로 나가지 않는다.</summary>
+    public string LlamaEndpoint { get; set; } = "http://127.0.0.1:11434";
+    /// <summary>쓸 모델 이름(ollama list에 보이는 이름).</summary>
+    public string LlamaModel { get; set; } = "llama3.2:3b";
+    /// <summary>답의 자유도(0 = 늘 같은 답, 높을수록 다양). 집필용 기본값.</summary>
+    public double LlamaTemperature { get; set; } = 0.7;
+    /// <summary>한 번에 읽을 수 있는 글의 양(토큰). 크게 잡을수록 메모리를 더 쓴다.</summary>
+    public int LlamaNumCtx { get; set; } = 8192;
+
     // ── 회차 글쓰기(Muvel식 "글자 수 세기" 위젯) ──
     /// <summary>한 회차의 목표 글자 수.</summary>
     public int WriterGoalChars { get; set; } = 3000;

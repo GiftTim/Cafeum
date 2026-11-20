@@ -5,7 +5,14 @@ namespace Cafeum;
 
 static partial class Program
 {
-    private const string PipeName = "Cafeum.SingleInstance.Pipe";
+    /// <summary>
+    /// 데이터 폴더(CAFEUM_DATA_DIR)를 따로 쓰는 복사본(휴대용 등)은 설치본과 별개로 하나씩 뜨도록, 하나만 뜨는 규칙의 이름에 그 폴더를 섞는다.
+    /// 안 그러면 설치본이 켜져 있을 때 휴대용을 켜도 설치본으로 넘어가 버린다. 환경 변수가 없으면(설치본) 예전 이름 그대로다.
+    /// </summary>
+    private static readonly string InstanceSuffix = Environment.GetEnvironmentVariable("CAFEUM_DATA_DIR") is { Length: > 0 } dataDir
+        ? "." + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(dataDir).TrimEnd('\\').ToLowerInvariant())))[..12]
+        : "";
+    private static readonly string PipeName = "Cafeum.SingleInstance.Pipe" + InstanceSuffix;
 
     /// <summary>
     /// 진입점. 프로그램은 하나만 떠 있는다: 이미 실행 중이면 새로 띄우지 않고 받은 인자(폴더 · 파일)를 기존 프로그램에 넘긴 뒤 끝낸다
@@ -17,7 +24,7 @@ static partial class Program
     [STAThread]
     static void Main(string[] args)
     {
-        using var mutex = new Mutex(true, @"Local\Cafeum.SingleInstance", out bool first);
+        using var mutex = new Mutex(true, @"Local\Cafeum.SingleInstance" + InstanceSuffix, out bool first);
         if (!first)
         {
             if (!SendToRunning(args)) MessageBox.Show("Cafeum이 이미 실행 중이지만 응답이 없어요. 잠시 뒤에 다시 시도해 주세요.", "Cafeum");

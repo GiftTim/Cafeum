@@ -13,6 +13,7 @@ public partial class MainForm
         var quick = new ToolStripMenuItem("글 한 번에 다듬기…", null, (_, _) => RunQuickFix());
         tools.DropDownItems.Add(content);
         tools.DropDownItems.Add(quick);
+        AddLlamaMenu(tools);
         tools.DropDownOpening += (_, _) => quick.Enabled = shownKind == ContentKind.Txt && !mainEditor.ReadOnly && !txtWeb; // 고치는 중인 글에서만
         int at = toolbarMore.DropDownItems.Cast<ToolStripItem>().ToList().FindIndex(i => i.Text.StartsWith("도움말"));
         if (at < 0) toolbarMore.DropDownItems.Add(tools); else toolbarMore.DropDownItems.Insert(at, tools);
