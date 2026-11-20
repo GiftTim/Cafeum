@@ -20,6 +20,8 @@ internal sealed class NovelWorkspace : Panel
     private readonly StickyListPanel memoList; // 사이드바 [메모]: 파일 트리 자리에 대신 뜨는 메모 목록
     private readonly string treeGlyph;
     private bool memoShown;
+    private readonly WidgetPanel widgetPanel; // 사이드바 [위젯]: 파일 트리 자리에 대신 뜨는 위젯 목록
+    private bool widgetShown;
     private DictionaryWindow? dictWin; // 아이콘 막대 [사전]: 따로 떠 있는 사전 창
     private readonly DocPane left, right;
     private DocPane focused;
@@ -42,6 +44,12 @@ internal sealed class NovelWorkspace : Panel
         rail.SetActive("typewriter", AppShared.Settings.Typewriter);
         rail.SetActive("quote", AppShared.Settings.QuickQuotes);
         rail.SetActive("dict", dictWin is { IsDisposed: false, Visible: true });
+        // 위젯 목록의 카드도 같은 상태로(켜진 위젯은 눌린 모양)
+        widgetPanel.SetActive("timer", pomo is { Visible: true });
+        widgetPanel.SetActive("count", focused.CountWidgetOn);
+        widgetPanel.SetActive("typewriter", AppShared.Settings.Typewriter);
+        widgetPanel.SetActive("quote", AppShared.Settings.QuickQuotes);
+        widgetPanel.SetActive("dict", dictWin is { IsDisposed: false, Visible: true });
     }
     protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (IsHandleCreated) BeginInvoke(SyncPomodoro); }
     protected override void OnHandleCreated(EventArgs e)
@@ -160,6 +168,10 @@ internal sealed class NovelWorkspace : Panel
         treeGlyph = treeFrame.Glyph;
         memoList = new StickyListPanel { Dock = DockStyle.Fill, Visible = false };
         treeFrame.Body.Controls.Add(memoList);
+        widgetPanel = new WidgetPanel { Dock = DockStyle.Fill, Visible = false };
+        widgetPanel.Toggled += OnRail; // 카드를 누르면 사이드바 아이콘을 누른 것과 같다
+        widgetPanel.SettingsRequested += key => { if (key == "count") focused.OpenCountSettings(); };
+        treeFrame.Body.Controls.Add(widgetPanel);
         StickyNotes.ListRequested += OnMemoListRequested;
         Disposed += (_, _) => StickyNotes.ListRequested -= OnMemoListRequested;
 
@@ -450,13 +462,17 @@ internal sealed class NovelWorkspace : Panel
                 if (outer.Panel1Collapsed || !memoShown) { ShowMemo(true); SetTreeVisible(true); }
                 else SetTreeVisible(false);
                 break;
+            case "widget": // 파일 트리 자리에 위젯 목록을 띄운다(다시 누르면 닫는다)
+                if (outer.Panel1Collapsed || !widgetShown) { ShowWidgets(true); SetTreeVisible(true); }
+                else SetTreeVisible(false);
+                break;
             case "dict": ToggleDictionary(); break; // 사전 창 켜고 끄기
             case "tree":
-                if (outer.Panel1Collapsed || memoShown || Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; }
+                if (outer.Panel1Collapsed || memoShown || widgetShown || Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; }
                 else SetTreeVisible(false);
                 break;
             case "files":
-                if (outer.Panel1Collapsed || memoShown || !Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(2); treeFrame.Title = "볼트 파일"; }
+                if (outer.Panel1Collapsed || memoShown || widgetShown || !Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(2); treeFrame.Title = "볼트 파일"; }
                 else SetTreeVisible(false);
                 break;
             case "search": NotReady("검색 보드"); break;
@@ -539,18 +555,34 @@ internal sealed class NovelWorkspace : Panel
 
     private void SyncRail()
     {
-        rail.Selected = outer.Panel1Collapsed ? null : memoShown ? "memo" : Tree.ShowingFiles ? "files" : "tree";
+        rail.Selected = outer.Panel1Collapsed ? null : widgetShown ? "widget" : memoShown ? "memo" : Tree.ShowingFiles ? "files" : "tree";
         SyncWidgetMarks();
     }
 
     /// <summary>왼쪽 칸에 메모 목록(true) 또는 파일 트리(false)를 보인다.</summary>
     private void ShowMemo(bool on)
     {
+        if (widgetShown) { widgetShown = false; widgetPanel.Visible = false; }
         memoShown = on;
         memoList.Visible = on;
         Tree.Visible = !on;
         if (on) { treeFrame.Title = "메모"; treeFrame.Glyph = WorkspaceRail.Catalog.First(c => c.Key == "memo").Glyph; memoList.BringToFront(); }
         else { treeFrame.Title = Tree.ShowingFiles ? "볼트 파일" : "파일 트리"; treeFrame.Glyph = treeGlyph; }
+    }
+
+    /// <summary>왼쪽 칸에 위젯 목록을 보인다(true). 끌 때는 ShowMemo(false)가 파일 트리로 되돌린다.</summary>
+    private void ShowWidgets(bool on)
+    {
+        if (!on) { ShowMemo(false); return; }
+        widgetShown = true;
+        memoShown = false;
+        memoList.Visible = false;
+        Tree.Visible = false;
+        widgetPanel.Visible = true;
+        widgetPanel.BringToFront();
+        treeFrame.Title = "위젯 설정";
+        treeFrame.Glyph = WorkspaceRail.Catalog.First(c => c.Key == "widget").Glyph;
+        SyncWidgetMarks();
     }
 
     /// <summary>[사전] 아이콘: 사전 창을 켜고(다시 누르면 끈다). 창은 이 창 위에 따로 떠서 옮기고 접을 수 있다.</summary>
@@ -600,6 +632,7 @@ internal sealed class NovelWorkspace : Panel
         treeFrame.SetPalette(p);
         Tree.ApplyTheme(p);
         memoList.ApplyTheme(p);
+        widgetPanel.ApplyTheme(p);
         dictWin?.ApplyTheme(p);
         left.ApplyTheme(p);
         right.ApplyTheme(p);
@@ -621,6 +654,7 @@ internal sealed class WorkspaceRail : Control
         ("novel", "", "소설 메인으로"),
         ("tree", "", "파일 트리"),
         ("memo", "", "메모"),
+        ("widget", "", "위젯"), // 아이콘은 직접 그린다(WorkspaceRail.DrawWidgetIcon). 글자는 칸 머리 이름 옆에만 쓴다.
         ("dict", "", "사전"),
         ("search", "", "검색 보드"),
         ("timer", "\uE916", "뽀모도로 타이머"),
@@ -677,7 +711,7 @@ internal sealed class WorkspaceRail : Control
         {
             if (k == "spacer") { bottom = true; continue; }
             if (s.RailHidden.Contains(k)) continue;
-            if (k is "tree" or "memo" or "dict" or "search" or "count" or "typewriter" or "quote" && !docMode) continue;
+            if (k is "tree" or "memo" or "widget" or "dict" or "search" or "count" or "typewriter" or "quote" && !docMode) continue;
             if (IsCustom(k)) { list.Add((k, "", LabelOf(k), bottom)); continue; }
             var c = Catalog.First(x => x.Key == k);
             list.Add((c.Key, c.Glyph, c.Label, bottom));
@@ -752,16 +786,16 @@ internal sealed class WorkspaceRail : Control
     }
 
     /// <summary>타입라이터 아이콘: 위로 나온 종이(줄이 적힌 채워진 네모) · 롤러 막대 · 자판 본체(키 점들과 스페이스 막대).</summary>
-    private void DrawTypewriterIcon(Graphics g, Rectangle r, Color c)
+    internal static void DrawTypewriterIcon(Graphics g, Rectangle r, Color c, Color paperBg, float u)
     {
-        float u = DeviceDpi / 96f, cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
+        float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
         var cap = System.Drawing.Drawing2D.LineCap.Round;
         using var pen = new Pen(c, Math.Max(1.3f, 1.5f * u)) { StartCap = cap, EndCap = cap, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
         using var fill = new SolidBrush(c);
         // 종이: 채운 둥근 네모 + 안쪽에 배경색 글줄 둘
         var paper = new RectangleF(cx - 5f * u, cy - 10f * u, 10f * u, 6f * u);
         using (var pp = LibraryPalette.Rounded(paper, (int)(1.5f * u))) g.FillPath(fill, pp);
-        using (var bg = new Pen(palette?.Side ?? Color.White, Math.Max(1.1f, 1.2f * u)) { StartCap = cap, EndCap = cap })
+        using (var bg = new Pen(paperBg, Math.Max(1.1f, 1.2f * u)) { StartCap = cap, EndCap = cap })
         {
             g.DrawLine(bg, cx - 3f * u, cy - 8.3f * u, cx + 3f * u, cy - 8.3f * u);
             g.DrawLine(bg, cx - 3f * u, cy - 6f * u, cx + 0.5f * u, cy - 6f * u);
@@ -780,10 +814,21 @@ internal sealed class WorkspaceRail : Control
         g.DrawLine(pen, cx - 4f * u, cy + 7.3f * u, cx + 4f * u, cy + 7.3f * u);
     }
 
-    /// <summary>빠른 따옴표 아이콘: 왼쪽 위 “ 와 오른쪽 아래 ” 를 ┐ └ 모양 선으로 이은 모양.</summary>
-    private void DrawQuoteIcon(Graphics g, Rectangle r, Color c)
+    /// <summary>위젯 아이콘: 얇은 선의 네모 셋(왼쪽 위 · 왼쪽 아래 · 오른쪽 아래), 오른쪽 위는 빈칸.</summary>
+    internal static void DrawWidgetIcon(Graphics g, Rectangle r, Color c, float u)
     {
-        float u = DeviceDpi / 96f, cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
+        float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
+        using var pen = new Pen(c, Math.Max(1f, 1.05f * u)) { LineJoin = System.Drawing.Drawing2D.LineJoin.Round }; // 얇은 선
+        void Box(float x, float y) { using var bp = LibraryPalette.Rounded(new RectangleF(cx + x * u, cy + y * u, 7f * u, 7f * u), 1f * u); g.DrawPath(pen, bp); }
+        Box(-8f, -8f);  // 왼쪽 위
+        Box(-8f, 1f);   // 왼쪽 아래
+        Box(1f, 1f);    // 오른쪽 아래 (오른쪽 위는 비워 둔다)
+    }
+
+    /// <summary>빠른 따옴표 아이콘: 왼쪽 위 “ 와 오른쪽 아래 ” 를 ┐ └ 모양 선으로 이은 모양.</summary>
+    internal static void DrawQuoteIcon(Graphics g, Rectangle r, Color c, float u)
+    {
+        float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
         var cap = System.Drawing.Drawing2D.LineCap.Round;
         using var pen = new Pen(c, Math.Max(1.3f, 1.5f * u)) { StartCap = cap, EndCap = cap, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
         g.DrawLines(pen, new[] { new PointF(cx + 0.5f * u, cy - 5f * u), new PointF(cx + 8f * u, cy - 5f * u), new PointF(cx + 8f * u, cy - 1f * u) });   // ┐
@@ -815,8 +860,10 @@ internal sealed class WorkspaceRail : Control
                 using var b = new SolidBrush(sel ? Themes.Blend(p.Side, p.Fore, p.Dark ? 0.12f : 0.08f) : p.CardHover);
                 g.FillPath(b, path);
             }
-            if (items[i].Key == "typewriter") { DrawTypewriterIcon(g, r, sel ? p.Fore : p.Dim); continue; }
-            if (items[i].Key == "quote") { DrawQuoteIcon(g, r, sel ? p.Fore : p.Dim); continue; }
+            float du = DeviceDpi / 96f;
+            if (items[i].Key == "typewriter") { DrawTypewriterIcon(g, r, sel ? p.Fore : p.Dim, p.Side, du); continue; }
+            if (items[i].Key == "quote") { DrawQuoteIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
+            if (items[i].Key == "widget") { DrawWidgetIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
             if (items[i].Key == "count")
             {
                 int cs = S(20);
@@ -982,6 +1029,8 @@ internal sealed class DocPane : PaneFrame
     public string? DocPath { get; private set; }
     /// <summary>이 칸에 열린 에피소드의 글자 수 세기 위젯을 켜고 끈다(에피소드가 아니면 아무 일도 없다).</summary>
     public void ToggleCountWidget() => doc?.ToggleCountWidget();
+    /// <summary>글자 수 세기 설정 창을 연다(에피소드가 아니면 아무 일도 없다).</summary>
+    public void OpenCountSettings() => doc?.OpenGoalSettings();
     /// <summary>이 칸의 글 상자에 타입라이터 · 빠른 따옴표 설정을 다시 반영한다(에피소드가 아니면 아무 일도 없다).</summary>
     public void ApplyWriterOptions() => doc?.ApplyWriterOptions();
     /// <summary>글자 수 세기 위젯이 지금 떠 있는가.</summary>

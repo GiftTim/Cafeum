@@ -199,7 +199,7 @@ public partial class MainForm
     }
 
     /// <summary>위젯의 설정(톱니바퀴): 글자 수 세기 설정 창.</summary>
-    private void OpenGoalSettings()
+    internal void OpenGoalSettings()
     {
         using var dlg = new GoalSettingsDialog(settings);
         dlg.ShowDialogOver(HostForm);
@@ -881,7 +881,7 @@ public partial class MainForm
 
 /// <summary>
 /// 글자 수 세기 위젯(알약 모양, 두 가지 크기):
-///  · 작은 모양: [현재 / 목표] [›] [압정] [설정] [닫기]
+///  · (단추 없는 알약) [현재] [진행 막대] [목표 + 단위]. 끄기 · 설정은 사이드바의 위젯 패널에서 한다.
 ///  · 넓은 모양(› 를 누르면): [현재] [진행 막대] [목표 + 단위] [‹] [압정] [설정] [닫기]
 /// 사이드바의 글자 수 세기 아이콘을 누르면 나타나고, 압정을 켜지 않았을 때는 배경을 끌어서 옮길 수 있다.
 /// </summary>
@@ -891,9 +891,8 @@ internal sealed class CharGoalWidget : Control
     private int goal = 3000;
     private string unit = "자";
     private Color back = Color.White, fore = Color.Black, accent = Color.SteelBlue;
-    private Rectangle foldRect, pinRect, gearRect, closeRect;
-    private int hot = -1; // 0 펼치기/접기 · 1 압정 · 2 설정 · 3 닫기
-    private bool pinned, expanded;
+    private int hot = -1;
+    private bool pinned, expanded = true; // 단추를 없앤 뒤로는 늘 넓은 모양
     private Point dragFrom;
     private bool dragging;
 
@@ -938,7 +937,7 @@ internal sealed class CharGoalWidget : Control
     public void SetCount(long c, int g, string unitText) { if (c == count && g == goal && unitText == unit) return; count = c; goal = g; unit = unitText; Invalidate(); }
     public void SetColors(Color b, Color f, Color a) { if (b == back && f == fore && a == accent) return; back = b; fore = f; accent = a; Invalidate(); }
 
-    private int HitAt(Point p) => foldRect.Contains(p) ? 0 : pinRect.Contains(p) ? 1 : gearRect.Contains(p) ? 2 : closeRect.Contains(p) ? 3 : -1;
+    private int HitAt(Point p) => -1; // 단추가 없다: 배경 어디를 눌러도 끌어서 옮긴다
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
@@ -1007,20 +1006,7 @@ internal sealed class CharGoalWidget : Control
             using (var p = new Pen(Themes.Blend(back, fore, 0.55f), Math.Max(1f, DeviceDpi / 96f))) g.DrawPath(p, path);
         }
 
-        int btn = S(26), pad = S(12), gap = 0;
-        closeRect = new Rectangle(Width - pad - btn + S(2), (Height - btn) / 2, btn, btn);
-        gearRect = new Rectangle(closeRect.Left - gap - btn, closeRect.Top, btn, btn);
-        pinRect = new Rectangle(gearRect.Left - gap - btn, closeRect.Top, btn, btn);
-        foldRect = new Rectangle(pinRect.Left - gap - btn, closeRect.Top, btn, btn);
-
-        void Hover(Rectangle rc, int idx)
-        {
-            if (hot != idx) return;
-            using var hb = new SolidBrush(Themes.Blend(card, fore, 0.08f));
-            using var hp = LibraryPalette.Rounded(rc, rc.Height / 2f);
-            g.FillPath(hb, hp);
-        }
-        Hover(foldRect, 0); Hover(pinRect, 1); Hover(gearRect, 2); Hover(closeRect, 3);
+        int pad = S(12), rightEdge = Width - pad - S(4); // 오른쪽에는 단추가 없다(끄기 · 설정은 사이드바의 위젯 패널에서)
 
         var center = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.HorizontalCenter;
         var left = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
@@ -1029,7 +1015,7 @@ internal sealed class CharGoalWidget : Control
         if (!expanded)
         {
             // 작은 모양: 왼쪽 끝과 › 사이의 가운데에 "현재 / 목표"
-            TextRenderer.DrawText(g, $"{count:N0} / {goal:N0}", Font, new Rectangle(pad, 0, Math.Max(0, foldRect.Left - pad), Height), tc, center);
+            TextRenderer.DrawText(g, $"{count:N0} / {goal:N0}", Font, new Rectangle(pad, 0, Math.Max(0, rightEdge - pad), Height), tc, center);
         }
         else
         {
@@ -1039,7 +1025,7 @@ internal sealed class CharGoalWidget : Control
             int cw = Math.Max(S(20), TextRenderer.MeasureText(cur, Font, Size.Empty, TextFormatFlags.NoPadding).Width);
             int gw = TextRenderer.MeasureText(goalText, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
             TextRenderer.DrawText(g, cur, Font, new Rectangle(pad + S(4), 0, cw + S(4), Height), tc, left);
-            int gx = foldRect.Left - S(6) - gw;
+            int gx = rightEdge - gw;
             TextRenderer.DrawText(g, goalText, Font, new Rectangle(gx, 0, gw + S(2), Height), dim, left);
             int bx = pad + S(4) + cw + S(16), bw = Math.Max(S(30), gx - S(14) - bx), bh = S(3);
             var bar = new RectangleF(bx, (Height - bh) / 2f, bw, bh);
@@ -1050,13 +1036,5 @@ internal sealed class CharGoalWidget : Control
                 using (var fp = LibraryPalette.Rounded(new RectangleF(bar.X, bar.Y, Math.Max(fw, bh), bh), bh / 2f)) g.FillPath(fb, fp);
         }
 
-        // 아이콘은 모두 아이콘 글꼴의 깔끔한 글자로: 펼치기 ›/‹ · 압정 · 설정 · 닫기
-        using var icon = new Font(MainForm.IconFontName(), 11f);
-        void Glyph(Rectangle rc, string glyph) => TextRenderer.DrawText(g, glyph, icon, rc, ink, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        using (var chev = new Font(MainForm.IconFontName(), 8.5f)) // › ‹ 는 다른 아이콘보다 조금 작게
-            TextRenderer.DrawText(g, expanded ? "\uE76B" : "\uE76C", chev, foldRect, ink, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        Glyph(pinRect, pinned ? "" : "");
-        Glyph(gearRect, "");
-        Glyph(closeRect, "");
     }
 }
