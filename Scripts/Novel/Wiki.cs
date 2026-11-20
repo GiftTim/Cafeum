@@ -29,7 +29,7 @@ namespace Cafeum;
 internal sealed class WikiDoc
 {
     public const string Separator = "────────────";
-    private static readonly string[] FixedKeys = { "카테고리", "설명", "요약", "분류", "태그", "중요도", "다른 이름", "별칭" }; // 두 모양의 고정 속성 이름(같은 이름의 사용자 속성은 쓸 때 이름 뒤에 공백을 붙여 구분한다)
+    private static readonly string[] FixedKeys = { "카테고리", "설명", "요약", "분류", "태그", "중요도", "다른 이름", "별칭", "속성 색" }; // 두 모양의 고정 속성 이름(같은 이름의 사용자 속성은 쓸 때 이름 뒤에 공백을 붙여 구분한다)
 
     public string Path { get; set; } = "";
     public string Title => System.IO.Path.GetFileNameWithoutExtension(Path);
@@ -40,6 +40,8 @@ internal sealed class WikiDoc
     /// <summary>태그: 소설 메인의 태그처럼 자유롭게 적는 이름표.</summary>
     public List<string> Labels { get; set; } = new();
     public int Importance { get; set; } = 1;
+    /// <summary>속성 상자의 색(#RRGGBB). 비어 있으면 기본색.</summary>
+    public string AttrColor { get; set; } = "";
     public List<string> Aliases { get; set; } = new();
     public List<(string Key, string Value)> Attributes { get; set; } = new();
     /// <summary>본문(번호 붙은 항목 줄 포함, 파일에 적히는 그대로). 줄바꿈은 \r\n.</summary>
@@ -92,6 +94,7 @@ internal sealed class WikiDoc
             case "분류": d.Tags = yaml ? ParseList(val) : SplitList(val); break;
             case "태그": d.Labels = yaml ? ParseList(val) : SplitList(val); break;
             case "중요도": if (int.TryParse(yaml ? Unquote(val) : val, out int imp)) d.Importance = Math.Clamp(imp, 1, 5); break;
+            case "속성 색": d.AttrColor = yaml ? Unquote(val) : val; break;
             case "다른 이름": d.Aliases = SplitList(val); break;
             default: d.Attributes.Add((key, yaml ? Unquote(val) : val)); break;
         }
@@ -223,6 +226,7 @@ internal sealed class WikiDoc
         if (Tags.Count > 0) sb.Append("분류: ").Append(YamlList(Tags)).Append("\r\n");
         if (Labels.Count > 0) sb.Append("태그: ").Append(YamlList(Labels)).Append("\r\n");
         if (Importance != 1) sb.Append("중요도: ").Append(Importance).Append("\r\n");
+        if (AttrColor.Length > 0) sb.Append("속성 색: ").Append(YamlScalar(AttrColor)).Append("\r\n");
         if (Aliases.Count > 0) sb.Append("별칭: ").Append(YamlList(Aliases)).Append("\r\n");
         foreach (var (k, v) in Attributes)
         {
@@ -244,6 +248,7 @@ internal sealed class WikiDoc
         if (Tags.Count > 0) sb.Append("분류: ").Append(string.Join(", ", Tags)).Append("\r\n");
         if (Labels.Count > 0) sb.Append("태그: ").Append(string.Join(", ", Labels)).Append("\r\n");
         if (Importance != 1) sb.Append("중요도: ").Append(Importance).Append("\r\n");
+        if (AttrColor.Length > 0) sb.Append("속성 색: ").Append(AttrColor).Append("\r\n");
         if (Aliases.Count > 0) sb.Append("다른 이름: ").Append(string.Join(", ", Aliases)).Append("\r\n");
         foreach (var (k, v) in Attributes)
         {
@@ -497,6 +502,41 @@ internal static class WikiStore
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new(); }
     }
 
+    /// <summary>템플릿 보관함(wiki\.템플릿)의 문서들(제목 순). 일반 위키 목록에는 나오지 않는다.</summary>
+    public static List<WikiDoc> TemplateDocs(string novelDir)
+    {
+        var list = new List<WikiDoc>();
+        foreach (var n in TemplateNames(novelDir)) { try { list.Add(LoadTemplate(novelDir, n)); } catch { } }
+        return list;
+    }
+
+    /// <summary>새 위키 문서와 같은 입력(대분류 · 분류 · 이름 · 요약)으로 템플릿을 만들어 템플릿 보관함에만 둔다. 만든 틀 문서를 돌려준다(열어서 속성 · 본문을 채운다).</summary>
+    public static WikiDoc CreateTemplate(string novelDir, string title, string category, string summary, List<string> tags)
+    {
+        string name = title.Trim();
+        if (!NovelStore.ValidName(name)) throw new IOException(NovelStore.InvalidNameMessage("템플릿 이름"));
+        Directory.CreateDirectory(TemplateDir(novelDir));
+        if (File.Exists(Path.Combine(TemplateDir(novelDir), name + ".md"))) throw new IOException($"같은 이름의 템플릿이 이미 있어요: {name}");
+        var d = new WikiDoc { Path = Path.Combine(TemplateDir(novelDir), name + ".md"), Category = category, Summary = summary.Trim(), Tags = tags.ToList() };
+        Save(d);
+        return d;
+    }
+
+    /// <summary>템플릿을 복제한다(이름 뒤에 " 복사", 겹치면 숫자). 만든 파일 경로를 돌려준다.</summary>
+    public static string DuplicateTemplate(string novelDir, string path)
+    {
+        var d = Load(path);
+        string baseName = d.Title + " 복사", name = baseName;
+        for (int i = 2; File.Exists(Path.Combine(TemplateDir(novelDir), name + ".md")); i++) name = $"{baseName} {i}";
+        d.Path = Path.Combine(TemplateDir(novelDir), name + ".md");
+        Save(d);
+        return d.Path;
+    }
+
+    /// <summary>이 문서가 템플릿 보관함에 있는 템플릿인가.</summary>
+    public static bool IsTemplatePath(string? path) =>
+        !string.IsNullOrEmpty(path) && string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), ".템플릿", StringComparison.OrdinalIgnoreCase);
+
     public static WikiDoc LoadTemplate(string novelDir, string name) => Load(Path.Combine(TemplateDir(novelDir), name + ".md"));
 
     /// <summary>이 문서의 카테고리 · 분류 · 태그 · 속성 이름 · 본문을 템플릿으로 저장한다(속성 값은 비워 둔다). 같은 이름이 있으면 덮어쓴다.</summary>
@@ -508,7 +548,7 @@ internal static class WikiStore
         var t = new WikiDoc
         {
             Path = Path.Combine(TemplateDir(novelDir), name + ".md"),
-            Category = source.Category, Importance = source.Importance,
+            Category = source.Category, Importance = source.Importance, AttrColor = source.AttrColor,
             Tags = source.Tags.ToList(), Labels = source.Labels.ToList(),
             Attributes = source.Attributes.Select(a => (a.Key, "")).ToList(),
             Body = source.Body,
@@ -599,6 +639,7 @@ internal static class WikiStore
             d.Tags = template.Tags.Concat(tags).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             d.Labels = template.Labels.ToList();
             d.Importance = template.Importance;
+            d.AttrColor = template.AttrColor;
             d.Attributes = template.Attributes.ToList();
             d.Body = template.Body;
         }

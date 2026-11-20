@@ -1117,7 +1117,8 @@ internal sealed class DocPane : PaneFrame
     }
 
     private static bool IsWiki(string path) =>
-        string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), "wiki", StringComparison.OrdinalIgnoreCase);
+        string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), "wiki", StringComparison.OrdinalIgnoreCase)
+        || (WikiStore.IsTemplatePath(path) && string.Equals(Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(path))), "wiki", StringComparison.OrdinalIgnoreCase)); // 템플릿도 위키 문서처럼 열어서 고친다
 
     /// <summary>문서를 이 칸에 연다(있던 문서는 저장하고 닫는다).</summary>
     public void Open(string path)

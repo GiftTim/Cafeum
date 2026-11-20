@@ -146,6 +146,7 @@ internal sealed class EpisodePanel : Panel
         if (NovelPath == null) return;
         WikiDocs = WikiStore.List(NovelPath);
         tree.SetWikiClasses(WikiStore.ClassParents(NovelPath), WikiStore.ClassCategories(NovelPath));
+        tree.SetWikiTemplates(WikiStore.TemplateDocs(NovelPath));
         tree.SetWiki(WikiDocs);
         card.SetStats(episodes.Count, WikiDocs.Count);
         WikiReloaded?.Invoke();
@@ -472,6 +473,22 @@ internal sealed class EpisodePanel : Panel
         m.Show(screen);
     }
 
+    /// <summary>[템플릿]: 새 위키 문서와 같은 창(대분류 · 분류 · 이름 · 요약)으로 템플릿을 만든다. 만든 틀은 일반 문서가 아니라 파일 트리의 "템플릿"에만 보관되고,
+    /// 바로 열려서 속성 · 본문을 채울 수 있다. category · cls는 마인드맵 점 위 [틀 만들기]에서 온 미리 채울 대분류 · 분류.</summary>
+    public void CreateWikiTemplate(string? category = null, string? cls = null)
+    {
+        if (NovelPath is not string dir) return;
+        using var dlg = new WikiCreateDialog(dir, category, null, cls, asTemplate: true);
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
+        try
+        {
+            var t = WikiStore.CreateTemplate(dir, dlg.TitleText, dlg.CategoryKey, dlg.SummaryText, dlg.Classes);
+            ReloadWiki();
+            WikiOpenRequested?.Invoke(t.Path);
+        }
+        catch (Exception ex) { MessageBox.Show(FindForm(), $"템플릿을 만들지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
     /// <summary>파일 트리 [위키 문서 +]: 에피소드 [+]와 같은 아이콘 목록(문서 · 분류 · 템플릿).</summary>
     private void ShowAddWikiMenu()
     {
@@ -482,7 +499,7 @@ internal sealed class EpisodePanel : Panel
         var panel = new IconMenuPanel(font, DeviceDpi, BackColor, ForeColor);
         panel.Add("문서", PurpleIcons.Document(S(40), gray), () => BeginInvoke(CreateWiki));
         panel.Add("분류", PurpleIcons.Folder(S(40), gray), () => BeginInvoke(() => CreateWikiClass()));
-        panel.Add("템플릿", PurpleIcons.Copy(S(40), gray), () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
+        panel.Add("템플릿", PurpleIcons.Copy(S(40), gray), () => BeginInvoke(() => CreateWikiTemplate()));
         panel.Size = panel.MeasureAll();
         var dd = addDropDown = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
         MenuGuard.Attach(dd);
@@ -499,6 +516,7 @@ internal sealed class EpisodePanel : Panel
         var m = folderMenu = new ContextMenuStrip();
         MenuGuard.Attach(m);
         m.Items.Add("이 대분류에 분류 만들기…", null, (_, _) => BeginInvoke(() => CreateWikiClass(null, categoryKey)));
+        m.Items.Add("이 대분류에 템플릿 만들기…", null, (_, _) => BeginInvoke(() => CreateWikiTemplate(categoryKey)));
         m.Show(screen);
     }
 
@@ -580,6 +598,13 @@ internal sealed class EpisodePanel : Panel
         MenuGuard.Attach(m);
         m.Items.Add("열기", null, (_, _) => WikiOpenRequested?.Invoke(path));
         m.Items.Add("PIP 모드로 열기", null, (_, _) => PipRequested?.Invoke(path));
+        if (WikiStore.IsTemplatePath(path))
+            m.Items.Add("템플릿 복제", null, (_, _) => BeginInvoke(() =>
+            {
+                if (NovelPath is not string nd) return;
+                try { string np = WikiStore.DuplicateTemplate(nd, path); ReloadWiki(); WikiOpenRequested?.Invoke(np); }
+                catch (Exception ex) { Warn($"복제하지 못했어요: {ex.Message}"); }
+            }));
         m.Items.Add(BuildClassMenu(path));
         m.Items.Add("탐색기에서 보기", null, (_, _) => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\""));
         m.Items.Add(new ToolStripSeparator());
@@ -802,6 +827,9 @@ internal sealed class NovelTreeView : Control
     private IReadOnlyDictionary<string, string> wikiCats = new Dictionary<string, string>();
     /// <summary>분류(폴더) 계층 · 대분류 표를 받아 둔다. SetWiki 앞에 부른다.</summary>
     public void SetWikiClasses(IReadOnlyDictionary<string, List<string>> parents, IReadOnlyDictionary<string, string> cats) { wikiParents = parents; wikiCats = cats; }
+    private List<WikiDoc> wikiTemplates = new();
+    /// <summary>템플릿 보관함의 문서들을 받아 둔다. SetWiki 앞에 부른다.</summary>
+    public void SetWikiTemplates(List<WikiDoc> docs) => wikiTemplates = docs;
     public void SetWiki(List<WikiDoc> docs) { wiki = docs; Rebuild(); }
 
     public long RefreshCounts()
@@ -835,7 +863,7 @@ internal sealed class NovelTreeView : Control
                 foreach (var p in episodes.Where(p => groupMap.TryGetValue(p, out var gn) && gn == gname)) rows.Add(new Row(Kind.Episode, p, Path.GetFileNameWithoutExtension(p), 1, Sub: Label(p)));
             }
         }
-        rows.Add(new Row(Kind.Section, "sec:wiki", "위키 문서", Count: wiki.Count));
+        rows.Add(new Row(Kind.Section, "sec:wiki", "위키 문서", Count: wiki.Count + wikiTemplates.Count));
         if (!collapsed.Contains("sec:wiki"))
         {
             // 대분류(카테고리) → 그 대분류의 분류 폴더들(계층) → 분류 없는 문서
@@ -865,11 +893,13 @@ internal sealed class NovelTreeView : Control
                 var roots = Children(null).Where(r => CatOf(r) == cat.Key).ToList();
                 var loose = wiki.Where(d => d.Category == cat.Key && d.Tags.Count == 0).ToList();
                 var subtrees = roots.Select(r => Subtree(r)).ToList();
-                int total = loose.Count + wiki.Count(d => d.Tags.Count > 0 && subtrees.Any(st => d.Tags.Any(st.Contains)));
+                int total = loose.Count + wiki.Count(d => d.Tags.Count > 0 && subtrees.Any(st => d.Tags.Any(st.Contains))) + wikiTemplates.Count(t => t.Category == cat.Key);
                 rows.Add(new Row(Kind.Category, "cat:" + cat.Key, cat.Label, Cat: cat, Count: total));
                 if (collapsed.Contains("cat:" + cat.Key)) continue;
                 foreach (var root in roots) AddFolder(root, 0, cat, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
                 foreach (var d in loose) rows.Add(new Row(Kind.Wiki, d.Path, d.Title, 0, cat));
+                // 템플릿은 따로 묶지 않고 자기 대분류 안에 "템플릿:이름"으로 둔다
+                foreach (var t in wikiTemplates.Where(t => t.Category == cat.Key)) rows.Add(new Row(Kind.Wiki, t.Path, "템플릿:" + t.Title, 0, cat, Sub: "tpl"));
             }
         }
         rows.Add(new Row(Kind.Section, "sec:ref", "참고 자료", Count: refs.Count));
@@ -1265,7 +1295,7 @@ internal sealed class NovelTreeView : Control
                             TextRenderer.DrawText(g, r.Text, cur ? bold : Font, new Rectangle(rr.X + S(32), rr.Y, rr.Width - S(40), rr.Height), p.Fore, flags);
                             break;
                         case Kind.Wiki:
-                            TextRenderer.DrawText(g, r.Cat!.Glyph, icon, new Rectangle(rr.X + S(42) + r.Index * S(18), rr.Y, S(18), rr.Height), cur ? p.Accent : Themes.Blend(p.Side, p.Accent, 0.7f), flags | TextFormatFlags.HorizontalCenter);
+                            TextRenderer.DrawText(g, r.Cat!.Glyph, icon, new Rectangle(rr.X + S(42) + r.Index * S(18), rr.Y, S(18), rr.Height), cur || r.Sub == "tpl" ? p.Accent : Themes.Blend(p.Side, p.Accent, 0.7f), flags | TextFormatFlags.HorizontalCenter);
                             TextRenderer.DrawText(g, r.Text, cur ? bold : Font, new Rectangle(rr.X + S(66) + r.Index * S(18), rr.Y, rr.Width - S(74) - r.Index * S(18), rr.Height), p.Fore, flags);
                             break;
                     }
@@ -1981,7 +2011,7 @@ internal sealed class NovelOverview : Panel
         {
             mapView.CreateDocRequested += (cat, cls) => BeginInvoke(() => source.CreateWikiIn(cat, cls));
             mapView.CreateClassRequested += (cat, parent) => BeginInvoke(() => source.CreateWikiClass(parent, cat));
-            mapView.CreateTemplateRequested += () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information));
+            mapView.CreateTemplateRequested += (cat, cls) => BeginInvoke(() => source.CreateWikiTemplate(cat, cls));
         }
         wikiBar = new WikiViewBar { Selected = wikiViewMode };
         wikiBar.SelectedChanged += i => { wikiViewMode = i; ApplyWikiView(); };
@@ -2350,7 +2380,7 @@ internal sealed class NovelOverview : Panel
         var gray = Color.FromArgb(150, 148, 146);
         panel.Add("문서", PurpleIcons.Document(S(40), gray), () => BeginInvoke(() => source.CreateWiki()));
         panel.Add("분류", PurpleIcons.Folder(S(40), gray), () => BeginInvoke(() => source.CreateWikiClass()));
-        panel.Add("템플릿", PurpleIcons.Copy(S(40), gray), () => BeginInvoke(() => MessageBox.Show(FindForm(), "템플릿으로 만들기는 준비 중이에요.", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information)));
+        panel.Add("템플릿", PurpleIcons.Copy(S(40), gray), () => BeginInvoke(() => source.CreateWikiTemplate()));
         panel.Size = panel.MeasureAll();
         var dd = wikiMenu = new ToolStripDropDown { Padding = Padding.Empty, BackColor = BackColor, AutoSize = true };
         MenuGuard.Attach(dd);

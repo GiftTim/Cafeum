@@ -17,6 +17,7 @@ internal sealed class WikiMindMapView : WikiViewBase
         public string Label = "";
         public string? DocPath;
         public string? CategoryKey;
+        public bool IsTemplate;
         public PointF Pos, Vel;
         public bool Pinned;
         public int Degree;
@@ -46,8 +47,8 @@ internal sealed class WikiMindMapView : WikiViewBase
     public event Action<string?, string?>? CreateDocRequested;
     /// <summary>[분류 만들기]를 골랐다(대분류 키, 상위 분류 이름 — 없으면 null).</summary>
     public event Action<string?, string?>? CreateClassRequested;
-    /// <summary>[틀 만들기]를 골랐다.</summary>
-    public event Action? CreateTemplateRequested;
+    /// <summary>[틀 만들기]를 골랐다(대분류 키, 분류 이름 — 없으면 null).</summary>
+    public event Action<string?, string?>? CreateTemplateRequested;
 
     public override bool Wide => true;
     public override int PreferredHeightFor(int width) => S(640);
@@ -105,6 +106,14 @@ internal sealed class WikiMindMapView : WikiViewBase
             var mine = d.Tags.Where(classes.ContainsKey).ToList();
             if (mine.Count == 0) Link(cats[d.Category], n);
             else foreach (var t in mine) Link(classes[t], n);
+        }
+        // 템플릿: 자기 대분류에 이어 "템플릿:이름" 점으로 둔다(눌러서 열 수 있다)
+        foreach (var t in Data.Templates)
+        {
+            var n = New(NodeKind.Doc, "템플릿:" + t.Title, t.Path);
+            n.CategoryKey = cats.ContainsKey(t.Category) ? t.Category : "none";
+            n.IsTemplate = true;
+            Link(cats[n.CategoryKey], n);
         }
         // 대분류 가까이에서 시작하게 해서 처음 모양이 덜 어지럽게
         int ci = 0;
@@ -250,7 +259,7 @@ internal sealed class WikiMindMapView : WikiViewBase
         {
             case Tool.NewDoc: CreateDocRequested?.Invoke(n.CategoryKey, cls); break;
             case Tool.NewClass: CreateClassRequested?.Invoke(n.CategoryKey, cls); break;
-            case Tool.NewTemplate: CreateTemplateRequested?.Invoke(); break;
+            case Tool.NewTemplate: CreateTemplateRequested?.Invoke(n.CategoryKey, cls); break;
             case Tool.Menu:
                 if (n.Kind == NodeKind.Doc && n.DocPath != null) RaiseDocMenu(n.DocPath, PointToScreen(at));
                 else if (n.Kind == NodeKind.Class) RaiseFolderMenu(n.Label, PointToScreen(at));
@@ -391,7 +400,7 @@ internal sealed class WikiMindMapView : WikiViewBase
                 var s = ToScreen(n.Pos);
                 float r = Math.Max(S(3), n.Radius * zoom * (DeviceDpi / 96f) * 0.9f);
                 if (s.X < -50 || s.X > Width + 50 || s.Y < -50 || s.Y > Height + 50) continue;
-                Color baseColor = n.Kind switch { NodeKind.Root => p.Accent, NodeKind.Category => cCat, NodeKind.Class => cClass, _ => cDoc };
+                Color baseColor = n.Kind switch { NodeKind.Root => p.Accent, NodeKind.Category => cCat, NodeKind.Class => cClass, _ => n.IsTemplate ? p.Accent : cDoc }; // 템플릿 점은 강조색
                 if (n == hot) baseColor = p.Accent;
                 switch (n.Kind)
                 {

@@ -66,6 +66,24 @@ internal sealed class WikiSimpleView : WikiViewBase
             rows.Add(new RowBox(new Rectangle(0, top, width, h), cat));
             y = top + h;
         }
+        // 맨 아래 템플릿 칸: 템플릿 보관함의 틀 제목들(없으면 안내). 누르면 열어서 고친다.
+        {
+            var tcat = new WikiCategory("template", "템플릿", "\uE8C8");
+            int top = y, cx = LabelW + S(12), cy = y + S(8);
+            int dot = TextRenderer.MeasureText(" · ", Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+            int x = cx;
+            foreach (var t in Data.Templates)
+            {
+                int w = TextRenderer.MeasureText(t.Title, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+                if (x > cx && x + w > LabelW + S(12) + textW) { x = cx; cy += lineH; }
+                hits.Add(new Hit(new Rectangle(x, cy, w + S(2), lineH - S(4)), t.Title, t.Path, false));
+                x += w + dot;
+            }
+            cy += lineH;
+            int h = Math.Max(S(48), cy - top + S(4));
+            rows.Add(new RowBox(new Rectangle(0, top, width, h), tcat));
+            y = top + h;
+        }
         totalHeight = Math.Max(y + S(8), S(140));
     }
 
@@ -141,6 +159,8 @@ internal sealed class WikiSimpleView : WikiViewBase
             TextRenderer.DrawText(g, r.Cat.Glyph, icon, new Rectangle(S(14), r.R.Y, S(24), r.R.Height), p.Fore, Flags | TextFormatFlags.HorizontalCenter);
             TextRenderer.DrawText(g, r.Cat.Label, bold, new Rectangle(S(46), r.R.Y, LabelW - S(52), r.R.Height), p.Fore, Flags);
         }
+        if (Data.Templates.Count == 0 && rows.Count > 0 && rows[^1].Cat.Key == "template")
+            TextRenderer.DrawText(g, "아직 템플릿이 없어요. [새 위키 문서 ▸ 템플릿]으로 만들어 보세요.", Font, new Rectangle(LabelW + S(12), rows[^1].R.Y + S(4), Width - LabelW - S(24), Font.Height + S(8)), p.Dim, Flags);
         for (int i = 0; i < hits.Count; i++)
         {
             var h = hits[i];

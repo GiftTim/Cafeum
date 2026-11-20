@@ -116,7 +116,19 @@ internal sealed class WikiPage : Panel
         toc.HeadingChosen += offset => { headOffset = head.Height; LayoutScroll(); body.Focus(); body.Select(Math.Min(offset, body.TextLength), 0); body.ScrollToCaret(); };
         attrs = new AttrBox();
         attrs.AddRequested += PickAttribute;
-        attrs.ValueChanged += (i, v) => { if (doc == null || !editable || i < 0 || i >= doc.Attributes.Count) return; doc.Attributes[i] = (doc.Attributes[i].Key, v); attrs.SetItems(doc.Attributes); SaveSoon(); };
+        attrs.ValueChanged += (i, v) => { if (doc == null || !editable || i < 0 || i >= doc.Attributes.Count) return; doc.Attributes[i] = (doc.Attributes[i].Key, v); attrs.SetItems(doc.Attributes); head.PerformLayout(); SaveSoon(); };
+        attrs.RowMoved += (from, to) =>
+        {
+            if (doc == null || !editable || from < 0 || from >= doc.Attributes.Count) return;
+            to = Math.Clamp(to, 0, doc.Attributes.Count - 1);
+            if (to == from) return;
+            var it = doc.Attributes[from];
+            doc.Attributes.RemoveAt(from);
+            doc.Attributes.Insert(to, it); // 속성을 끌어서 순서를 바꾼다
+            attrs.SetItems(doc.Attributes);
+            SaveSoon();
+        };
+        attrs.ColorChanged += hex => { if (doc == null || !editable) return; doc.AttrColor = hex; attrs.AttrColor = hex; SaveSoon(); };
         attrs.RemoveRequested += i => { if (doc == null || !editable || i < 0 || i >= doc.Attributes.Count) return; doc.Attributes.RemoveAt(i); attrs.SetItems(doc.Attributes); head.PerformLayout(); SaveSoon(); };
 
         head = new Panel(); // 위치는 LayoutScroll이 잡는다(본문과 함께 위로 밀려 올라간다)
@@ -155,6 +167,9 @@ internal sealed class WikiPage : Panel
     private int ColLeft => Math.Max(S(24), (ClientSize.Width - ColW) / 2);
 
     private void SyncPropsToggle() { propsToggle.Text = propsOpen ? "⌃  문서 속성 접기" : "⌄  문서 속성 펼치기"; props.Visible = propsOpen; }
+
+    /// <summary>머리에 보이는 이름: 템플릿은 앞에 "템플릿: "이 붙는다.</summary>
+    private static string TitleText(WikiDoc d) => WikiStore.IsTemplatePath(d.Path) ? "템플릿: " + d.Title : d.Title;
 
     private void SyncCrumb()
     {
@@ -268,6 +283,17 @@ internal sealed class WikiPage : Panel
 
     private Bitmap? photo;
 
+    /// <summary>문서 사진을 바꾼다: 이름 옆 동그라미와 속성 상자(이름 밑)가 같은 그림을 쓴다. 옛 그림은 쓰는 곳에서 떼어 낸 뒤 버린다.</summary>
+    private void SetPhotoImage(Bitmap? next)
+    {
+        attrs.Photo = null;
+        photo?.Dispose();
+        photo = next;
+        attrs.Photo = photo;
+        head.PerformLayout(); // 속성 상자 높이가 사진만큼 달라진다
+        head.Invalidate();
+    }
+
     /// <summary>이름 옆 동그라미(문서 사진 자리).</summary>
     private Rectangle PhotoRect() => new(ColLeft, titleLabel.Top, S(56), S(56));
 
@@ -280,7 +306,7 @@ internal sealed class WikiPage : Panel
             var m = new ContextMenuStrip();
             MenuGuard.Attach(m);
             m.Items.Add("사진 바꾸기…", null, (_, _) => BeginInvoke(ChoosePhoto));
-            if (photo != null) m.Items.Add("사진 지우기", null, (_, _) => BeginInvoke(() => { if (doc == null) return; WikiStore.DeletePhoto(doc.Path); photo?.Dispose(); photo = null; head.Invalidate(); }));
+            if (photo != null) m.Items.Add("사진 지우기", null, (_, _) => BeginInvoke(() => { if (doc == null) return; WikiStore.DeletePhoto(doc.Path); SetPhotoImage(null); }));
             m.Closed += (_, _) => BeginInvoke(m.Dispose);
             m.Show(Cursor.Position);
         }
@@ -297,9 +323,7 @@ internal sealed class WikiPage : Panel
             using var cropDlg = new PhotoCropDialog(dlg.FileName);
             if (cropDlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             WikiStore.SetPhoto(doc.Path, dlg.FileName, cropDlg.CropRect);
-            photo?.Dispose();
-            photo = WikiStore.LoadPhoto(doc.Path);
-            head.Invalidate();
+            SetPhotoImage(WikiStore.LoadPhoto(doc.Path));
         }
         catch (Exception ex) { MessageBox.Show(FindForm(), $"사진을 넣지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
@@ -370,7 +394,7 @@ internal sealed class WikiPage : Panel
         loading = true;
         try
         {
-            titleLabel.Text = doc.Title;
+            titleLabel.Text = TitleText(doc);
             SyncCrumb();
             categoryBox.SelectedIndex = Array.FindIndex(WikiCategory.All, c => c.Key == doc.Category);
             stars.Value = Math.Clamp(doc.Importance, 1, 5);
@@ -378,7 +402,8 @@ internal sealed class WikiPage : Panel
             classes.SetItems(doc.Tags);
             tagStrip.SetTags(doc.Labels);
             photo?.Dispose();
-            photo = WikiStore.LoadPhoto(path); // 이름 옆 동그라미의 사진
+            SetPhotoImage(WikiStore.LoadPhoto(path)); // 이름 옆 동그라미 · 속성 상자의 사진
+            attrs.AttrColor = doc.AttrColor;
             body.LoadText(doc.Body);
             bodyHint.Visible = editable && body.TextLength == 0;
             attrs.Title = doc.Title;
@@ -587,7 +612,7 @@ internal sealed class WikiPage : Panel
         Save();
         using var dlg = new NovelInputDialog("위키 문서 이름 바꾸기", "제목", doc.Title);
         if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
-        try { WikiStore.Rename(doc, dlg.FirstValue); titleLabel.Text = doc.Title; attrs.Title = doc.Title; attrs.Invalidate(); SyncCrumb(); Changed?.Invoke(); }
+        try { WikiStore.Rename(doc, dlg.FirstValue); titleLabel.Text = TitleText(doc); attrs.Title = doc.Title; attrs.Invalidate(); SyncCrumb(); Changed?.Invoke(); }
         catch (Exception ex) { MessageBox.Show(FindForm(), $"이름을 바꾸지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
@@ -682,20 +707,41 @@ internal sealed class WikiPage : Panel
     /// </summary>
     private sealed class AttrBox : BoxBase
     {
+        private static readonly string[] EnglishKeys = { "영문명", "영어 이름", "영어이름", "영문 이름", "English name", "Name (EN)" };
+        private static readonly (string Name, string Hex)[] Swatches =
+        {
+            ("기본", ""), ("노랑", "#FFF18F"), ("분홍", "#FFD6E7"), ("살구", "#FFE0C2"), ("초록", "#D5F2D0"), ("하늘", "#CFE8FF"), ("보라", "#DCD3FF"), ("회색", "#E4E4E7"),
+        };
+
         private List<(string Key, string Value)> items = new();
         private int hover = -1; // 0..n-1 = 줄, n = 추가 줄
         private int editing = -1;
         private bool readOnly;
         private readonly TextBox editor;
+        private readonly Font titleFont;
+        private Bitmap? photo;
+        private string attrColor = "";
+        private int dragIndex = -1, dropIndex = -1; // 끌고 있는 줄 · 놓을 자리(줄 사이 번호)
+        private bool dragging;
+        private Point downAt;
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)] public string Title { get; set; } = "";
         public int Count => items.Count;
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)] public bool ReadOnly { get => readOnly; set { readOnly = value; CancelEdit(); Invalidate(); } }
+        /// <summary>이름 밑에 보일 문서 사진(없으면 null).</summary>
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)] public Bitmap? Photo { get => photo; set { photo = value; Invalidate(); } }
+        /// <summary>상자 색(#RRGGBB, 비어 있으면 기본).</summary>
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)] public string AttrColor { get => attrColor; set { attrColor = value ?? ""; Invalidate(); } }
         public event Action<Rectangle>? AddRequested;
         public event Action<int, string>? ValueChanged;
         public event Action<int>? RemoveRequested;
+        /// <summary>속성을 끌어서 순서를 바꿨다(옮긴 줄, 새 자리).</summary>
+        public event Action<int, int>? RowMoved;
+        /// <summary>상자 색을 골랐다(#RRGGBB, 기본이면 빈 글).</summary>
+        public event Action<string>? ColorChanged;
 
         public AttrBox()
         {
+            titleFont = new Font(Font.FontFamily, Font.SizeInPoints + 1.5f, FontStyle.Bold);
             editor = new TextBox { BorderStyle = BorderStyle.None, Visible = false, Font = Font };
             editor.KeyDown += (_, e) =>
             {
@@ -706,23 +752,47 @@ internal sealed class WikiPage : Panel
             Controls.Add(editor);
         }
 
-        private int RowHt => Font.Height + S(16);
-        public void SetItems(List<(string, string)> list) { items = list.ToList(); if (editing >= items.Count) CancelEdit(); Invalidate(); }
-        public int PreferredHeight(int width) => items.Count == 0 ? S(16) + RowH * 3 + S(10) : RowHt * (items.Count + 2);
+        protected override void Dispose(bool disposing) { if (disposing) titleFont.Dispose(); base.Dispose(disposing); }
 
-        private int LabelW => items.Count == 0 ? 0 : Math.Clamp(items.Max(it => TextRenderer.MeasureText(it.Key, Font, Size.Empty, TextFormatFlags.NoPadding).Width) + S(60), Width / 4, Width / 2);
-        private Rectangle RowRect(int i) => new(0, RowHt * (i + 1), Width, RowHt);
+        private int RowHt => Font.Height + S(16);
+        private bool Empty => items.Count == 0 && photo == null;
+
+        /// <summary>영문명 속성의 값(이름 밑에 보인다). 없으면 빈 글.</summary>
+        private string EnglishName => items.FirstOrDefault(it => EnglishKeys.Contains(it.Key.Trim(), StringComparer.OrdinalIgnoreCase)).Value?.Trim() ?? "";
+
+        private int TitleH => titleFont.Height + S(12);
+        private int EngH => EnglishName.Length > 0 ? Font.Height + S(6) : 0;
+        private int HeaderTextH => TitleH + EngH;
+        private int PhotoHFor(int w) => photo == null ? 0 : Math.Max(0, w - S(6)) + S(3);
+        private int HeaderH => HeaderTextH + PhotoHFor(Width);
+
+        public void SetItems(List<(string, string)> list) { items = list.ToList(); if (editing >= items.Count) CancelEdit(); Invalidate(); }
+        public int PreferredHeight(int width) => Empty ? S(16) + RowH * 3 + S(10) : HeaderTextH + PhotoHFor(width) + RowHt * (items.Count + 1);
+
+        private int LabelW => items.Count == 0 ? Width / 3 : Math.Clamp(items.Max(it => TextRenderer.MeasureText(it.Key, Font, Size.Empty, TextFormatFlags.NoPadding).Width) + S(60), Width / 4, Width / 2);
+        private Rectangle RowRect(int i) => new(0, HeaderH + RowHt * i, Width, RowHt);
         private Rectangle ValueRect(int i) { var r = RowRect(i); return new Rectangle(LabelW, r.Y, Width - LabelW, r.Height); }
         private Rectangle AddRow => RowRect(items.Count);
+        private Rectangle SwatchRect => new(Width - S(28), (TitleH - S(14)) / 2 + S(2), S(14), S(14));
         /// <summary>[속성 추가] 줄(비어 있으면 상자 전체)의 화면 좌표.</summary>
-        public Rectangle AddAnchorScreen => RectangleToScreen(items.Count == 0 ? new Rectangle(0, 0, Width, Height) : AddRow);
+        public Rectangle AddAnchorScreen => RectangleToScreen(Empty ? new Rectangle(0, 0, Width, Height) : AddRow);
         private int XW => readOnly ? 0 : S(34); // 줄 오른쪽 끝의 ✕(지우기) 칸 폭
         private Rectangle XRect(int i) { var r = RowRect(i); return new Rectangle(r.Right - XW, r.Y, XW, r.Height); }
         private int hoverX = -1;
 
+        private Color BoxColorFor(LibraryPalette p)
+        {
+            if (attrColor.Length > 0)
+            {
+                try { var c = ColorTranslator.FromHtml(attrColor); return p.Dark ? Themes.Blend(c, p.Main, 0.55f) : c; } catch { }
+            }
+            return p.AccentSoft;
+        }
+        private static double Luma(Color c) => (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255;
+
         private int IndexAt(Point pt)
         {
-            if (items.Count == 0) return readOnly ? -1 : 0;
+            if (Empty) return readOnly ? -1 : 0;
             for (int i = 0; i < items.Count; i++) if (RowRect(i).Contains(pt)) return i;
             return !readOnly && AddRow.Contains(pt) ? items.Count : -1;
         }
@@ -757,19 +827,85 @@ internal sealed class WikiPage : Panel
             Invalidate();
         }
 
+        /// <summary>머리의 색 단추 · 머리 우클릭: 상자 색 목록(기본 · 여러 색 · 직접 고르기).</summary>
+        private void ShowColorMenu(Point screen)
+        {
+            if (readOnly) return;
+            var m = new ContextMenuStrip();
+            MenuGuard.Attach(m);
+            foreach (var (name, hex) in Swatches)
+            {
+                var bmp = new Bitmap(16, 16);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var b = new SolidBrush(hex.Length > 0 ? ColorTranslator.FromHtml(hex) : palette?.AccentSoft ?? Color.Lavender);
+                    g.FillEllipse(b, 1, 1, 13, 13);
+                    using var pen = new Pen(Color.FromArgb(90, 0, 0, 0));
+                    g.DrawEllipse(pen, 1, 1, 13, 13);
+                }
+                string h = hex;
+                var it = new ToolStripMenuItem(name, bmp) { Checked = string.Equals(h, attrColor, StringComparison.OrdinalIgnoreCase) };
+                it.Click += (_, _) => ColorChanged?.Invoke(h);
+                m.Items.Add(it);
+            }
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("직접 고르기…", null, (_, _) => BeginInvoke(() =>
+            {
+                using var dlg = new ColorDialog { FullOpen = true, Color = attrColor.Length > 0 ? ColorTranslator.FromHtml(attrColor) : Color.White };
+                if (dlg.ShowDialogOver(FindForm()) == DialogResult.OK) ColorChanged?.Invoke(ColorTranslator.ToHtml(Color.FromArgb(dlg.Color.R, dlg.Color.G, dlg.Color.B)));
+            }));
+            m.Closed += (_, _) => BeginInvoke(m.Dispose);
+            m.Show(screen);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (readOnly || e.Button != MouseButtons.Left || Empty) return;
+            int i = IndexAt(e.Location);
+            // 속성 앞부분(아이콘 · 이름 칸)을 누른 채 위아래로 끌면 순서가 바뀐다
+            if (i >= 0 && i < items.Count && e.X < LabelW) { dragIndex = i; dropIndex = -1; dragging = false; downAt = e.Location; }
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            if (dragIndex >= 0 && e.Button == MouseButtons.Left)
+            {
+                if (!dragging && Math.Abs(e.Y - downAt.Y) > S(4)) dragging = true;
+                if (dragging)
+                {
+                    int t = (e.Y - HeaderH + RowHt / 2) / RowHt;
+                    dropIndex = Math.Clamp(t, 0, items.Count);
+                    Cursor = Cursors.Hand;
+                    Invalidate();
+                    return;
+                }
+            }
             int i = IndexAt(e.Location);
             int hx = !readOnly && i >= 0 && i < items.Count && XRect(i).Contains(e.Location) ? i : -1;
             if (i != hover || hx != hoverX) { hover = i; hoverX = hx; Invalidate(); }
-            Cursor = i >= 0 && !(i < items.Count && e.X < LabelW) ? Cursors.Hand : Cursors.Default;
+            bool onLabel = !readOnly && i >= 0 && i < items.Count && e.X < LabelW;
+            bool onSwatch = !readOnly && !Empty && SwatchRect.Contains(e.Location);
+            Cursor = onLabel ? Cursors.Hand : onSwatch || (i >= 0 && !(i < items.Count && e.X < LabelW)) ? Cursors.Hand : Cursors.Default;
         }
         protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); hover = -1; hoverX = -1; Invalidate(); }
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
+            if (dragging)
+            {
+                int from = dragIndex, to = dropIndex;
+                dragging = false; dragIndex = -1; dropIndex = -1;
+                Invalidate();
+                if (from >= 0 && to >= 0 && to != from && to != from + 1) RowMoved?.Invoke(from, to > from ? to - 1 : to);
+                return;
+            }
+            dragIndex = -1;
             if (readOnly) return;
+            // 머리: 색 단추 · 우클릭 = 상자 색 고르기
+            if (!Empty && e.Y < HeaderTextH && ((e.Button == MouseButtons.Left && SwatchRect.Contains(e.Location)) || e.Button == MouseButtons.Right)) { ShowColorMenu(PointToScreen(new Point(e.X, HeaderTextH))); return; }
             int i = IndexAt(e.Location);
             if (i < 0) return;
             if (i == items.Count) { if (e.Button == MouseButtons.Left) AddRequested?.Invoke(AddAnchorScreen); return; }
@@ -791,7 +927,7 @@ internal sealed class WikiPage : Panel
             if (p == null) return;
             var g = e.Graphics;
             var flags = WikiUi.Flags;
-            if (items.Count == 0)
+            if (Empty)
             {
                 PaintFrame(g, p, true);
                 using var big = new Font(Font.FontFamily, 14f);
@@ -803,25 +939,44 @@ internal sealed class WikiPage : Panel
             g.Clear(Parent?.BackColor ?? p.Main);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             var surface = WikiUi.Surface(p);
-            var lav = p.AccentSoft;
-            var grid = Themes.Blend(lav, p.Fore, 0.1f);
+            var lav = BoxColorFor(p);
+            var fore = Luma(lav) < 0.4 ? Color.White : p.Fore;       // 짙은 색 위에서는 글자를 흰색으로
+            var dim = Themes.Blend(lav, fore, 0.55f);
+            var grid = Themes.Blend(lav, fore, 0.1f);
             int lw = LabelW;
             using var clip = LibraryPalette.Rounded(new RectangleF(0, 0, Width - 1, Height - 1), S(10));
             g.SetClip(clip);
             using (var b = new SolidBrush(lav)) g.FillRectangle(b, 0, 0, Width, Height);
             using var bold = new Font(Font, FontStyle.Bold);
             using var icon = new Font(MainForm.IconFontName(), 10f);
-            // 머리: 문서 이름
-            TextRenderer.DrawText(g, Title, bold, new Rectangle(S(10), 0, Width - S(20), RowHt), p.Fore, flags | TextFormatFlags.HorizontalCenter);
+            // 머리: 문서 이름(크게) + 영문명(있으면 그 밑에) + 오른쪽 색 단추
+            TextRenderer.DrawText(g, Title, titleFont, new Rectangle(S(28), 0, Width - S(56), TitleH), fore, flags | TextFormatFlags.HorizontalCenter);
+            string eng = EnglishName;
+            if (eng.Length > 0) TextRenderer.DrawText(g, eng, Font, new Rectangle(S(28), TitleH - S(4), Width - S(56), EngH), fore, flags | TextFormatFlags.HorizontalCenter);
+            if (!readOnly)
+            {
+                var sw = SwatchRect;
+                using (var sb = new SolidBrush(Themes.Blend(lav, fore, 0.18f))) g.FillEllipse(sb, sw);
+                using (var sp = new Pen(dim)) g.DrawEllipse(sp, sw);
+            }
+            // 이름 밑 사진
+            if (photo != null)
+            {
+                var pr = new Rectangle(S(3), HeaderTextH, Width - S(6), Math.Max(0, Width - S(6)));
+                var old = g.InterpolationMode;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(photo, pr);
+                g.InterpolationMode = old;
+            }
             using var gridPen = new Pen(grid);
             for (int i = 0; i < items.Count; i++)
             {
                 var r = RowRect(i);
                 var vr = ValueRect(i);
-                using (var b = new SolidBrush(i == hover && !readOnly ? Themes.Blend(surface, p.Accent, 0.06f) : surface)) g.FillRectangle(b, vr.X, vr.Y, vr.Width, vr.Height - 1);
+                using (var b = new SolidBrush(i == hover && !readOnly && !dragging ? Themes.Blend(surface, p.Accent, 0.06f) : surface)) g.FillRectangle(b, vr.X, vr.Y, vr.Width, vr.Height - 1);
                 g.DrawLine(gridPen, 0, r.Y, Width, r.Y);
-                TextRenderer.DrawText(g, WikiStore.AttributeGlyph(items[i].Key), icon, new Rectangle(S(12), r.Y, S(20), r.Height), p.Dim, flags | TextFormatFlags.HorizontalCenter);
-                TextRenderer.DrawText(g, items[i].Key, bold, new Rectangle(S(38), r.Y, lw - S(46), r.Height), p.Fore, flags);
+                TextRenderer.DrawText(g, WikiStore.AttributeGlyph(items[i].Key), icon, new Rectangle(S(12), r.Y, S(20), r.Height), dim, flags | TextFormatFlags.HorizontalCenter);
+                TextRenderer.DrawText(g, items[i].Key, bold, new Rectangle(S(38), r.Y, lw - S(46), r.Height), fore, flags);
                 if (editing != i) TextRenderer.DrawText(g, items[i].Value, Font, new Rectangle(vr.X + S(12), vr.Y, vr.Width - S(24) - XW, vr.Height), p.Fore, flags);
                 if (!readOnly)
                 {
@@ -831,13 +986,21 @@ internal sealed class WikiPage : Panel
                     g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
                     g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
                 }
+                if (dragging && i == dragIndex) using (var gh = new SolidBrush(Color.FromArgb(70, fore))) g.FillRectangle(gh, 0, r.Y, Width, r.Height); // 끌고 있는 줄은 흐리게
             }
             if (!readOnly)
             {
                 var ar = AddRow;
                 g.DrawLine(gridPen, 0, ar.Y, Width, ar.Y);
-                if (hover == items.Count) using (var hb = new SolidBrush(Themes.Blend(lav, p.Fore, 0.06f))) g.FillRectangle(hb, ar);
-                TextRenderer.DrawText(g, "+  속성 추가", bold, ar, hover == items.Count ? p.Accent : p.Fore, flags | TextFormatFlags.HorizontalCenter);
+                if (hover == items.Count) using (var hb = new SolidBrush(Themes.Blend(lav, fore, 0.06f))) g.FillRectangle(hb, ar);
+                TextRenderer.DrawText(g, "+  속성 추가", bold, ar, hover == items.Count ? p.Accent : fore, flags | TextFormatFlags.HorizontalCenter);
+            }
+            // 끌어서 놓을 자리 표시선
+            if (dragging && dropIndex >= 0)
+            {
+                int ly = HeaderH + RowHt * dropIndex;
+                using var lp = new Pen(p.Accent, S(2));
+                g.DrawLine(lp, S(4), ly, Width - S(4), ly);
             }
             g.ResetClip();
         }

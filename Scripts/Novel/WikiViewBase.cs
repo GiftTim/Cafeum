@@ -8,6 +8,8 @@ internal sealed class WikiViewData
     public string NovelName = "";
     public string NovelDir = "";
     public List<WikiDoc> Docs = new();
+    /// <summary>템플릿 보관함의 틀들(일반 문서 목록에는 없다).</summary>
+    public List<WikiDoc> Templates = new();
     /// <summary>만들어 둔 분류(요약 · 대분류 포함).</summary>
     public List<WikiStore.ClassInfo> Classes = new();
     /// <summary>분류 → 상위 분류들(문서에만 쓰인 분류도 맨 위로 들어 있다).</summary>
@@ -17,6 +19,7 @@ internal sealed class WikiViewData
     {
         var d = new WikiViewData { NovelDir = novelDir, NovelName = Path.GetFileName(novelDir), Docs = docs };
         d.Classes = WikiStore.ClassInfos(novelDir);
+        d.Templates = WikiStore.TemplateDocs(novelDir);
         foreach (var kv in WikiStore.ClassParents(novelDir)) d.Parents[kv.Key] = kv.Value;
         foreach (var t in docs.SelectMany(x => x.Tags)) d.Parents.TryAdd(t, new List<string>());
         return d;

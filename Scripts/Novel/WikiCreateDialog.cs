@@ -26,13 +26,13 @@ internal sealed class WikiCreateDialog : Form
 
     private int S(int v) => (int)Math.Round(v * DeviceDpi / 96.0);
 
-    public WikiCreateDialog(string novelDir, string? initialCategory = null, IReadOnlyList<string>? templates = null, string? initialClass = null)
+    public WikiCreateDialog(string novelDir, string? initialCategory = null, IReadOnlyList<string>? templates = null, string? initialClass = null, bool asTemplate = false)
     {
         this.novelDir = novelDir;
         palette = LibraryPalette.From(AppShared.LibraryTheme);
         templateNames = templates?.ToList() ?? new();
         if (!string.IsNullOrWhiteSpace(initialClass)) classes.Add(initialClass.Trim());
-        Text = "문서 만들기";
+        Text = asTemplate ? "템플릿 만들기" : "문서 만들기";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = MinimizeBox = false;
         ShowInTaskbar = false;
@@ -57,21 +57,34 @@ internal sealed class WikiCreateDialog : Form
         strip.SetPalette(palette);
         strip.AddRequested += PickClass;
         strip.RemoveRequested += name => { classes.RemoveAll(x => x.Equals(name, StringComparison.OrdinalIgnoreCase)); RefreshStrip(); };
-        title = new TextBox { Width = 440, PlaceholderText = "문서명을 입력하세요 (예: 등장인물 이름)", Margin = new Padding(0, 0, 0, 12) };
+        title = new TextBox { Width = 440, PlaceholderText = asTemplate ? "템플릿명을 입력하세요 (예: 인물 기본 양식)" : "문서명을 입력하세요 (예: 등장인물 이름)", Margin = new Padding(0, 0, 0, 12) };
         // 템플릿 고르기: 만들어 둔 템플릿이 있을 때만 켜진다(없으면 흐리게). 고르면 카테고리(미분류일 때) · 분류 · 태그 · 속성 · 본문이 그 틀로 채워진다
         templateBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 224, Margin = new Padding(0, 0, 0, 12), Enabled = templateNames.Count > 0 };
         templateBox.Items.Add("템플릿 선택하기");
         foreach (var n in templateNames) templateBox.Items.Add(n);
         templateBox.SelectedIndex = 0;
+        // 템플릿을 고르면 그 틀에 정해 둔 대분류 · 분류가 함께 적용된다
+        templateBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (templateBox.SelectedIndex <= 0) return;
+            try
+            {
+                var t = WikiStore.LoadTemplate(this.novelDir, templateNames[templateBox.SelectedIndex - 1]);
+                int ci = Array.FindIndex(WikiCategory.All, c => c.Key == t.Category);
+                if (ci >= 0 && t.Category != "none") category.SelectedIndex = ci;
+                foreach (var tag in t.Tags) AddClass(tag);
+            }
+            catch (Exception ex) { AppLog.Write("템플릿을 불러오지 못했어요", ex); }
+        };
         summary = new TextBox { Width = 440, Height = 90, Multiline = true, AcceptsReturn = true, PlaceholderText = "문서 요약을 입력하세요", Margin = new Padding(0, 0, 0, 12) };
 
         root.Controls.Add(L("대분류 *"), 0, 0);
         root.Controls.Add(L("분류"), 1, 0);
         root.Controls.Add(category, 0, 1);
         root.Controls.Add(strip, 1, 1);
-        root.Controls.Add(L("문서명 *"), 0, 2); root.SetColumnSpan(root.GetControlFromPosition(0, 2)!, 2);
+        root.Controls.Add(L(asTemplate ? "템플릿명 *" : "문서명 *"), 0, 2); root.SetColumnSpan(root.GetControlFromPosition(0, 2)!, 2);
         root.Controls.Add(title, 0, 3); root.SetColumnSpan(title, 2);
-        root.Controls.Add(templateBox, 0, 4); root.SetColumnSpan(templateBox, 2);
+        if (!asTemplate) { root.Controls.Add(templateBox, 0, 4); root.SetColumnSpan(templateBox, 2); } // 템플릿을 만들 때는 템플릿 고르기가 필요 없다
         root.Controls.Add(L("요약"), 0, 5); root.SetColumnSpan(root.GetControlFromPosition(0, 5)!, 2);
         root.Controls.Add(summary, 0, 6); root.SetColumnSpan(summary, 2);
 
