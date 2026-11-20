@@ -28,6 +28,8 @@ internal sealed class WikiPage : Panel
     private readonly ComboBox categoryBox;
     private readonly StarBox stars;
     private readonly TextBox summaryBox;
+    private readonly Panel summaryHost; // 요약 값 칸: 흰 띠 안에 테두리 없는 입력칸(비어 있으면 "비어 있음")
+    private Label? summaryLabel;
     private readonly ClassStrip classes;
     private readonly TagStrip tagStrip;
     private readonly TocBox toc;
@@ -87,20 +89,25 @@ internal sealed class WikiPage : Panel
         categoryBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160, Font = new Font(ff, 9.5f) };
         foreach (var c in WikiCategory.All) categoryBox.Items.Add(c.Label);
         stars = new StarBox();
-        summaryBox = new TextBox { Font = new Font(ff, 9.5f) };
+        summaryBox = new TextBox { Font = new Font(ff, 9.5f), BorderStyle = BorderStyle.None, PlaceholderText = "비어 있음" };
+        summaryHost = new Panel { Cursor = Cursors.IBeam };
+        summaryHost.Controls.Add(summaryBox);
+        summaryHost.Resize += (_, _) => LayoutSummaryHost();
+        summaryHost.Click += (_, _) => { if (editable) summaryBox.Focus(); };
         classes = new ClassStrip();
         tagStrip = new TagStrip();
         props = new Panel { Visible = false };
         void Row(string label, Control c)
         {
-            var l = new Label { Text = label, AutoSize = true, Font = new Font(ff, 9.5f), UseMnemonic = false };
+            var l = new IconLabel { Text = label, Font = new Font(ff, 9.5f) };
             propRows.Add((l, c));
             props.Controls.Add(l);
             props.Controls.Add(c);
         }
-        Row("카테고리", categoryBox);
+        Row("대분류", categoryBox);
         Row("중요도", stars);
-        Row("요약", summaryBox);
+        Row("요약", summaryHost);
+        summaryLabel = propRows[^1].Label;
         Row("분류", classes);
         Row("태그", tagStrip);
         props.Layout += (_, _) => { if (!layingOut) head.PerformLayout(); }; // 태그 입력칸이 열리고 닫힐 때 높이를 다시 잡는다
@@ -178,26 +185,137 @@ internal sealed class WikiPage : Panel
     }
 
     /// <summary>속성 칸(카테고리 · 중요도 · 설명 · 분류 · 태그) 줄들을 차례로 놓고 전체 높이를 돌려준다. 보기 모드에서 빈 줄은 감춘다.</summary>
+    private void LayoutSummaryHost()
+    {
+        int th = summaryBox.PreferredHeight;
+        summaryBox.SetBounds(S(10), Math.Max(0, (summaryHost.Height - th) / 2), Math.Max(10, summaryHost.Width - S(20)), th);
+    }
+
+    /// <summary>요약 줄 앞의 작은 아이콘(글줄이 든 카드 모양).</summary>
+    private Bitmap SummaryIcon(Color c)
+    {
+        int n = S(18);
+        var bmp = new Bitmap(n, n);
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using var pen = new Pen(c, Math.Max(1.2f, n / 13f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
+        float u = n / 18f;
+        g.DrawRectangle(pen, 2f * u, 3f * u, 14f * u, 12f * u);
+        g.DrawLine(pen, 4.5f * u, 6.5f * u, 13.5f * u, 6.5f * u);
+        g.DrawLine(pen, 4.5f * u, 9.5f * u, 8.5f * u, 9.5f * u);
+        g.DrawLine(pen, 4.5f * u, 12f * u, 8.5f * u, 12f * u);
+        g.DrawRectangle(pen, 10.5f * u, 9.5f * u, 3f * u, 3f * u);
+        return bmp;
+    }
+
     private int LayoutProps(int w)
     {
-        int labelW = S(78), x = labelW + S(8), cw = Math.Max(S(120), w - x), y = 0;
-        foreach (var (label, ctl) in propRows)
+        int lw = S(78), gap = S(24), lx = lw + S(8);
+        int y = 0;
+        (Label L, Control C) Pair(Control c) { var r = propRows.First(x => x.Ctl == c); return (r.Label, r.Ctl); }
+        void Place(Label l, Control c, int x, int rowY, int rowH, int h, int cwid)
         {
-            int h;
-            bool show = true;
-            if (ctl == classes) { h = classes.FitHeight(cw); show = h > 0; if (show) classes.Width = cw; }
-            else if (ctl == tagStrip) { h = tagStrip.FitHeight(cw); show = h > 0; if (show) tagStrip.Width = cw; }
-            else if (ctl == summaryBox) { h = summaryBox.PreferredHeight; show = editable || summaryBox.Text.Length > 0; }
-            else h = ctl.Height;
-            label.Visible = ctl.Visible = show;
-            if (!show) continue;
-            int rh = Math.Max(h, label.Height) + S(10);
-            label.Location = new Point(0, y + (rh - label.Height) / 2);
-            int cwid = ctl == categoryBox ? categoryBox.Width : ctl == stars ? stars.Width : cw;
-            ctl.SetBounds(x, y + (rh - h) / 2, cwid, h);
+            l.Location = new Point(x, rowY + (rowH - l.Height) / 2);
+            c.SetBounds(x + lx, rowY + (rowH - h) / 2, cwid, h);
+        }
+        // 1) 요약
+        var (sl, sc) = Pair(summaryHost);
+        bool sumShow = editable || summaryBox.Text.Length > 0;
+        sl.Visible = sc.Visible = sumShow;
+        if (sumShow)
+        {
+            int sh = Math.Max(S(34), summaryBox.PreferredHeight + S(14));
+            int srh = Math.Max(sh, sl.Height) + S(10);
+            Place(sl, sc, 0, y, srh, sh, Math.Max(S(120), w - lx));
+            y += srh;
+        }
+        // 2) 대분류 · 분류 · 중요도: 넓으면 한 줄에, 좁으면 차례로
+        var (cl, cc) = Pair(categoryBox);
+        var (ml, mc) = Pair(classes);
+        var (tl, tc) = Pair(stars);
+        cl.Visible = cc.Visible = tl.Visible = tc.Visible = true;
+        bool oneLine = w >= S(760);
+        int catG = lx + categoryBox.Width, starG = lx + stars.Width;
+        int clsW = oneLine ? Math.Max(S(120), w - catG - starG - 2 * gap - lx) : Math.Max(S(120), w - lx);
+        int clsH = classes.FitHeight(clsW);
+        bool clsShow = clsH > 0;
+        ml.Visible = mc.Visible = clsShow;
+        if (clsShow) classes.Width = clsW;
+        if (oneLine)
+        {
+            int rh = Math.Max(Math.Max(categoryBox.Height, stars.Height), Math.Max(clsShow ? clsH : 0, cl.Height)) + S(10);
+            int x = 0;
+            Place(cl, cc, x, y, rh, categoryBox.Height, categoryBox.Width); x += catG + gap;
+            if (clsShow) { Place(ml, mc, x, y, rh, clsH, clsW); x += lx + clsW + gap; }
+            Place(tl, tc, x, y, rh, stars.Height, stars.Width);
             y += rh;
         }
+        else
+        {
+            int r1 = Math.Max(categoryBox.Height, cl.Height) + S(10);
+            Place(cl, cc, 0, y, r1, categoryBox.Height, categoryBox.Width); y += r1;
+            if (clsShow) { int r2 = Math.Max(clsH, ml.Height) + S(10); Place(ml, mc, 0, y, r2, clsH, clsW); y += r2; }
+            int r3 = Math.Max(stars.Height, tl.Height) + S(10);
+            Place(tl, tc, 0, y, r3, stars.Height, stars.Width); y += r3;
+        }
+        // 3) 태그
+        var (gl, gc) = Pair(tagStrip);
+        int tagW = Math.Max(S(120), w - lx);
+        int tagH = tagStrip.FitHeight(tagW);
+        bool tagShow = tagH > 0;
+        gl.Visible = gc.Visible = tagShow;
+        if (tagShow)
+        {
+            tagStrip.Width = tagW;
+            int trh = Math.Max(tagH, gl.Height) + S(10);
+            Place(gl, gc, 0, y, trh, tagH, tagW);
+            y += trh;
+        }
         return y;
+    }
+
+    /// <summary>속성 줄 이름 앞의 작은 선 아이콘: 요약 · 대분류 · 분류 · 중요도 · 태그.</summary>
+    private Bitmap RowIcon(string key, Color c)
+    {
+        if (key == "요약") return SummaryIcon(c);
+        int n = S(18);
+        var bmp = new Bitmap(n, n);
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float u = n / 18f;
+        using var pen = new Pen(c, Math.Max(1.2f, n / 13f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
+        switch (key)
+        {
+            case "대분류": // 점 · 줄 셋
+                for (int k = 0; k < 3; k++)
+                {
+                    float yy = (4f + k * 5f) * u;
+                    g.DrawLine(pen, 2f * u, yy, 2.5f * u, yy);
+                    g.DrawLine(pen, 6f * u, yy, 16f * u, yy);
+                }
+                break;
+            case "분류": // 폴더
+                g.DrawLines(pen, new[] { new PointF(2f * u, 14.5f * u), new PointF(2f * u, 4f * u), new PointF(7f * u, 4f * u), new PointF(8.8f * u, 6f * u), new PointF(16f * u, 6f * u), new PointF(16f * u, 14.5f * u), new PointF(2f * u, 14.5f * u) });
+                break;
+            case "중요도": // 별(테두리)
+            {
+                var pts = new PointF[10];
+                float cx = 9f * u, cy = 9.5f * u;
+                for (int k = 0; k < 10; k++)
+                {
+                    double ang = -Math.PI / 2 + k * Math.PI / 5;
+                    float rr = (k % 2 == 0 ? 7.5f : 3.2f) * u;
+                    pts[k] = new PointF(cx + (float)Math.Cos(ang) * rr, cy + (float)Math.Sin(ang) * rr);
+                }
+                g.DrawPolygon(pen, pts);
+                break;
+            }
+            default: // 태그
+                g.DrawPolygon(pen, new[] { new PointF(2.5f * u, 3f * u), new PointF(9f * u, 3f * u), new PointF(15.5f * u, 9.5f * u), new PointF(9.5f * u, 15.5f * u), new PointF(2.5f * u, 8.5f * u) });
+                g.DrawEllipse(pen, 5f * u, 5.5f * u, 2f * u, 2f * u);
+                break;
+        }
+        return bmp;
     }
 
     private void LayoutHead()
@@ -226,14 +344,16 @@ internal sealed class WikiPage : Panel
             else if (half >= S(240))
             {
                 toc.SetBounds(x, y, half, toc.PreferredHeight(half));
-                attrs.SetBounds(x + half + S(24), y, half, attrs.PreferredHeight(half));
+                int aw = (int)(half * 0.8); // 속성창 폭은 전의 80%(사진 폭과 같다), 오른쪽 끝에 맞춘다
+                attrs.SetBounds(x + w - aw, y, aw, attrs.PreferredHeight(aw));
                 y = Math.Max(toc.Bottom, attrs.Bottom) + S(24);
             }
             else
             {
                 // 칸이 좁으면(워크스페이스에서 나눠 볼 때) 목차 밑에 속성 상자를 쌓는다
                 toc.SetBounds(x, y, w, toc.PreferredHeight(w));
-                attrs.SetBounds(x, toc.Bottom + S(12), w, attrs.PreferredHeight(w));
+                int aw2 = (int)(w * 0.8);
+                attrs.SetBounds(x, toc.Bottom + S(12), aw2, attrs.PreferredHeight(aw2));
                 y = attrs.Bottom + S(24);
             }
             if (head.Height != y) head.Height = y;
@@ -367,6 +487,9 @@ internal sealed class WikiPage : Panel
         BackColor = topBar.BackColor = head.BackColor = p.Main;
         foreach (var l in new[] { crumbLabel, titleLabel, propsToggle }) l.BackColor = p.Main;
         props.BackColor = p.Main;
+        summaryHost.BackColor = summaryBox.BackColor = WikiUi.Surface(p);
+        summaryBox.ForeColor = p.Fore;
+        foreach (var (pl, _) in propRows) if (pl is IconLabel il) { var old = il.Icon; il.Icon = RowIcon(il.Text, p.Dim); old?.Dispose(); }
         foreach (Control c in props.Controls) if (c is Label pl) { pl.BackColor = p.Main; pl.ForeColor = p.Dim; }
         stars.SetPalette(p); classes.SetPalette(p); tagStrip.SetPalette(p); modeSwitch.BackColor = p.Main; modeSwitch.SetPalette(p);
         crumbLabel.ForeColor = propsToggle.ForeColor = p.Dim;
@@ -629,6 +752,38 @@ internal sealed class WikiPage : Panel
     }
 
     /// <summary>둥근 테두리 상자(목차 · 속성)의 바탕 그리기.</summary>
+    /// <summary>속성 줄 이름표: 앞에 작은 아이콘, 그 옆에 이름(둘이 겹치지 않게 직접 나란히 그린다).</summary>
+    private sealed class IconLabel : Label
+    {
+        private Bitmap? icon;
+        public IconLabel()
+        {
+            AutoSize = false;
+            UseMnemonic = false;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+        }
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public Bitmap? Icon { get => icon; set { icon = value; Fit(); Invalidate(); } }
+        private int Gap => (int)Math.Round(8 * DeviceDpi / 96.0);
+        private void Fit()
+        {
+            var t = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding);
+            int iw = icon?.Width ?? 0;
+            Size = new Size(iw + (iw > 0 ? Gap : 0) + t.Width + 2, Math.Max(t.Height, icon?.Height ?? 0) + 2);
+        }
+        protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); Fit(); }
+        protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); Fit(); }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.Clear(BackColor);
+            int x = 0;
+            if (icon != null) { g.DrawImage(icon, 0, (Height - icon.Height) / 2); x = icon.Width + Gap; }
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(x, 0, Math.Max(0, Width - x), Height), ForeColor,
+                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter);
+        }
+    }
+
     private abstract class BoxBase : Control
     {
         protected LibraryPalette? palette;
@@ -754,16 +909,17 @@ internal sealed class WikiPage : Panel
 
         protected override void Dispose(bool disposing) { if (disposing) titleFont.Dispose(); base.Dispose(disposing); }
 
-        private int RowHt => Font.Height + S(16);
+        private int RowHt => (int)Math.Round((Font.Height + S(16)) * 0.8); // 속성 줄 높이(전의 80%)
         private bool Empty => items.Count == 0 && photo == null;
 
         /// <summary>영문명 속성의 값(이름 밑에 보인다). 없으면 빈 글.</summary>
         private string EnglishName => items.FirstOrDefault(it => EnglishKeys.Contains(it.Key.Trim(), StringComparer.OrdinalIgnoreCase)).Value?.Trim() ?? "";
 
-        private int TitleH => titleFont.Height + S(12);
-        private int EngH => EnglishName.Length > 0 ? Font.Height + S(6) : 0;
+        private int TitleH => (int)Math.Round((titleFont.Height + S(12)) * 0.8);
+        private int EngH => EnglishName.Length > 0 ? (int)Math.Round((Font.Height + S(6)) * 0.8) : 0;
         private int HeaderTextH => TitleH + EngH;
-        private int PhotoHFor(int w) => photo == null ? 0 : Math.Max(0, w - S(6)) + S(3);
+        private int PhotoSide(int w) => Math.Max(0, w - S(6)); // 사진은 상자 폭을 채운다(상자 폭 자체를 줄였다)
+        private int PhotoHFor(int w) => photo == null ? 0 : PhotoSide(w) + S(8);
         private int HeaderH => HeaderTextH + PhotoHFor(Width);
 
         public void SetItems(List<(string, string)> list) { items = list.ToList(); if (editing >= items.Count) CancelEdit(); Invalidate(); }
@@ -962,7 +1118,8 @@ internal sealed class WikiPage : Panel
             // 이름 밑 사진
             if (photo != null)
             {
-                var pr = new Rectangle(S(3), HeaderTextH, Width - S(6), Math.Max(0, Width - S(6)));
+                int side = PhotoSide(Width);
+                var pr = new Rectangle((Width - side) / 2, HeaderTextH + S(3), side, side);
                 var old = g.InterpolationMode;
                 g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 g.DrawImage(photo, pr);
