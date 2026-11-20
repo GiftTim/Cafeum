@@ -123,6 +123,8 @@ internal sealed class WikiPage : Panel
         head.Controls.AddRange(new Control[] { crumbLabel, titleLabel, propsToggle, props, toc, attrs });
         head.Layout += (_, _) => LayoutHead();
         head.Paint += PaintHead;
+        head.MouseMove += (_, e) => head.Cursor = editable && doc != null && PhotoRect().Contains(e.Location) ? Cursors.Hand : Cursors.Default;
+        head.MouseClick += (_, e) => OnHeadClick(e);
 
         // 본문: "## " · "### "를 치면 그 줄이 바로 제목으로 바뀌는 글 상자(파일에는 ## · ###로 저장)
         body = new HeadingEditor();
@@ -142,7 +144,7 @@ internal sealed class WikiPage : Panel
         topBar.BringToFront(); // 위로 밀려 올라간 머리 부분이 위 줄을 덮지 않게
 
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); Save(); };
-        Disposed += (_, _) => saveTimer.Dispose();
+        Disposed += (_, _) => { saveTimer.Dispose(); photo?.Dispose(); };
         VisibleChanged += (_, _) => { if (!Visible) Save(); };
         SyncPropsToggle();
         if (defaultViewMode) { editable = false; ApplyEditable(); modeSwitch.Editing = false; }
@@ -264,6 +266,44 @@ internal sealed class WikiPage : Panel
         if (!ScrollHead(e.Delta)) base.OnMouseWheel(e);
     }
 
+    private Bitmap? photo;
+
+    /// <summary>이름 옆 동그라미(문서 사진 자리).</summary>
+    private Rectangle PhotoRect() => new(ColLeft, titleLabel.Top, S(56), S(56));
+
+    private void OnHeadClick(MouseEventArgs e)
+    {
+        if (doc == null || !editable || !PhotoRect().Contains(e.Location)) return;
+        if (e.Button == MouseButtons.Left) ChoosePhoto();
+        else if (e.Button == MouseButtons.Right)
+        {
+            var m = new ContextMenuStrip();
+            MenuGuard.Attach(m);
+            m.Items.Add("사진 바꾸기…", null, (_, _) => BeginInvoke(ChoosePhoto));
+            if (photo != null) m.Items.Add("사진 지우기", null, (_, _) => BeginInvoke(() => { if (doc == null) return; WikiStore.DeletePhoto(doc.Path); photo?.Dispose(); photo = null; head.Invalidate(); }));
+            m.Closed += (_, _) => BeginInvoke(m.Dispose);
+            m.Show(Cursor.Position);
+        }
+    }
+
+    /// <summary>동그라미를 누르면 그림 파일을 골라 이 문서의 사진으로 넣는다.</summary>
+    private void ChoosePhoto()
+    {
+        if (doc == null) return;
+        using var dlg = new OpenFileDialog { Title = "문서 사진 고르기", Filter = "그림 파일|*.png;*.jpg;*.jpeg;*.bmp;*.gif|모든 파일|*.*" };
+        if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
+        try
+        {
+            using var cropDlg = new PhotoCropDialog(dlg.FileName);
+            if (cropDlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
+            WikiStore.SetPhoto(doc.Path, dlg.FileName, cropDlg.CropRect);
+            photo?.Dispose();
+            photo = WikiStore.LoadPhoto(doc.Path);
+            head.Invalidate();
+        }
+        catch (Exception ex) { MessageBox.Show(FindForm(), $"사진을 넣지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
     private void PaintHead(object? sender, PaintEventArgs e)
     {
         var p = palette;
@@ -273,6 +313,17 @@ internal sealed class WikiPage : Panel
         int circle = S(56);
         var r = new Rectangle(ColLeft, titleLabel.Top, circle, circle);
         using (var b = new SolidBrush(Themes.Blend(p.Main, p.Fore, p.Dark ? 0.14f : 0.08f))) g.FillEllipse(b, r);
+        if (photo != null)
+        {
+            using var clip = new GraphicsPath();
+            clip.AddEllipse(r);
+            var saved = g.Save();
+            g.SetClip(clip, CombineMode.Intersect);
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(photo, r);
+            g.Restore(saved);
+            return;
+        }
         using var f = new Font(MainForm.IconFontName(), 18f);
         TextRenderer.DrawText(g, WikiCategory.Find(doc.Category).Glyph, f, r, Themes.Blend(p.Main, p.Fore, 0.6f), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
     }
@@ -326,6 +377,8 @@ internal sealed class WikiPage : Panel
             summaryBox.Text = doc.Summary;
             classes.SetItems(doc.Tags);
             tagStrip.SetTags(doc.Labels);
+            photo?.Dispose();
+            photo = WikiStore.LoadPhoto(path); // 이름 옆 동그라미의 사진
             body.LoadText(doc.Body);
             bodyHint.Visible = editable && body.TextLength == 0;
             attrs.Title = doc.Title;

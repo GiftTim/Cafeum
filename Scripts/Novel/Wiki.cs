@@ -615,11 +615,62 @@ internal static class WikiStore
         if (string.Equals(target, d.Path, StringComparison.Ordinal)) return d.Path;
         if (TitleTaken(folder, title, d.Path)) throw new IOException($"같은 이름의 위키 문서가 이미 있어요: {newTitle}"); // 다른 확장자의 같은 제목도 겹치는 것으로 본다(대 · 소문자만 바꾸는 건 허용)
         File.Move(d.Path, target);
+        try { string oldPhoto = PhotoPath(d.Path), newPhoto = PhotoPath(target); if (File.Exists(oldPhoto) && !File.Exists(newPhoto)) File.Move(oldPhoto, newPhoto); } catch (IOException) { } // 문서 사진도 새 이름으로 따라간다
         d.Path = target;
         return target;
     }
 
-    public static void Delete(string path) => FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+    public static void Delete(string path)
+    {
+        FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+        string photo = PhotoPath(path);
+        try { if (File.Exists(photo)) FileSystem.DeleteFile(photo, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin); } catch (IOException) { }
+    }
+
+    // ── 문서 사진: 이름 옆 동그라미에 넣는 사진. wiki\.images\제목.png(정사각 256px로 줄여 둔다) ──
+
+    public static string PhotoPath(string docPath) => Path.Combine(Path.GetDirectoryName(docPath)!, ".images", Path.GetFileNameWithoutExtension(docPath) + ".png");
+
+    /// <summary>문서 사진(없거나 못 읽으면 null). 파일을 잡고 있지 않도록 메모리에서 읽는다.</summary>
+    public static Bitmap? LoadPhoto(string docPath)
+    {
+        try
+        {
+            string f = PhotoPath(docPath);
+            if (!File.Exists(f)) return null;
+            using var ms = new MemoryStream(File.ReadAllBytes(f));
+            using var img = Image.FromStream(ms);
+            return new Bitmap(img);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or OutOfMemoryException) { return null; }
+    }
+
+    /// <summary>고른 그림 파일을 가운데 정사각으로 잘라 256px로 줄여 문서 사진으로 저장한다.</summary>
+    public static void SetPhoto(string docPath, string sourceFile, Rectangle? cropRect = null)
+    {
+        using var ms = new MemoryStream(File.ReadAllBytes(sourceFile));
+        using var src = Image.FromStream(ms);
+        int side = Math.Min(src.Width, src.Height);
+        var crop = cropRect ?? new Rectangle((src.Width - side) / 2, (src.Height - side) / 2, side, side); // 자르기 창에서 고른 영역(없으면 가운데 정사각)
+        using var bmp = new Bitmap(256, 256);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.DrawImage(src, new Rectangle(0, 0, 256, 256), crop, GraphicsUnit.Pixel);
+        }
+        string f = PhotoPath(docPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(f)!);
+        string tmp = f + ".tmp";
+        bmp.Save(tmp, System.Drawing.Imaging.ImageFormat.Png);
+        File.Move(tmp, f, overwrite: true);
+    }
+
+    public static void DeletePhoto(string docPath)
+    {
+        string f = PhotoPath(docPath);
+        try { if (File.Exists(f)) File.Delete(f); } catch (IOException) { }
+    }
 
     /// <summary>[+ 새 위키 문서] 창을 띄워 만든다. 만든 문서 경로(취소하면 null).</summary>
     public static string? AskCreate(IWin32Window? owner, string novelDir, string? initialCategory = null, string? initialClass = null)
