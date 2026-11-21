@@ -43,6 +43,8 @@ internal sealed class EpisodePanel : Panel
     public event Action<string, Point?>? SnapDropped;
     public event Action<string>? WikiAboutToChange;
     public event Action<string, string>? EpisodeRenamed;
+    /// <summary>분류 이름을 바꿨다(옛 이름, 새 이름) — 그 분류의 쪽이 열려 있으면 새 이름으로 이어 가라고.</summary>
+    public event Action<string, string>? WikiClassRenamed;
     public event Action? Reloaded;
     public event Action? WikiReloaded;
     /// <summary>참고 자료 목록이 다시 읽혔다.</summary>
@@ -456,13 +458,31 @@ internal sealed class EpisodePanel : Panel
 
     private ContextMenuStrip? folderMenu;
 
-    /// <summary>분류 폴더를 우클릭했을 때: 하위 분류 만들기 · 분류 지우기.</summary>
+    /// <summary>분류 이름을 바꾼다. 그 분류를 쓰던 문서는 열려 있으면 저장하고 닫았다가 바꾼 뒤 다시 연다(옛 분류가 다시 저장되지 않게).</summary>
+    public void RenameWikiClass(string oldName)
+    {
+        if (NovelPath is not string dir) return;
+        using var dlg = new NovelInputDialog("분류 이름 바꾸기", "분류 이름", oldName);
+        if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
+        string newName = dlg.FirstValue.Trim();
+        if (newName.Length == 0 || newName == oldName) return;
+        var affected = WikiDocs.Where(d => d.Tags.Contains(oldName, StringComparer.OrdinalIgnoreCase)).Select(d => d.Path).ToList();
+        foreach (var path in affected) PathAboutToChange?.Invoke(path);
+        try { WikiStore.RenameClass(dir, oldName, newName); }
+        catch (Exception ex) { Warn($"분류 이름을 바꾸지 못했어요: {ex.Message}"); }
+        WikiClassRenamed?.Invoke(oldName, newName); // 열려 있던 분류 쪽은 새 이름으로(목록을 다시 읽기 전에)
+        ReloadWiki();
+        foreach (var path in affected) EpisodeRenamed?.Invoke(path, path);
+    }
+
+    /// <summary>분류 폴더를 우클릭했을 때: 하위 분류 만들기 · 이름 바꾸기 · 분류 지우기.</summary>
     public void ShowFolderMenu(string name, Point screen)
     {
         folderMenu?.Dispose();
         var m = folderMenu = new ContextMenuStrip();
         MenuGuard.Attach(m);
         m.Items.Add("하위 분류 만들기…", null, (_, _) => BeginInvoke(() => CreateWikiClass(name)));
+        m.Items.Add("이름 바꾸기…", null, (_, _) => BeginInvoke(() => RenameWikiClass(name)));
         m.Items.Add("분류 지우기…", null, (_, _) => BeginInvoke(() =>
         {
             if (NovelPath is not string dir) return;

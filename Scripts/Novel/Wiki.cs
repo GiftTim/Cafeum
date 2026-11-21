@@ -469,6 +469,35 @@ internal static class WikiStore
         WriteClassCatalog(novelDir, list);
     }
 
+    /// <summary>분류 이름을 바꾼다: 분류 목록의 이름과 다른 분류의 상위 표시, 그 분류를 쓰던 모든 문서의 분류를 새 이름으로. 같은 이름이 이미 있으면 IOException.</summary>
+    public static void RenameClass(string novelDir, string oldName, string newName)
+    {
+        newName = newName.Trim();
+        if (!NovelStore.ValidName(newName)) throw new IOException(NovelStore.InvalidNameMessage("분류 이름"));
+        if (oldName.Equals(newName, StringComparison.Ordinal)) return;
+        bool caseOnly = oldName.Equals(newName, StringComparison.OrdinalIgnoreCase);
+        if (!caseOnly && KnownClasses(novelDir).Any(c => c.Equals(newName, StringComparison.OrdinalIgnoreCase))) throw new IOException($"같은 이름의 분류가 이미 있어요: {newName}");
+        var all = ReadClassCatalog(novelDir);
+        var list = new List<ClassInfo>();
+        bool found = false;
+        foreach (var c in all)
+        {
+            bool me = c.Name.Equals(oldName, StringComparison.OrdinalIgnoreCase);
+            if (me) found = true;
+            var ps = c.Parents.Select(x => x.Equals(oldName, StringComparison.OrdinalIgnoreCase) ? newName : x).ToList();
+            list.Add(c with { Name = me ? newName : c.Name, Parents = ps });
+        }
+        if (!found) list.Add(new ClassInfo(newName, new List<string>(), "none", "")); // 문서에만 쓰이던 분류도 목록에 올린다
+        WriteClassCatalog(novelDir, list);
+        foreach (var d in List(novelDir))
+        {
+            bool changed = false;
+            for (int i = 0; i < d.Tags.Count; i++)
+                if (d.Tags[i].Equals(oldName, StringComparison.OrdinalIgnoreCase)) { d.Tags[i] = newName; changed = true; }
+            if (changed) Save(d);
+        }
+    }
+
     /// <summary>분류를 목록에서 지우고, 그 분류를 쓰던 모든 문서에서도 뺀다. 그 밑의 분류는 지운 분류의 상위로 올라간다.</summary>
     public static void DeleteClass(string novelDir, string name)
     {

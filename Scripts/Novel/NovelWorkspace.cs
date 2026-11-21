@@ -156,6 +156,7 @@ internal sealed class NovelWorkspace : Panel
         Tree.PipRequested += p => OpenPip(p);
         Tree.WikiOpenRequested += p => Open(p, split: false);
         Tree.WikiOpenSplitRequested += p => Open(p, split: true);
+        Tree.WikiClassRenamed += (o, n) => { left.GroupRenamed(o, n); right.GroupRenamed(o, n); }; // 분류 이름을 바꾸면 열려 있던 그 분류의 쪽도 새 이름으로
         Tree.GroupOpenRequested += (k, key) => OpenGroup(k, key); // 파일 트리 분류 줄의 [분류 문서 열기]
         Tree.CanvasRequested += g => { if (NovelPath is string d) Open(CanvasStore.PathFor(d, g), split: false); }; // 에피소드 그룹의 캔버스
         Tree.SnapDragging += ShowSnap;
@@ -1537,6 +1538,13 @@ internal sealed class DocPane : PaneFrame
         Glyph = "";
         Title = Path.GetFileName(owner.NovelPath ?? "") is { Length: > 0 } n ? n : "작품";
         ShowMore = false;
+    }
+
+    /// <summary>이 칸에 열린 분류 쪽의 분류 이름이 바뀌었으면 새 이름으로 다시 연다(되돌아갈 목록은 그대로).</summary>
+    public void GroupRenamed(string oldName, string newName)
+    {
+        if (group is { Kind: "class" } g && g.Key.Equals(oldName, StringComparison.OrdinalIgnoreCase)) OpenGroup("class", newName, fromBack: true);
+        for (int i = 0; i < groupBack.Count; i++) if (groupBack[i].Kind == "class" && groupBack[i].Key.Equals(oldName, StringComparison.OrdinalIgnoreCase)) groupBack[i] = ("class", newName);
     }
 
     private ContextMenuStrip? groupMenu;
