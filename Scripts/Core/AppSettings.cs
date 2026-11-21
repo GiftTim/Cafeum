@@ -146,6 +146,9 @@ public sealed class AppSettings
     public int ClockTop { get; set; } = -1;
     public int SpecialRightGap { get; set; } = -1;
     public int SpecialTop { get; set; } = -1;
+    /// <summary>맞춤법 검사기 위젯을 마지막으로 놓은 자리(위와 같은 기준).</summary>
+    public int SpellRightGap { get; set; } = -1;
+    public int SpellTop { get; set; } = -1;
     /// <summary>아이콘 막대에서 숨긴 항목들. 볼트 파일은 처음엔 숨겨 둔다.</summary>
     public List<string> RailHidden { get; set; } = new() { "files" };
     /// <summary>처음엔 사이드바에 없는 위젯(특수문자 등)을 [위젯 모음]에서 "사이드바에 넣기"로 켠 것들.</summary>

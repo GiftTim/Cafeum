@@ -36,6 +36,7 @@ public partial class MainForm
         goalShown = true; // 에피소드를 열면 글자 수 위젯은 늘 켜진 채로 시작한다(이전에 닫아 두었어도)
         InitSpecialWidget(); // 특수문자 위젯
         InitClockWidget(); // 시계 위젯(플립 시계)
+        InitSpellWidget(); // 맞춤법 검사기 위젯
         goalWidget.Moved += () => { goalMoved = true; goalPos = goalWidget.Location; };
         goalWidget.ExpandedChanged += () => { goalMoved = true; ResizeGoalWidget(); };
         editorHost.SizeChanged += (_, _) => { if (goalWidget.Visible) PlaceGoalWidget(); else if (goalShown) SyncGoalWidget(); };
@@ -119,7 +120,7 @@ public partial class MainForm
         }
         if (writerTitle.Visible != on) writerTitle.Visible = on;
         SyncPlaceholder(sideMargin);
-        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget();
+        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget(); SyncSpellWidget();
         if (!on) return;
         if (!string.Equals(writerKeyPath, currentPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -291,7 +292,7 @@ public partial class MainForm
         goalShown = !goalShown;
         settings.WriterGoalWidget = goalShown; // 켜고 끈 상태를 기억해서 다음 에피소드에도 이어간다
         settings.Save();
-        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget();
+        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget(); SyncSpellWidget();
     }
 
     private ContextMenuStrip? goalMenu;

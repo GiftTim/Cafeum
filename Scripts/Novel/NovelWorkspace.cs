@@ -49,6 +49,7 @@ internal sealed class NovelWorkspace : Panel
         widgetPanel.SetActive("count", focused.CountWidgetOn);
         widgetPanel.SetActive("special", focused.SpecialWidgetOn);
         widgetPanel.SetActive("clock", focused.ClockWidgetOn);
+        widgetPanel.SetActive("spell", focused.SpellWidgetOn);
         widgetPanel.SetActive("typewriter", AppShared.Settings.Typewriter);
         widgetPanel.SetActive("quote", AppShared.Settings.QuickQuotes);
         widgetPanel.SetActive("dict", dictWin is { IsDisposed: false, Visible: true });
@@ -522,6 +523,7 @@ internal sealed class NovelWorkspace : Panel
             case "search": NotReady("검색 보드"); break;
             case "timer": TogglePomodoro(); break; // 뽀모도로 타이머 위젯 켜고 끄기
             case "count": focused.ToggleCountWidget(); break; // 글자 수 세기 위젯 켜고 끄기
+            case "spell": focused.ToggleSpellWidget(); SyncWidgetMarks(); break; // 맞춤법 검사기 위젯 켜고 끄기
             case "clock": focused.ToggleClockWidget(); SyncWidgetMarks(); break; // 시계 위젯(플립 시계) 켜고 끄기
             case "special": focused.ToggleSpecialWidget(); SyncWidgetMarks(); break; // 특수문자 위젯 켜고 끄기(위젯 모음에서)
             case "typewriter": ToggleWriterOption(true); break; // 타입라이터 켜고 끄기
@@ -709,12 +711,13 @@ internal sealed class WorkspaceRail : Control
         ("quote", "", "빠른 따옴표"),
         ("special", "", "특수문자"), // 아이콘은 직접 그린다(Ω). 처음엔 사이드바에 없고 [위젯 모음]에서 넣는다.
         ("clock", "\uE121", "시계"), // 처음엔 사이드바에 없고 [위젯 모음]에서 넣는다.
+        ("spell", "\uE73E", "맞춤법 검사기"), // 처음엔 사이드바에 없고 [위젯 모음]에서 넣는다.
         ("spacer", "", "── 여기부터 아래쪽 ──"),
         ("settings", "", "설정 (Ctrl+,)"),
     };
 
     /// <summary>처음엔 사이드바에 없는 항목(켜려면 RailOn에 들어 있어야 한다).</summary>
-    private static readonly HashSet<string> DefaultOff = new() { "special", "clock" };
+    private static readonly HashSet<string> DefaultOff = new() { "special", "clock", "spell" };
     public static bool IsShown(AppSettings s, string k) => DefaultOff.Contains(k) ? s.RailOn.Contains(k) : !s.RailHidden.Contains(k);
     /// <summary>항목을 사이드바에 넣거나 뺀다(저장은 부른 쪽이 한다).</summary>
     public static void SetShown(AppSettings s, string k, bool show)
@@ -770,7 +773,7 @@ internal sealed class WorkspaceRail : Control
         {
             if (k == "spacer") { bottom = true; continue; }
             if (!IsShown(s, k)) continue;
-            if (k is "tree" or "memo" or "widget" or "dict" or "search" or "count" or "typewriter" or "quote" or "special" or "clock" && !docMode) continue;
+            if (k is "tree" or "memo" or "widget" or "dict" or "search" or "count" or "typewriter" or "quote" or "special" or "clock" or "spell" && !docMode) continue;
             if (IsCustom(k)) { list.Add((k, "", LabelOf(k), bottom)); continue; }
             var c = Catalog.First(x => x.Key == k);
             list.Add((c.Key, c.Glyph, c.Label, bottom));
@@ -923,6 +926,14 @@ internal sealed class WorkspaceRail : Control
             if (items[i].Key == "typewriter") { DrawTypewriterIcon(g, r, sel ? p.Fore : p.Dim, p.Side, du); continue; }
             if (items[i].Key == "quote") { DrawQuoteIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
             if (items[i].Key == "widget") { DrawWidgetIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
+            if (items[i].Key == "spell")
+            {
+                using var sf = new Font(NovelStore.UiFontFamily, 13f * 0.75f * du, FontStyle.Bold, GraphicsUnit.Point);
+                TextRenderer.DrawText(g, "가", sf, r, sel ? p.Fore : p.Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                using var up = new Pen(sel ? p.Fore : p.Dim, Math.Max(1.4f, 1.5f * du));
+                g.DrawLine(up, r.X + r.Width * 0.32f, r.Bottom - r.Height * 0.28f, r.Right - r.Width * 0.32f, r.Bottom - r.Height * 0.28f);
+                continue;
+            }
             if (items[i].Key == "special")
             {
                 using var sf = new Font("Segoe UI", 15f * 0.75f * du, FontStyle.Bold, GraphicsUnit.Point);
@@ -1108,6 +1119,9 @@ internal sealed class DocPane : PaneFrame
     /// <summary>이 칸에 열린 에피소드의 시계 위젯을 켜고 끄고, 시계 위치를 다시 반영한다.</summary>
     public void ToggleClockWidget() => doc?.ToggleClockWidget();
     public bool ClockWidgetOn => doc?.ClockWidgetOn ?? false;
+    /// <summary>이 칸에 열린 에피소드의 맞춤법 검사기 위젯을 켜고 끈다.</summary>
+    public void ToggleSpellWidget() => doc?.ToggleSpellWidget();
+    public bool SpellWidgetOn => doc?.SpellWidgetOn ?? false;
     public void ApplyClockPlace() => doc?.ApplyClockPlace();
     public event Action<DocPane>? FocusRequested;
     public event Action<DocPane>? CloseRequested;
@@ -1271,6 +1285,7 @@ internal sealed class DocPane : PaneFrame
             wiki.ViewModeChanged += v => Mode.Editing = !v;
             wiki.Changed += () => owner.Tree.ReloadWiki();
             wiki.BackRequested += () => { ShowOverview(); ContentChanged?.Invoke(); };
+            wiki.CategoryRequested += key => OpenGroup("category", key); // 경로의 대분류를 누르면 그 대분류의 쪽
             Body.Controls.Add(wiki);
             wiki.Open(path, owner.NovelPath ?? Path.GetDirectoryName(Path.GetDirectoryName(path))!);
             var d = TryLoadWiki(path);

@@ -20,6 +20,7 @@ internal sealed class WidgetPanel : Panel
         new("dict", "사전", "낱말 뜻을 찾아보는 사전 창을 따로 띄웁니다.", "자료 참조", true, true),
         new("typewriter", "타입라이터", "쓰고 있는 줄을 화면 가운데에 두어 눈이 움직이지 않게 합니다.", "에디터 도구", true, true),
         new("quote", "빠른 따옴표", "따옴표를 치면 한 쌍을 만들어 주고, 따옴표 앞에서 Enter로 다음 줄로 넘어갑니다.", "에디터 도구", true, true),
+        new("spell", "맞춤법 검사기", "자주 틀리는 맞춤법을 내장 사전으로 바로 찾고, 라마(Ollama)가 켜져 있으면 AI로 한 번 더 검사합니다.", "에디터 도구", true, true),
         new("timer", "뽀모도로 타이머", "집중과 휴식 시간을 번갈아 재는 타이머를 화면에 띄웁니다.", "시간 · 집중 관리", true, true),
         new("clock", "시계", "현재 시각과 세계 여러 지역의 시간을 확인합니다.", "시간 · 집중 관리", true, true),
         new("special", "특수문자", "소설에 쓰는 특수문자를 쉽게 입력하고 원하는 문자를 추가합니다.", "기타 · 특수 도구", true, true),
@@ -323,6 +324,14 @@ internal sealed class WidgetPanel : Panel
                         using var cb = PurpleIcons.CountDoc(cs * 3, c);
                         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                         g.DrawImage(cb, r);
+                        return;
+                    }
+                case "spell":
+                    {
+                        using var f = new Font(NovelStore.UiFontFamily, 13f * 0.75f * u, FontStyle.Bold, GraphicsUnit.Point);
+                        TextRenderer.DrawText(g, "가", f, r, c, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                        using var pen = new Pen(c, Math.Max(1.4f, 1.5f * u));
+                        g.DrawLine(pen, r.X + r.Width * 0.18f, r.Bottom - 2 * u, r.Right - r.Width * 0.18f, r.Bottom - 2 * u);
                         return;
                     }
                 case "special":

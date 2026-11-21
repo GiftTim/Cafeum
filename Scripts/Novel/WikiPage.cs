@@ -50,6 +50,8 @@ internal sealed class WikiPage : Panel
     public event Action<bool>? ViewModeChanged;
 
     public event Action? BackRequested;
+    /// <summary>경로의 대분류를 눌렀다(대분류 키) — 그 대분류의 쪽을 열라는 요청.</summary>
+    public event Action<string>? CategoryRequested;
     /// <summary>[‹ 돌아가기] · [⋯] 줄을 보일지(워크스페이스 칸 안에서는 칸 머리가 그 일을 한다).</summary>
 [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool ShowTopBar { get => topBar.Visible; set { topBar.Visible = value; LayoutScroll(); } }
@@ -81,6 +83,9 @@ internal sealed class WikiPage : Panel
         };
 
         crumbLabel = new Label { AutoSize = true, Font = new Font(ff, 9.5f), UseMnemonic = false };
+        crumbLabel.MouseMove += (_, e) => { int h = CrumbAt(e.Location); if (h != crumbHot) { crumbHot = h; crumbLabel.Cursor = h >= 0 ? Cursors.Hand : Cursors.Default; } };
+        crumbLabel.MouseLeave += (_, _) => { crumbHot = -1; crumbLabel.Cursor = Cursors.Default; };
+        crumbLabel.MouseClick += (_, e) => { if (e.Button != MouseButtons.Left) return; int h = CrumbAt(e.Location); if (h == 0) BackRequested?.Invoke(); else if (h == 1 && doc != null) CategoryRequested?.Invoke(doc.Category); };
         titleLabel = new Label { AutoSize = false, AutoEllipsis = true, Font = new Font(ff, 24f, FontStyle.Bold), UseMnemonic = false, TextAlign = ContentAlignment.MiddleLeft };
         titleLabel.DoubleClick += (_, _) => { if (editable) Rename(); };
         propsToggle = new Label { AutoSize = true, Font = new Font(ff, 9.5f), Cursor = Cursors.Hand, UseMnemonic = false };
@@ -177,6 +182,24 @@ internal sealed class WikiPage : Panel
 
     /// <summary>머리에 보이는 이름: 템플릿은 앞에 "템플릿: "이 붙는다.</summary>
     private static string TitleText(WikiDoc d) => WikiStore.IsTemplatePath(d.Path) ? "템플릿: " + d.Title : d.Title;
+
+    private int crumbHot = -1;
+
+    /// <summary>경로 글자에서 x 자리가 [작품 이름](0) · [대분류](1)인지, 아니면 -1(문서 이름은 누를 곳이 아니다).</summary>
+    private int CrumbAt(Point pt)
+    {
+        if (doc == null) return -1;
+        string sep = "  ›  ";
+        const TextFormatFlags F = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
+        int W(string s) => TextRenderer.MeasureText(s, crumbLabel.Font, Size.Empty, F).Width;
+        string a = novelName, b = WikiCategory.Find(doc.Category).Label;
+        int a0 = 0, a1 = W(a);
+        int b0 = a1 + W(sep) - W(""), b1 = b0 + W(b);
+        // 글자 사이 공백은 측정에서 줄어들 수 있어 넉넉하게(바깥으로 2px)
+        if (pt.X >= a0 - 2 && pt.X <= a1 + 2) return 0;
+        if (pt.X >= b0 - 2 && pt.X <= b1 + 2) return 1;
+        return -1;
+    }
 
     private void SyncCrumb()
     {
