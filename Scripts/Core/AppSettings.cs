@@ -134,8 +134,22 @@ public sealed class AppSettings
     // ── 워크스페이스 왼쪽 아이콘 막대 ──
     /// <summary>아이콘 막대 항목 순서(WorkspaceRail.Catalog의 키, "spacer" 뒤는 아래쪽 묶음). 비어 있으면 기본 순서.</summary>
     public List<string> RailOrder { get; set; } = new();
+    /// <summary>특수문자 위젯에 직접 더한 문자들("문자<탭>설명").</summary>
+    public List<string> SpecialChars { get; set; } = new();
+    /// <summary>특수문자 위젯의 크기: 0 작게 · 1 중간 · 2 크게.</summary>
+    public int SpecialCharSize { get; set; } = 1;
+    /// <summary>시계 위젯의 시계 위치: Windows 시간대 아이디와 위젯에 보일 도시 이름(기본 서울).</summary>
+    public string ClockZoneId { get; set; } = "Korea Standard Time";
+    public string ClockCity { get; set; } = "Seoul";
+    /// <summary>시계 · 특수문자 위젯을 마지막으로 놓은 자리: 창 오른쪽 끝에서 얼마나 떨어졌는지(RightGap)와 위에서 얼마나 내려왔는지(Top). -1이면 아직 옮긴 적이 없다(기본 자리).</summary>
+    public int ClockRightGap { get; set; } = -1;
+    public int ClockTop { get; set; } = -1;
+    public int SpecialRightGap { get; set; } = -1;
+    public int SpecialTop { get; set; } = -1;
     /// <summary>아이콘 막대에서 숨긴 항목들. 볼트 파일은 처음엔 숨겨 둔다.</summary>
     public List<string> RailHidden { get; set; } = new() { "files" };
+    /// <summary>처음엔 사이드바에 없는 위젯(특수문자 등)을 [위젯 모음]에서 "사이드바에 넣기"로 켠 것들.</summary>
+    public List<string> RailOn { get; set; } = new();
 
     // ── 집필 도우미(왼쪽 아이콘 막대의 [타입라이터] · [빠른 따옴표]에서 켜고 끈다) ──
     /// <summary>타입라이터: 글을 쓰고 있는 줄이 늘 화면 가운데에 오도록 부드럽게 스크롤한다.</summary>
@@ -179,6 +193,8 @@ public sealed class AppSettings
     public bool GoalExcludeSpaces { get; set; } = true;
     public bool GoalExcludePunct { get; set; }
     public bool GoalExcludeSpecial { get; set; }
+    /// <summary>글자 수 위젯 진행 막대의 길이: 0 짧게 · 1 보통 · 2 길게 · 3 없음(막대 없이 "현재 / 목표"만).</summary>
+    public int GoalBarLength { get; set; } = 1;
     /// <summary>소설 메인 · 파일 트리 목록의 글자 수에 공백을 넣을지(기본: 공백 제외).</summary>
     public bool ListCountWithSpaces { get; set; }
     public bool AutoEllipsis { get; set; }

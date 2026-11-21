@@ -47,6 +47,8 @@ internal sealed class NovelWorkspace : Panel
         // 위젯 목록의 카드도 같은 상태로(켜진 위젯은 눌린 모양)
         widgetPanel.SetActive("timer", pomo is { Visible: true });
         widgetPanel.SetActive("count", focused.CountWidgetOn);
+        widgetPanel.SetActive("special", focused.SpecialWidgetOn);
+        widgetPanel.SetActive("clock", focused.ClockWidgetOn);
         widgetPanel.SetActive("typewriter", AppShared.Settings.Typewriter);
         widgetPanel.SetActive("quote", AppShared.Settings.QuickQuotes);
         widgetPanel.SetActive("dict", dictWin is { IsDisposed: false, Visible: true });
@@ -170,7 +172,7 @@ internal sealed class NovelWorkspace : Panel
         treeFrame.Body.Controls.Add(memoList);
         widgetPanel = new WidgetPanel { Dock = DockStyle.Fill, Visible = false };
         widgetPanel.Toggled += OnRail; // 카드를 누르면 사이드바 아이콘을 누른 것과 같다
-        widgetPanel.SettingsRequested += key => { if (key == "count") focused.OpenCountSettings(); };
+        widgetPanel.SettingsRequested += ShowWidgetMenu; // 카드 오른쪽 위 톱니바퀴: 공통(사이드바에 넣기 · 빼기) + 그 위젯의 설정
         treeFrame.Body.Controls.Add(widgetPanel);
         StickyNotes.ListRequested += OnMemoListRequested;
         Disposed += (_, _) => StickyNotes.ListRequested -= OnMemoListRequested;
@@ -261,7 +263,6 @@ internal sealed class NovelWorkspace : Panel
     public void Open(string path, bool split)
     {
         string full = Path.GetFullPath(path);
-        if (outer.Panel1Collapsed && !chromeHidden && !restoring) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; } // 닫혀 있던 파일 트리는 문서를 열면 자동으로 켠다
         var already = new[] { left, right }.FirstOrDefault(p => (p == left || !inner.Panel2Collapsed) && p.HasOpen(full));
         if (already != null)
         {
@@ -451,6 +452,49 @@ internal sealed class NovelWorkspace : Panel
 
     // ───────── 아이콘 막대 ─────────
 
+    private ContextMenuStrip? widgetMenu;
+
+    /// <summary>위젯 카드의 톱니바퀴: 모든 위젯 공통 [사이드바에 넣기 · 빼기], 설정이 있는 위젯은 그 설정도.</summary>
+    private void ShowWidgetMenu(string key)
+    {
+        widgetMenu?.Dispose();
+        var m = widgetMenu = new ContextMenuStrip();
+        MenuGuard.Attach(m);
+        var s = AppShared.Settings;
+        bool shown = WorkspaceRail.IsShown(s, key);
+        m.Items.Add(shown ? "사이드바에서 빼기" : "사이드바에 넣기", null, (_, _) => BeginInvoke(() => { WorkspaceRail.SetShown(s, key, !shown); s.Save(); ApplyRailSettings(); }));
+        if (key == "clock")
+        {
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add($"시계 위치… ({s.ClockCity})", null, (_, _) => BeginInvoke(() =>
+            {
+                using var dlg = new ClockZoneDialog(s.ClockZoneId);
+                if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
+                s.ClockZoneId = dlg.ZoneId; s.ClockCity = dlg.City; s.Save();
+                left.ApplyClockPlace(); right.ApplyClockPlace();
+            }));
+        }
+        if (key == "special")
+        {
+            m.Items.Add(new ToolStripSeparator());
+            var size = new ToolStripMenuItem("특수문자 크기");
+            string[] names = { "작게", "중간", "크게" };
+            for (int i = 0; i < 3; i++)
+            {
+                int level = i;
+                size.DropDownItems.Add(new ToolStripMenuItem(names[i], null, (_, _) => BeginInvoke(() => { s.SpecialCharSize = level; s.Save(); left.ApplySpecialSize(); right.ApplySpecialSize(); })) { Checked = s.SpecialCharSize == i });
+            }
+            m.Items.Add(size);
+        }
+        if (key == "count")
+        {
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("글자 수 세기 설정…", null, (_, _) => BeginInvoke(() => focused.OpenCountSettings()));
+        }
+        m.Closed += (_, _) => BeginInvoke(m.Dispose);
+        m.Show(Cursor.Position);
+    }
+
     private void OnRail(string key)
     {
         switch (key)
@@ -478,6 +522,8 @@ internal sealed class NovelWorkspace : Panel
             case "search": NotReady("검색 보드"); break;
             case "timer": TogglePomodoro(); break; // 뽀모도로 타이머 위젯 켜고 끄기
             case "count": focused.ToggleCountWidget(); break; // 글자 수 세기 위젯 켜고 끄기
+            case "clock": focused.ToggleClockWidget(); SyncWidgetMarks(); break; // 시계 위젯(플립 시계) 켜고 끄기
+            case "special": focused.ToggleSpecialWidget(); SyncWidgetMarks(); break; // 특수문자 위젯 켜고 끄기(위젯 모음에서)
             case "typewriter": ToggleWriterOption(true); break; // 타입라이터 켜고 끄기
             case "quote": ToggleWriterOption(false); break; // 빠른 따옴표 켜고 끄기
             case "help": HelpRequested?.Invoke(); break;
@@ -580,7 +626,7 @@ internal sealed class NovelWorkspace : Panel
         Tree.Visible = false;
         widgetPanel.Visible = true;
         widgetPanel.BringToFront();
-        treeFrame.Title = "위젯 설정";
+        treeFrame.Title = "위젯 모음";
         treeFrame.Glyph = WorkspaceRail.Catalog.First(c => c.Key == "widget").Glyph;
         SyncWidgetMarks();
     }
@@ -654,16 +700,29 @@ internal sealed class WorkspaceRail : Control
         ("novel", "", "소설 메인으로"),
         ("tree", "", "파일 트리"),
         ("memo", "", "메모"),
-        ("widget", "", "위젯"), // 아이콘은 직접 그린다(WorkspaceRail.DrawWidgetIcon). 글자는 칸 머리 이름 옆에만 쓴다.
+        ("widget", "", "위젯 모음"), // 아이콘은 직접 그린다(WorkspaceRail.DrawWidgetIcon). 글자는 칸 머리 이름 옆에만 쓴다.
         ("dict", "", "사전"),
         ("search", "", "검색 보드"),
         ("timer", "\uE916", "뽀모도로 타이머"),
         ("count", "", "글자 수 세기"), // 아이콘은 직접 그린다(WorkspaceRail.OnPaint)
         ("typewriter", "", "타입라이터 (쓰는 줄을 화면 가운데로)"),
         ("quote", "", "빠른 따옴표"),
+        ("special", "", "특수문자"), // 아이콘은 직접 그린다(Ω). 처음엔 사이드바에 없고 [위젯 모음]에서 넣는다.
+        ("clock", "\uE121", "시계"), // 처음엔 사이드바에 없고 [위젯 모음]에서 넣는다.
         ("spacer", "", "── 여기부터 아래쪽 ──"),
         ("settings", "", "설정 (Ctrl+,)"),
     };
+
+    /// <summary>처음엔 사이드바에 없는 항목(켜려면 RailOn에 들어 있어야 한다).</summary>
+    private static readonly HashSet<string> DefaultOff = new() { "special", "clock" };
+    public static bool IsShown(AppSettings s, string k) => DefaultOff.Contains(k) ? s.RailOn.Contains(k) : !s.RailHidden.Contains(k);
+    /// <summary>항목을 사이드바에 넣거나 뺀다(저장은 부른 쪽이 한다).</summary>
+    public static void SetShown(AppSettings s, string k, bool show)
+    {
+        s.RailHidden.RemoveAll(x => x == k); s.RailOn.RemoveAll(x => x == k);
+        if (DefaultOff.Contains(k)) { if (show) s.RailOn.Add(k); }
+        else if (!show) s.RailHidden.Add(k);
+    }
 
     /// <summary>사용자가 직접 넣은 항목: 구분선(sepX1 …) · 빈 아이콘(blankX1 …).</summary>
     public static bool IsCustom(string k) => k.StartsWith("sepX") || k.StartsWith("blankX");
@@ -710,8 +769,8 @@ internal sealed class WorkspaceRail : Control
         foreach (var k in OrderFor(s))
         {
             if (k == "spacer") { bottom = true; continue; }
-            if (s.RailHidden.Contains(k)) continue;
-            if (k is "tree" or "memo" or "widget" or "dict" or "search" or "count" or "typewriter" or "quote" && !docMode) continue;
+            if (!IsShown(s, k)) continue;
+            if (k is "tree" or "memo" or "widget" or "dict" or "search" or "count" or "typewriter" or "quote" or "special" or "clock" && !docMode) continue;
             if (IsCustom(k)) { list.Add((k, "", LabelOf(k), bottom)); continue; }
             var c = Catalog.First(x => x.Key == k);
             list.Add((c.Key, c.Glyph, c.Label, bottom));
@@ -864,6 +923,12 @@ internal sealed class WorkspaceRail : Control
             if (items[i].Key == "typewriter") { DrawTypewriterIcon(g, r, sel ? p.Fore : p.Dim, p.Side, du); continue; }
             if (items[i].Key == "quote") { DrawQuoteIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
             if (items[i].Key == "widget") { DrawWidgetIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
+            if (items[i].Key == "special")
+            {
+                using var sf = new Font("Segoe UI", 15f * 0.75f * du, FontStyle.Bold, GraphicsUnit.Point);
+                TextRenderer.DrawText(g, "Ω", sf, r, sel ? p.Fore : p.Dim, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                continue;
+            }
             if (items[i].Key == "count")
             {
                 int cs = S(20);
@@ -1033,8 +1098,17 @@ internal sealed class DocPane : PaneFrame
     public void OpenCountSettings() => doc?.OpenGoalSettings();
     /// <summary>이 칸의 글 상자에 타입라이터 · 빠른 따옴표 설정을 다시 반영한다(에피소드가 아니면 아무 일도 없다).</summary>
     public void ApplyWriterOptions() => doc?.ApplyWriterOptions();
+    /// <summary>특수문자 위젯의 크기 설정을 반영한다.</summary>
+    public void ApplySpecialSize() => doc?.ApplySpecialSize();
     /// <summary>글자 수 세기 위젯이 지금 떠 있는가.</summary>
     public bool CountWidgetOn => doc?.GoalWidgetOn ?? false;
+    /// <summary>이 칸에 열린 에피소드의 특수문자 위젯을 켜고 끈다(에피소드가 아니면 아무 일도 없다).</summary>
+    public void ToggleSpecialWidget() => doc?.ToggleSpecialWidget();
+    public bool SpecialWidgetOn => doc?.SpecialWidgetOn ?? false;
+    /// <summary>이 칸에 열린 에피소드의 시계 위젯을 켜고 끄고, 시계 위치를 다시 반영한다.</summary>
+    public void ToggleClockWidget() => doc?.ToggleClockWidget();
+    public bool ClockWidgetOn => doc?.ClockWidgetOn ?? false;
+    public void ApplyClockPlace() => doc?.ApplyClockPlace();
     public event Action<DocPane>? FocusRequested;
     public event Action<DocPane>? CloseRequested;
     public event Action? ContentChanged;

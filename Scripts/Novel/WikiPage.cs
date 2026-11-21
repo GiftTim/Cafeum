@@ -426,7 +426,7 @@ internal sealed class WikiPage : Panel
             var m = new ContextMenuStrip();
             MenuGuard.Attach(m);
             m.Items.Add("사진 바꾸기…", null, (_, _) => BeginInvoke(ChoosePhoto));
-            if (photo != null) m.Items.Add("사진 지우기", null, (_, _) => BeginInvoke(() => { if (doc == null) return; WikiStore.DeletePhoto(doc.Path); SetPhotoImage(null); }));
+            if (photo != null) m.Items.Add("사진 지우기", null, (_, _) => BeginInvoke(() => { if (doc == null) return; WikiStore.DeletePhoto(doc.Path); SetPhotoImage(null); Changed?.Invoke(); }));
             m.Closed += (_, _) => BeginInvoke(m.Dispose);
             m.Show(Cursor.Position);
         }
@@ -444,6 +444,7 @@ internal sealed class WikiPage : Panel
             if (cropDlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
             WikiStore.SetPhoto(doc.Path, dlg.FileName, cropDlg.CropRect);
             SetPhotoImage(WikiStore.LoadPhoto(doc.Path));
+            Changed?.Invoke(); // 마인드맵 등 다른 보기에도 사진이 나타나게
         }
         catch (Exception ex) { MessageBox.Show(FindForm(), $"사진을 넣지 못했어요: {ex.Message}", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }

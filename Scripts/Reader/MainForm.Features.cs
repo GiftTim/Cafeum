@@ -268,7 +268,7 @@ public partial class MainForm
         mainEditor.BackColor = theme.Back;
         mainEditor.ForeColor = theme.Fore;
         writerTitle?.SetColors(theme.Back, theme.Fore);
-        SyncGoalWidget();
+        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget();
         if (epubView != null) epubView.DefaultBackgroundColor = theme.Back;
         if (epubMode) RunEpubScript(BuildEpubThemeScript());
 
@@ -300,9 +300,10 @@ public partial class MainForm
             int usable = MmToPx(paper.ContentWidth) * ViewZoom / 100;
             m = Math.Clamp((mainEditor.ClientSize.Width - usable) / 2, 0, 2000);
         }
-        else if (WriterLayout) m = WriterSideMargin(m); // 회차 글쓰기: 글을 가운데 일정한 폭의 칸에
-        mainEditor.SetSideMargins(m);
-        SyncWriterTitle(m);
+        int mr = -1;
+        if (EffPaper == null && WriterLayout) (m, mr) = WriterMargins(m); // 회차 글쓰기: 글을 창 가운데 일정한 폭의 칸에
+        mainEditor.SetSideMargins(m, mr);
+        SyncWriterTitle(m, mr);
     }
 
     /// <summary>설정창의 챕터 나누기 미리보기용: 지금 txt를 보고 있으면 그 전체 글과 이름을 돌려준다.</summary>

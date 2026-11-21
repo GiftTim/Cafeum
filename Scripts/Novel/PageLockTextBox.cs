@@ -135,18 +135,21 @@ internal sealed class PageLockTextBox : RichTextBox
 
     // ───────── 좌우 여백 ─────────
     private int sideMargin;
+    private int sideMarginRight = -1; // -1이면 왼쪽과 같게
 
     /// <summary>글이 놓이는 칸의 좌우 안쪽 여백(px). 상자 크기가 바뀌어도 다시 맞춘다.</summary>
-    public void SetSideMargins(int m)
+    public void SetSideMargins(int m, int right = -1)
     {
         sideMargin = Math.Max(0, m);
+        sideMarginRight = right < 0 ? -1 : right;
         ApplySideMargins();
     }
 
     private void ApplySideMargins()
     {
         if (!IsHandleCreated) return;
-        var r = new RECT { Left = sideMargin, Top = 0, Right = Math.Max(sideMargin + 10, ClientSize.Width - sideMargin), Bottom = ClientSize.Height };
+        int rm = sideMarginRight < 0 ? sideMargin : sideMarginRight;
+        var r = new RECT { Left = sideMargin, Top = 0, Right = Math.Max(sideMargin + 10, ClientSize.Width - rm), Bottom = ClientSize.Height };
         SendMessage(Handle, EM_SETRECT, IntPtr.Zero, ref r);
     }
 

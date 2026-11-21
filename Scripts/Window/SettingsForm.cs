@@ -413,7 +413,7 @@ public sealed class SettingsForm : Form
             filling = true;
             list.Items.Clear();
             foreach (var k in WorkspaceRail.OrderFor(settings))
-                list.Items.Add(new ToolbarEntry(k, WorkspaceRail.LabelOf(k)), k == "spacer" || WorkspaceRail.IsCustom(k) || !settings.RailHidden.Contains(k));
+                list.Items.Add(new ToolbarEntry(k, WorkspaceRail.LabelOf(k)), k == "spacer" || WorkspaceRail.IsCustom(k) || WorkspaceRail.IsShown(settings, k));
             filling = false;
         }
         Fill();
@@ -435,7 +435,7 @@ public sealed class SettingsForm : Form
             string key = ((ToolbarEntry)list.Items[e.Index]).Key;
             if (!allowToggle || key == "spacer" || WorkspaceRail.IsCustom(key)) { e.NewValue = e.CurrentValue; return; }
             bool hide = e.NewValue == CheckState.Unchecked;
-            Apply(() => { settings.RailHidden.RemoveAll(x => x == key); if (hide) settings.RailHidden.Add(key); }, SettingKind.Toolbar);
+            Apply(() => WorkspaceRail.SetShown(settings, key, !hide), SettingKind.Toolbar);
         };
         void Commit(List<string> keys) { Apply(() => settings.RailOrder = keys, SettingKind.Toolbar); Fill(); }
         void Move(int delta)
@@ -476,7 +476,7 @@ public sealed class SettingsForm : Form
         var reset = new Button { Text = "기본으로", AutoSize = true, Padding = new Padding(8, 2, 8, 2) };
         up.Click += (_, _) => Move(-1);
         down.Click += (_, _) => Move(1);
-        reset.Click += (_, _) => { Apply(() => { settings.RailOrder = new(); settings.RailHidden = new() { "files" }; }, SettingKind.Toolbar); Fill(); };
+        reset.Click += (_, _) => { Apply(() => { settings.RailOrder = new(); settings.RailHidden = new() { "files" }; settings.RailOn = new(); }, SettingKind.Toolbar); Fill(); };
         var buttons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(8, 0, 0, 0) };
         buttons.Controls.AddRange(new Control[] { up, down, addSep, addBlank, del, reset });
         var row = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty };

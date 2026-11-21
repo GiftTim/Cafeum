@@ -11,7 +11,7 @@ namespace Cafeum;
 public partial class MainForm
 {
     /// <summary>글 칸의 폭(96 DPI · 100% 기준 px). 한 줄에 한글 40자 남짓.</summary>
-    private const int WriterColumnWidth = 720;
+    private const int WriterColumnWidth = 560;
     private WriterHeader? writerTitle;
     /// <summary>제목을 직접 고쳤을 때(파일 이름 바꾸기는 파일 트리 쪽에서 한다).</summary>
     public event Action<string, string>? TitleRenameRequested;
@@ -34,6 +34,8 @@ public partial class MainForm
         goalWidget.SettingsRequested += OpenGoalSettings;
         goalWidget.CloseRequested += () => { goalShown = false; settings.WriterGoalWidget = false; settings.Save(); SyncGoalWidget(); };
         goalShown = true; // 에피소드를 열면 글자 수 위젯은 늘 켜진 채로 시작한다(이전에 닫아 두었어도)
+        InitSpecialWidget(); // 특수문자 위젯
+        InitClockWidget(); // 시계 위젯(플립 시계)
         goalWidget.Moved += () => { goalMoved = true; goalPos = goalWidget.Location; };
         goalWidget.ExpandedChanged += () => { goalMoved = true; ResizeGoalWidget(); };
         editorHost.SizeChanged += (_, _) => { if (goalWidget.Visible) PlaceGoalWidget(); else if (goalShown) SyncGoalWidget(); };
@@ -70,8 +72,28 @@ public partial class MainForm
         return Math.Clamp(Math.Max(baseMargin, (mainEditor.ClientSize.Width - col) / 2), 0, 4000);
     }
 
+    /// <summary>
+    /// 글 칸의 왼쪽 · 오른쪽 여백. 파일 트리를 끄고 이 글 하나가 창 전체를 차지할 때는, 왼쪽 아이콘 막대와 오른쪽 스크롤바 폭이 달라서
+    /// 칸이 창 한가운데에서 비껴 보이지 않게 칸의 가운데를 창(최상위 창)의 가로 가운데에 맞춘다. 맞출 수 없으면(칸을 나눴거나 트리가 열렸거나 폭이 모자라면) 예전처럼 좌우 같게.
+    /// </summary>
+    private (int Left, int Right) WriterMargins(int baseMargin)
+    {
+        int sym = WriterSideMargin(baseMargin);
+        var top = TopLevelControl;
+        if (top == null || !mainEditor.IsHandleCreated) return (sym, sym);
+        int col = LogicalToDeviceUnits(WriterColumnWidth) * ViewZoom / 100;
+        int w = mainEditor.ClientSize.Width;
+        int editorLeft = top.PointToClient(mainEditor.PointToScreen(Point.Empty)).X;
+        int editorRight = editorLeft + editorHost.ClientSize.Width; // 스크롤바까지 포함한 오른쪽 끝
+        if (editorLeft > LogicalToDeviceUnits(90) || editorRight < top.ClientSize.Width - LogicalToDeviceUnits(4)) return (sym, sym); // 트리가 열렸거나 칸이 나뉜 경우
+        int left = top.ClientSize.Width / 2 - col / 2 - editorLeft;
+        int right = w - left - col;
+        if (left < baseMargin || right < baseMargin) return (sym, sym);
+        return (left, right);
+    }
+
     /// <summary>제목 줄 · 빈 글 안내 · 글자 수 위젯을 지금 상태(보이기 · 글자 · 색 · 글 칸 여백)에 맞춘다.</summary>
-    private void SyncWriterTitle(int sideMargin)
+    private void SyncWriterTitle(int sideMargin, int rightMargin = -1)
     {
         if (writerTitle == null) return;
         bool on = WriterLayout;
@@ -97,7 +119,7 @@ public partial class MainForm
         }
         if (writerTitle.Visible != on) writerTitle.Visible = on;
         SyncPlaceholder(sideMargin);
-        SyncGoalWidget();
+        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget();
         if (!on) return;
         if (!string.Equals(writerKeyPath, currentPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -105,7 +127,7 @@ public partial class MainForm
             RefreshWriterProps();
         }
         writerTitle.SetColors(mainEditor.BackColor, mainEditor.ForeColor);
-        writerTitle.SetMargin(sideMargin);
+        writerTitle.SetMargin(sideMargin, rightMargin);
         UpdateSavedDot();
     }
 
@@ -186,6 +208,7 @@ public partial class MainForm
     {
         if (goalWidget == null) return;
         bool show = directEdit && shownKind == ContentKind.Txt && editorHost.Visible && goalShown; // 편집 용지를 켠 글에서도 글자 수 위젯은 뜬다
+        goalWidget.ShowBar = settings.GoalBarLength != 3;
         if (goalWidget.Visible != show) { goalWidget.Visible = show; if (show) { PlaceGoalWidget(); goalWidget.BringToFront(); } }
         if (show) { goalWidget.SetColors(mainEditor.BackColor, mainEditor.ForeColor, theme.Link); UpdateGoalWidget(charsAll, charsSolid); }
     }
@@ -204,14 +227,19 @@ public partial class MainForm
         using var dlg = new GoalSettingsDialog(settings);
         dlg.ShowDialogOver(HostForm);
         UpdateGoalWidget(0, 0);
+        ResizeGoalWidget(); // 막대 길이를 바꿨으면 위젯 폭도
         EpisodeMetaChanged?.Invoke(); // 목록 글자 수 방식이 바뀌었을 수 있으니 목록을 다시 읽게
     }
+
+    /// <summary>글자 수 위젯의 폭(96 DPI 기준). 넓은 모양은 설정의 진행 막대 길이(짧게 · 보통 · 길게)에 따라 달라진다.</summary>
+    private int GoalWidgetWidth(bool expanded) => !expanded ? 262 : Math.Clamp(settings.GoalBarLength, 0, 3) switch { 3 => 190, 0 => 206 + 80, 2 => 206 + 320, _ => 206 + 160 }; // 막대 없음 · 짧게 · 길게 · 보통(글자와 퍼센트 자리 206 + 막대)
 
     /// <summary>접거나 펼칠 때 폭을 바꾼다(오른쪽 끝은 그대로 두고 왼쪽이 늘고 줄게).</summary>
     private void ResizeGoalWidget()
     {
         if (goalWidget == null) return;
-        int w = LogicalToDeviceUnits(goalWidget.Expanded ? 360 : 262);
+        goalWidget.ShowBar = settings.GoalBarLength != 3;
+        int w = LogicalToDeviceUnits(GoalWidgetWidth(goalWidget.Expanded));
         int right = goalWidget.Right;
         goalWidget.Bounds = new Rectangle(Math.Max(0, right - w), goalWidget.Top, w, goalWidget.Height);
         goalPos = goalWidget.Location;
@@ -237,7 +265,7 @@ public partial class MainForm
         if (goalWidget == null) return;
         EnsureGoalParent();
         var host = GoalHost;
-        var size = new Size(LogicalToDeviceUnits(goalWidget.Expanded ? 360 : 262), LogicalToDeviceUnits(38));
+        var size = new Size(LogicalToDeviceUnits(GoalWidgetWidth(goalWidget.Expanded)), LogicalToDeviceUnits(38));
         // 창이 아직 숨어 있거나 크기가 잡히기 전이면 자리를 건드리지 않는다(그때 계산하면 왼쪽 위(0,0)로 눌려 버린다)
         if (host.ClientSize.Width < size.Width || host.ClientSize.Height < size.Height || !host.IsHandleCreated) return;
         if (goalMoved)
@@ -263,7 +291,7 @@ public partial class MainForm
         goalShown = !goalShown;
         settings.WriterGoalWidget = goalShown; // 켜고 끈 상태를 기억해서 다음 에피소드에도 이어간다
         settings.Save();
-        SyncGoalWidget();
+        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget();
     }
 
     private ContextMenuStrip? goalMenu;
@@ -318,7 +346,7 @@ public partial class MainForm
 
         private string? number;
         private string title = "";
-        private int margin;
+        private int margin, marginR = -1; // marginR: 오른쪽 여백(-1이면 왼쪽과 같게)
         private Color back = Color.White, fore = Color.Black;
         private readonly Font numFont = new(NovelStore.UiFontFamily, 10f);
         private readonly Font titleFont = new(NovelStore.UiFontFamily, 20f, FontStyle.Bold);
@@ -384,7 +412,7 @@ public partial class MainForm
         public void SetText(string? num, string t) { number = num; title = t; Fit(); Invalidate(); }
         public void SetProps(string typeName, string statusName, EpisodeProps p) { type = typeName; status = statusName; props = p; Fit(); Invalidate(); }
         public void SetColors(Color b, Color f) { if (b == back && f == fore) return; back = b; fore = f; tagEditor.BackColor = Themes.Blend(b, f, 0.06f); tagEditor.ForeColor = f; titleEditor.BackColor = b; titleEditor.ForeColor = f; Invalidate(); }
-        public void SetMargin(int m) { if (m == margin) return; margin = m; Fit(); Invalidate(); }
+        public void SetMargin(int m, int right = -1) { if (m == margin && right == marginR) return; margin = m; marginR = right; Fit(); Invalidate(); }
 
         private void Change(Action<EpisodeProps> edit)
         {
@@ -405,7 +433,7 @@ public partial class MainForm
         {
             cells.Clear();
             hits.Clear();
-            int x = margin, w = Math.Max(0, Width - margin * 2);
+            int x = margin, w = Math.Max(0, Width - margin - (marginR < 0 ? margin : marginR));
             int y = S(28);
             if (number != null) y += numFont.Height + S(4);
             y += titleFont.Height + S(10);
@@ -418,9 +446,11 @@ public partial class MainForm
             {
                 int rowH = S(40), btnH = S(28), valueDx = S(110);
                 // 두 칸 격자의 폭: 오른쪽 칸 끝(= 시점 · 줄바꿈의 x 자리)에 요약 · 작가의 말 · 등장 · 태그의 x도 맞춘다
-                bool two = w >= S(640);
-                int col2 = x + S(340);
-                int rightW = Math.Min(S(300), Math.Max(S(120), x + w - col2));
+                bool two = w >= S(480);
+                // 오른쪽 칸([상태] · [시점])은 글 칸의 오른쪽 끝에 붙인다 — 속성 줄이 칸 폭 전체를 써서 글 칸이 좌우로 고르게 보이게
+                int rightW = S(230);
+                int col2 = x + Math.Max(S(260), w - rightW);
+                rightW = Math.Max(S(120), x + w - col2);
                 int fullRight = two ? col2 + rightW : x + w;
                 // 한 줄 전체를 쓰는 글 속성: 요약 · 작가의 말
                 foreach (var key in new[] { "summary", "note" })
@@ -801,7 +831,7 @@ public partial class MainForm
             g.Clear(back);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             LayoutAll();
-            int x = margin, y = S(28), w = Math.Max(0, Width - margin * 2);
+            int x = margin, y = S(28), w = Math.Max(0, Width - margin - (marginR < 0 ? margin : marginR));
             var flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
             var vc = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
             Color dim = Themes.Blend(back, fore, 0.55f);
@@ -892,7 +922,7 @@ internal sealed class CharGoalWidget : Control
     private string unit = "자";
     private Color back = Color.White, fore = Color.Black, accent = Color.SteelBlue;
     private int hot = -1;
-    private bool pinned, expanded = true; // 단추를 없앤 뒤로는 늘 넓은 모양
+    private bool pinned, expanded = true, showBar = true; // 단추를 없앤 뒤로는 늘 넓은 모양
     private Point dragFrom;
     private bool dragging;
 
@@ -908,6 +938,9 @@ internal sealed class CharGoalWidget : Control
 
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool Expanded { get => expanded; set { if (expanded == value) return; expanded = value; Invalidate(); ExpandedChanged?.Invoke(); } }
+    /// <summary>진행 막대를 보일지(꺼지면 "현재 / 목표"만).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool ShowBar { get => showBar; set { if (showBar == value) return; showBar = value; Invalidate(); } }
 
     public CharGoalWidget()
     {
@@ -1012,22 +1045,22 @@ internal sealed class CharGoalWidget : Control
         var left = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
         Color tc = count >= goal ? Color.FromArgb(0x3C, 0xA0, 0x6B) : dim;
 
-        if (!expanded)
+        if (!expanded || !showBar)
         {
             // 작은 모양: 왼쪽 끝과 › 사이의 가운데에 "현재 / 목표"
-            TextRenderer.DrawText(g, $"{count:N0} / {goal:N0}", Font, new Rectangle(pad, 0, Math.Max(0, rightEdge - pad), Height), tc, center);
+            TextRenderer.DrawText(g, $"{count:N0} / {goal:N0}{unit}", Font, new Rectangle(pad, 0, Math.Max(0, rightEdge - pad), Height), tc, center);
         }
         else
         {
-            // 넓은 모양: [현재] ─────── [목표 + 단위]
-            string cur = count.ToString("N0");
-            string goalText = $"{goal:N0}{unit}";
-            int cw = Math.Max(S(20), TextRenderer.MeasureText(cur, Font, Size.Empty, TextFormatFlags.NoPadding).Width);
-            int gw = TextRenderer.MeasureText(goalText, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
-            TextRenderer.DrawText(g, cur, Font, new Rectangle(pad + S(4), 0, cw + S(4), Height), tc, left);
-            int gx = rightEdge - gw;
-            TextRenderer.DrawText(g, goalText, Font, new Rectangle(gx, 0, gw + S(2), Height), dim, left);
-            int bx = pad + S(4) + cw + S(16), bw = Math.Max(S(30), gx - S(14) - bx), bh = S(3);
+            // 넓은 모양: [현재 / 목표 + 단위] ─────── [퍼센트]
+            string head = $"{count:N0} / {goal:N0}{unit}";
+            string pct = $"{(int)Math.Min(9999, Math.Floor(count * 100.0 / Math.Max(1, goal)))}%";
+            int hw = TextRenderer.MeasureText(head, Font, Size.Empty, TextFormatFlags.NoPadding).Width;
+            int pw = TextRenderer.MeasureText("100%", Font, Size.Empty, TextFormatFlags.NoPadding).Width; // 퍼센트 자리는 100% 폭으로 고정(숫자가 바뀌어도 막대가 흔들리지 않게)
+            TextRenderer.DrawText(g, head, Font, new Rectangle(pad + S(4), 0, hw + S(4), Height), tc, left);
+            int px = rightEdge - pw;
+            TextRenderer.DrawText(g, pct, Font, new Rectangle(px, 0, pw + S(2), Height), dim, left | TextFormatFlags.Right);
+            int bx = pad + S(4) + hw + S(16), bw = Math.Max(S(30), px - S(14) - bx), bh = S(3);
             var bar = new RectangleF(bx, (Height - bh) / 2f, bw, bh);
             using (var bb = new SolidBrush(Themes.Blend(card, fore, 0.10f))) using (var bp = LibraryPalette.Rounded(bar, bh / 2f)) g.FillPath(bb, bp);
             float fw = bar.Width * Math.Min(1f, count / (float)Math.Max(1, goal));

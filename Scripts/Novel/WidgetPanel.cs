@@ -3,7 +3,7 @@ using System.Drawing.Drawing2D;
 namespace Cafeum;
 
 /// <summary>
-/// 사이드바 [위젯] 아이콘을 누르면 파일 트리 자리에 뜨는 위젯 설정 패널.
+/// 사이드바 [위젯] 아이콘을 누르면 파일 트리 자리에 뜨는 위젯 모음 패널.
 /// 검색칸 + 분류 칩 + 위젯 카드 목록. 카드를 누르면 그 위젯을 켜고 끄고(Toggled), 켜진 위젯은 눌린 모양과 ✓로 보인다.
 /// 톱니바퀴가 있는 카드는 그 위젯의 설정을 연다(SettingsRequested). 아직 만들지 않은 위젯은 흐리게 "준비 중"으로 둔다.
 /// </summary>
@@ -17,15 +17,15 @@ internal sealed class WidgetPanel : Panel
     private static readonly Def[] Defs =
     {
         new("count", "글자 수 세기", "여러 기준으로 글자 수를 실시간 계산하고 목표를 설정합니다.", "분석 및 통계", true, true),
-        new("dict", "사전", "낱말 뜻을 찾아보는 사전 창을 따로 띄웁니다.", "자료 참조", true, false),
-        new("typewriter", "타입라이터", "쓰고 있는 줄을 화면 가운데에 두어 눈이 움직이지 않게 합니다.", "에디터 도구", true, false),
-        new("quote", "빠른 따옴표", "따옴표를 치면 한 쌍을 만들어 주고, 따옴표 앞에서 Enter로 다음 줄로 넘어갑니다.", "에디터 도구", true, false),
-        new("timer", "뽀모도로 타이머", "집중과 휴식 시간을 번갈아 재는 타이머를 화면에 띄웁니다.", "시간 · 집중 관리", true, false),
-        new("clock", "시계", "현재 시각과 세계 여러 지역의 시간을 확인합니다.", "시간 · 집중 관리", false, false),
-        new("special", "특수문자", "소설에 쓰는 특수문자를 쉽게 입력하고 원하는 문자를 추가합니다.", "기타 · 특수 도구", false, false),
+        new("dict", "사전", "낱말 뜻을 찾아보는 사전 창을 따로 띄웁니다.", "자료 참조", true, true),
+        new("typewriter", "타입라이터", "쓰고 있는 줄을 화면 가운데에 두어 눈이 움직이지 않게 합니다.", "에디터 도구", true, true),
+        new("quote", "빠른 따옴표", "따옴표를 치면 한 쌍을 만들어 주고, 따옴표 앞에서 Enter로 다음 줄로 넘어갑니다.", "에디터 도구", true, true),
+        new("timer", "뽀모도로 타이머", "집중과 휴식 시간을 번갈아 재는 타이머를 화면에 띄웁니다.", "시간 · 집중 관리", true, true),
+        new("clock", "시계", "현재 시각과 세계 여러 지역의 시간을 확인합니다.", "시간 · 집중 관리", true, true),
+        new("special", "특수문자", "소설에 쓰는 특수문자를 쉽게 입력하고 원하는 문자를 추가합니다.", "기타 · 특수 도구", true, true),
     };
 
-    /// <summary>카드를 눌렀다(키는 사이드바 아이콘과 같다: count · dict · typewriter · quote · timer).</summary>
+    /// <summary>카드를 눌렀다(키는 사이드바 아이콘과 같다: count · dict · typewriter · quote · timer · special).</summary>
     public event Action<string>? Toggled;
     /// <summary>카드의 톱니바퀴를 눌렀다.</summary>
     public event Action<string>? SettingsRequested;

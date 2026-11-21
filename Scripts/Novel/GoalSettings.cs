@@ -211,6 +211,23 @@ internal sealed class GoalSettingsDialog : Form
         body.Controls.Add(goal);
         y += S(6);
 
+        // ── 진행 막대 ──
+        Rule();
+        Section("진행 막대");
+        Head("", "막대 길이", "글자 수 위젯에서 '현재 / 목표 · 막대 · 퍼센트'의 막대 길이입니다. 없음을 고르면 '현재 / 목표'만 보입니다.");
+        var barNames = new[] { "없음", "짧게", "보통", "길게" };
+        var barValues = new[] { 3, 0, 1, 2 }; // 저장 값(0 짧게 · 1 보통 · 2 길게 · 3 없음)
+        var barCards = new ChoiceCard[4];
+        int bw = (contentW - gap * 3) / 4, bh = S(88);
+        for (int i = 0; i < 4; i++)
+        {
+            int val = barValues[i];
+            var c = barCards[i] = new ChoiceCard(barNames[i], "", true) { Bounds = new Rectangle(left + i * (bw + gap), y, bw, bh), Selected = Math.Clamp(s.GoalBarLength, 0, 3) == val };
+            c.Chosen += () => { s.GoalBarLength = val; foreach (var o in barCards) o.Selected = o == c; Save(); };
+            body.Controls.Add(c);
+        }
+        y += bh + S(32);
+
         // ── 목록 글자 수 기준 ──
         Rule();
         Section("목록 글자 수 기준");

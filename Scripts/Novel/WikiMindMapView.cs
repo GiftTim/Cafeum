@@ -24,10 +24,11 @@ internal sealed class WikiMindMapView : WikiViewBase
         /// <summary>작품 점에 표지 그림이 들어갈 때 더 키우는 반지름.</summary>
         public float Extra;
         public readonly List<Node> Links = new();
-        public float Radius => Kind switch { NodeKind.Root => 9f + Extra + MathF.Sqrt(Degree) * 1.2f, NodeKind.Category => 3.4f + MathF.Sqrt(Degree) * 0.4f, NodeKind.Class => 2.6f + MathF.Sqrt(Degree) * 0.6f, _ => 3.5f + MathF.Sqrt(Degree) * 1.3f };
+        public float Radius => Kind switch { NodeKind.Root => 9f + Extra + MathF.Sqrt(Degree) * 1.2f, NodeKind.Category => 3.4f + MathF.Sqrt(Degree) * 0.4f, NodeKind.Class => 2.6f + MathF.Sqrt(Degree) * 0.6f, _ => 3.5f + Extra + MathF.Sqrt(Degree) * 1.3f };
     }
 
     private Bitmap? cover;
+    private readonly Dictionary<Node, Bitmap> photos = new(); // 사진이 있는 문서 점
     private readonly List<Node> nodes = new();
     private readonly List<(Node A, Node B)> edges = new();
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 16 };
@@ -56,7 +57,7 @@ internal sealed class WikiMindMapView : WikiViewBase
     public WikiMindMapView()
     {
         timer.Tick += (_, _) => Step();
-        Disposed += (_, _) => { timer.Dispose(); cover?.Dispose(); };
+        Disposed += (_, _) => { timer.Dispose(); cover?.Dispose(); foreach (var ph in photos.Values) ph.Dispose(); };
     }
 
     protected override void OnVisibleChanged(EventArgs e) { base.OnVisibleChanged(e); if (!Visible) timer.Stop(); else if (alpha > 0.02f) timer.Start(); }
@@ -85,6 +86,8 @@ internal sealed class WikiMindMapView : WikiViewBase
         void Link(Node a, Node b) { if (a == b || a.Links.Contains(b)) return; a.Links.Add(b); b.Links.Add(a); a.Degree++; b.Degree++; edges.Add((a, b)); }
 
         var root = New(NodeKind.Root, Data.NovelName);
+        foreach (var ph in photos.Values) ph.Dispose();
+        photos.Clear();
         cover?.Dispose();
         cover = Data.NovelDir.Length > 0 ? NovelStore.LoadCover(Data.NovelDir) : null; // 가운데 작품 점에 올릴 표지 사진
         if (cover != null) root.Extra = 14f;
@@ -103,6 +106,7 @@ internal sealed class WikiMindMapView : WikiViewBase
         {
             var n = New(NodeKind.Doc, d.Title, d.Path);
             n.CategoryKey = d.Category;
+            if (WikiStore.LoadPhoto(d.Path) is { } photo) { photos[n] = photo; n.Extra = 7f; } // 문서 사진이 있으면 점이 그 사진으로 보인다
             var mine = d.Tags.Where(classes.ContainsKey).ToList();
             if (mine.Count == 0) Link(cats[d.Category], n);
             else foreach (var t in mine) Link(classes[t], n);
@@ -417,6 +421,19 @@ internal sealed class WikiMindMapView : WikiViewBase
                         float q = r * 0.78f;
                         using var b = new SolidBrush(Dimmed(baseColor));
                         g.FillRectangle(b, s.X - q, s.Y - q, q * 2, q * 2);
+                        break;
+                    }
+                    case NodeKind.Doc when photos.TryGetValue(n, out var docPhoto): // 문서: 사진을 동그랗게 오려 올린다
+                    {
+                        using var circle = new GraphicsPath();
+                        circle.AddEllipse(s.X - r, s.Y - r, r * 2, r * 2);
+                        var saved = g.Save();
+                        g.SetClip(circle, CombineMode.Intersect);
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(docPhoto, new Rectangle((int)MathF.Round(s.X - r), (int)MathF.Round(s.Y - r), (int)MathF.Round(r * 2), (int)MathF.Round(r * 2)));
+                        g.Restore(saved);
+                        using var ring = new Pen(Dimmed(n == hot ? p.Accent : Themes.Blend(bg, p.Fore, 0.45f)), Math.Max(1.5f, DeviceDpi / 96f * 1.6f));
+                        g.DrawEllipse(ring, s.X - r, s.Y - r, r * 2, r * 2);
                         break;
                     }
                     case NodeKind.Root when cover != null: // 작품: 표지 사진을 동그랗게 오려 올린다
