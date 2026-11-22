@@ -97,10 +97,12 @@ internal static class MemoStore
         return list;
     }
 
-    public static void Save(string novelDir)
+    /// <summary>메모 파일에 쓴다. 쓰지 못했으면(읽지 못한 파일을 덮어쓰지 않으려고 거부한 경우 등) false.</summary>
+    public static bool Save(string novelDir)
     {
-        if (Cache.TryGetValue(novelDir, out var e)) Write(novelDir, e.List);
+        bool ok = !Cache.TryGetValue(novelDir, out var e) || Write(novelDir, e.List);
         Changed?.Invoke(novelDir);
+        return ok;
     }
 
     private static List<MemoNote> Load(string novelDir)
@@ -131,7 +133,7 @@ internal static class MemoStore
     }
 
     /// <summary>숨김 파일은 덮어쓰기가 막히던 문제(첫 저장 뒤로는 저장이 조용히 실패했다)는 JsonFile이 풀어 주고 다시 숨긴다.</summary>
-    private static void Write(string novelDir, List<MemoNote> notes) => JsonFile.Save(NovelFiles.PathOf(novelDir, NovelFiles.MemoFileName), notes, Opt, hidden: true);
+    private static bool Write(string novelDir, List<MemoNote> notes) => JsonFile.Save(NovelFiles.PathOf(novelDir, NovelFiles.MemoFileName), notes, Opt, hidden: true);
 
     // ───────── 메모 그룹(에피소드 그룹처럼: 이름 순서는 .cafeum-memo-groups.json, 메모마다 Group) ─────────
 

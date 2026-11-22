@@ -84,7 +84,7 @@ internal sealed class MemoView : Control
             var n = MemoNote.Create(0);
             n.Text = old; n.Rtf = rtb.Rtf;
             MemoStore.Get(novelDir).Insert(0, n);
-            MemoStore.Save(novelDir);
+            if (!MemoStore.Save(novelDir)) return; // 새 메모 파일에 못 썼으면 옛 메모를 지우지 않는다(다음에 다시 시도)
             NovelStore.SaveMemo(novelDir, null); // 내용은 새 메모로 옮겼으니 옛 자리는 비운다
         }
         catch (Exception ex) { AppLog.Write("예전 메모를 옮기지 못했어요", ex); }

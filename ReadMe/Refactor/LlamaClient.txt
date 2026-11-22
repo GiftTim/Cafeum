@@ -1,0 +1,27 @@
+LlamaClient.cs (143줄)
+
+내 PC에서 돌아가는 Ollama(기본 http://localhost:11434)를 통해 라마(AI)를 쓰는 코드예요. 글이 밖으로 나가지 않고, 추가 패키지 없이 HttpClient만 써요. 설치된 모델 목록을 가져오고(ListModelsAsync), 대화를 보내 답이 오는 대로 한 토막씩 받아 화면에 바로 보여 줘요(ChatAsync, 스트리밍). "localhost"는 IPv6부터 시도해서 몇 초씩 늦으므로 127.0.0.1로 바꿔 불러요. 연결이 안 되거나 모델이 없을 때는 사용자에게 그대로 보여 줘도 되는 말로 LlamaException을 던져요. 파일 아래쪽 LlamaPrompts는 기능별(이어쓰기, 다듬기, 맞춤법, 회차 요약, 대화)로 라마에게 시킬 말을 만들고, 글은 항상 [원고] 표시로 감싸서 보내요. 주소는 설정에서 바꿀 수 있어서, 다른 컴퓨터를 적으면 글이 그쪽으로 가요.
+
+1~2	도구함
+4	네임스페이스
+6~7	라마에 보내는 대화 한 줄. Role은 system · user · assistant.
+9~11	LlamaException 설명과 선언: 라마(Ollama)를 부르다 생긴 문제. Message를 그대로 사용자에게 보여 줘도 되게 쓴다.
+12	생성자
+13	LlamaException 끝
+15~20	LlamaClient 설명과 선언: 내 PC에서 돌아가는 Ollama(기본 http://localhost:11434)를 통해 라마를 쓴다. 글이 밖으로 나가지 않는다.
+21	공용 HttpClient(시간 제한 없음, 취소는 토큰으로)
+23~33	Ollama 주소. Ollama는 IPv4(127.0.0.1)에서만 기다리는데 "localhost"는 IPv6(::1)부터 시도해서
+35~53	설치된 모델 이름들(ollama list와 같다). 연결이 안 되면 LlamaException.
+55~56	연결할 수 없을 때의 안내 예외 만들기
+58~88	대화를 보내고, 답이 오는 대로 onToken에 한 토막씩 넘긴다. 취소하면 OperationCanceledException.
+90~102	응답 오류에서 이유를 읽어 안내 글 만들기
+103	LlamaClient 끝
+105~107	LlamaPrompts 설명과 선언: 집필 기능별로 라마에게 시킬 말(프롬프트). 글 자체는 항상 [원고] 표시로 감싸서 보낸다.
+108	Base
+110	위키 설정을 프롬프트 뒤에 붙일 글로
+112~116	이어쓰기 프롬프트
+118~122	다듬기 프롬프트
+124~128	맞춤법 프롬프트
+130~134	회차 요약 프롬프트
+136~142	대화의 시작 지시문(회차 끝부분과 위키 근거 포함)
+143	LlamaPrompts 끝

@@ -30,14 +30,12 @@ SettingsForm.cs (776줄)
 403~488	BuildRailPage: 사이드바 — 왼쪽 아이콘 막대의 순서와 켜고 끄기
 490	ToolbarEntry: 목록 한 줄(키 + 보이는 이름)
 492~624	BuildToolbarPage: txt 서식창·참고자료 서식창 항목의 순서와 켜고 끄기
-494~~	SetHidden: 항목을 숨기거나 보이게
-504~~	NewSepKey: 새 구분선 이름 만들기
-511~~	BuildOrderList: 순서 목록(체크 칸, 위로·아래로, 구분선 추가·삭제, 기본 순서로) 만들기
 603~612	txt 서식창
 614~615	사이드바(BuildRailPage 호출)
 617~623	참고자료 서식창
 626~664	BuildTtsPage: 읽기·낭독 — 낭독 목소리, 속도, 미리 듣기
 666	구분 주석(틀)
+668~687	새 분류를 시작한다. 이후 AddHeading/AddRow/AddHint는 이 분류의 표에 들어간다.
 669~687	BeginPage: 새 분류 시작(바로 앞과 이름이 같으면 이어 씀)
 689~698	ShowPage: 고른 분류만 보이게
 700~707	AddHeading: 소제목 한 줄
@@ -48,3 +46,4 @@ SettingsForm.cs (776줄)
 756	RateText: 낭독 속도를 "보통 / +3 (빠름)"으로
 758~764	Apply: 값 바꾸기 → 저장 → changed(종류)로 알리기
 766~775	ApplyTheme: 설정창 자신에 테마 입히기
+776	SettingsForm 끝
