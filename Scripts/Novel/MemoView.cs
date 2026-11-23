@@ -37,7 +37,7 @@ internal sealed class MemoView : Control
     private string filter = "all";
     private string query = "";
     private string? selectedId;
-    private int offset, hoverRow = -1, hoverSide = -1;
+    private int offset, sideOff, hoverRow = -1, hoverSide = -1;
     private bool hoverTrash;
     private readonly HashSet<string> selIds = new(); // 표에서 고른 메모들(모두 선택 · Ctrl로 여러 개)
     private List<MemoTrashEntry> trash = new();
@@ -69,6 +69,7 @@ internal sealed class MemoView : Control
         dir = novelDir;
         MigrateOldMemo(novelDir);
         trash = MemoTrash.Load(novelDir);
+        if (trash.RemoveAll(t => DateTime.Now - t.Deleted > TimeSpan.FromDays(30)) > 0) MemoTrash.Save(novelDir, trash); // 휴지통에 한 달 넘게 있던 메모는 지운다
         selectedId = null; offset = 0; filter = "all";
         ShowSelected();
         Invalidate();
@@ -233,9 +234,9 @@ internal sealed class MemoView : Control
 
     private int SideW => S(184);
     private int Gap => S(16);
-    private int PreviewW => Width < S(840) ? S(180) : Math.Clamp((int)(Width * 0.27), S(220), S(300));
-    private Rectangle TableRect => new(SideW + Gap, 0, Math.Max(S(120), Width - SideW - PreviewW - Gap * 2), BodyH);
-    private Rectangle PreviewRect => new(Width - PreviewW, 0, PreviewW, BodyH);
+    private int PreviewW => Width < S(840) ? S(180) : Math.Clamp((int)(Width * 0.32), S(220), S(320)); // 넓으면 새 메모 창의 폭(320)과 같다
+    private Rectangle TableRect => new(SideW + Gap, 0, Math.Max(S(120), Width - SideW - PreviewW - Gap * 2 - S(16)), BodyH);
+    private Rectangle PreviewRect => new(Width - PreviewW - S(16), 0, PreviewW, Math.Min(BodyH, PreviewW * 340 / 320)); // 오른쪽 끝에서 띄운다. 모양은 새 메모 창(320×340)과 같다
     private int HeaderH => S(40);
     private int RowH => S(44);
     private int TitleH => S(44);
@@ -246,8 +247,8 @@ internal sealed class MemoView : Control
     private void LayoutParts()
     {
         var r = PreviewRect;
-        preview.Bounds = new Rectangle(r.X + S(16), r.Y + S(16) + TitleH, Math.Max(10, r.Width - S(16) - S(3)), Math.Max(10, r.Height - S(32) - TitleH));
-        preview.RightMargin = Math.Max(1, preview.Width - SystemInformation.GetVerticalScrollBarWidthForDpi(DeviceDpi)); // 스크롤바가 없어도 그 폭만큼 오른쪽을 비워 둔다(있을 때와 글이 접히는 자리가 같게)
+        preview.Bounds = new Rectangle(r.X + S(16), r.Y + S(16) + TitleH, Math.Max(10, r.Width - S(16) - S(10)), Math.Max(10, r.Height - S(32) - TitleH));
+        preview.RightMargin = Math.Max(1, preview.Width - SystemInformation.GetVerticalScrollBarWidthForDpi(DeviceDpi) - S(14)); // 글과 스크롤바 사이를 띄운다; // 스크롤바가 없어도 그 폭만큼 오른쪽을 비워 둔다(있을 때와 글이 접히는 자리가 같게)
         ClampOffset();
     }
 
@@ -255,12 +256,18 @@ internal sealed class MemoView : Control
     {
         int max = Math.Max(0, Rows().Count * RowH - (BodyH - HeaderH));
         offset = Math.Clamp(offset, 0, max);
+        sideOff = Math.Clamp(sideOff, 0, SideMax);
     }
 
     /// <summary>왼쪽 목록이 다 보이는 데 필요한 높이(그룹이 많으면 늘어난다) — 모자라면 휴지통이 잘려 안 보인다.</summary>
-    public int PreferredHeight => Math.Max(S(420), SideItem(Side().Count - 1).Bottom + S(16));
+    public int PreferredHeight => Math.Max(S(420), SideItemRaw(Side().Count - 1).Bottom + S(16));
 
-    private Rectangle SideItem(int i)
+    /// <summary>왼쪽 목록이 칸보다 길 때 모자란 만큼(그룹이 많아지면 목록이 스크롤된다).</summary>
+    private int SideMax => Math.Max(0, SideItemRaw(Side().Count - 1).Bottom + S(16) - Height);
+
+    private Rectangle SideItem(int i) { var r = SideItemRaw(i); r.Y -= sideOff; return r; }
+
+    private Rectangle SideItemRaw(int i)
     {
         var side = Side();
         int gaps = 0;
@@ -335,6 +342,7 @@ internal sealed class MemoView : Control
     protected override void OnMouseWheel(MouseEventArgs e)
     {
         base.OnMouseWheel(e);
+        if (e.X < SideW) { sideOff -= Math.Sign(e.Delta) * S(38); ClampOffset(); Invalidate(); return; } // 왼쪽 목록 스크롤
         if (!TableRect.Contains(e.Location)) return;
         offset -= Math.Sign(e.Delta) * RowH;
         ClampOffset();
@@ -431,8 +439,9 @@ internal sealed class MemoView : Control
         using var small = new Font(Font.FontFamily, 9.5f);
         var line = Themes.Blend(p.Main, p.Fore, 0.10f);
 
-        // 왼쪽 목록
+        // 왼쪽 목록(길어지면 스크롤: 표 쪽으로 넘치지 않게 잘라서 그린다)
         var side = Side();
+        g.SetClip(new Rectangle(0, 0, SideW, Height));
         for (int i = 0; i < side.Count; i++)
         {
             var r = SideItem(i);
@@ -449,6 +458,13 @@ internal sealed class MemoView : Control
             TextRenderer.DrawText(g, side[i].Glyph, icon, new Rectangle(r.X + S(10), r.Y, S(22), r.Height), sel ? p.Accent : p.Dim, F | TextFormatFlags.HorizontalCenter);
             TextRenderer.DrawText(g, $"{side[i].Label} ({CountOf(side[i].Key)})", Font, new Rectangle(r.X + S(40), r.Y, r.Width - S(46), r.Height), sel ? p.Accent : p.Fore, F);
         }
+        if (SideMax > 0) // 목록이 길어 스크롤될 때: 오른쪽 가장자리에 가는 막대
+        {
+            int total = SideItemRaw(side.Count - 1).Bottom + S(16);
+            int th = Math.Max(S(24), (int)((long)Height * Height / total)), ty = (int)((long)(Height - th) * sideOff / SideMax);
+            using var sp = LibraryPalette.Rounded(new Rectangle(SideW - S(6), ty, S(4), th), S(2)); using var sb = new SolidBrush(Themes.Blend(p.Main, p.Fore, 0.22f)); g.FillPath(sb, sp);
+        }
+        g.ResetClip();
 
         // 가운데 표
         var tr = TableRect;

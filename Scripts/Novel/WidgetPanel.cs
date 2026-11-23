@@ -138,14 +138,14 @@ internal sealed class WidgetPanel : Panel
     {
         int pad = S(14), gap = S(10), w = list.ClientSize.Width - pad * 2;
         if (w <= 0) return;
-        int y = pad;
+        int y = pad + list.AutoScrollPosition.Y; // 스크롤한 만큼 어긋난 채로 다시 놓으면 카드가 제자리로 튀어 클릭이 빗나간다
         foreach (var c in cards.Where(c => c.Visible))
         {
             c.SetBounds(pad, y, w, S(92));
             y += c.Height + gap;
         }
         empty.SetBounds(pad, pad, w, S(40));
-        list.AutoScrollMinSize = new Size(0, y + pad);
+        list.AutoScrollMinSize = new Size(0, y - list.AutoScrollPosition.Y + pad);
     }
 
     private void Rebuild()
@@ -230,6 +230,7 @@ internal sealed class WidgetPanel : Panel
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             Font = new Font(NovelStore.UiFontFamily, 10f);
             Cursor = def.Ready ? Cursors.Hand : Cursors.Default;
+            SetStyle(ControlStyles.Selectable, false); TabStop = false; // 포커스를 받으면 목록이 그 카드를 보이게 스크롤을 맨 위로 되돌려 버린다
             if (!def.Ready) tip.SetToolTip(this, "아직 준비 중이에요");
         }
 

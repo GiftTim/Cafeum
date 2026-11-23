@@ -20,8 +20,10 @@ internal sealed class NovelWorkspace : Panel
     private readonly StickyListPanel memoList; // 사이드바 [메모]: 파일 트리 자리에 대신 뜨는 메모 목록
     private readonly string treeGlyph;
     private bool memoShown;
-    private readonly WidgetPanel widgetPanel; // 사이드바 [위젯]: 파일 트리 자리에 대신 뜨는 위젯 목록
+    private readonly WidgetPanel widgetPanel; // 사이드바 [위젯 모음]: 문서 영역 위에 덮어 뜨는 위젯 목록
+    private readonly WidgetOverlayForm widgetFrame; // 위젯 모음 덮개(칸 크기를 바꾸지 않고 문서 위에 얹히는 소유 창 · 투명도 조절)
     private bool widgetShown;
+    private bool fromWidgetPanel; // 위젯 모음 안의 카드에서 온 요청인가
     private DictionaryWindow? dictWin; // 아이콘 막대 [사전]: 따로 떠 있는 사전 창
     private readonly DocPane left, right;
     private DocPane focused;
@@ -173,9 +175,12 @@ internal sealed class NovelWorkspace : Panel
         memoList = new StickyListPanel { Dock = DockStyle.Fill, Visible = false };
         treeFrame.Body.Controls.Add(memoList);
         widgetPanel = new WidgetPanel { Dock = DockStyle.Fill, Visible = false };
-        widgetPanel.Toggled += OnRail; // 카드를 누르면 사이드바 아이콘을 누른 것과 같다
+        widgetPanel.Toggled += key => { fromWidgetPanel = true; try { OnRail(key); } finally { fromWidgetPanel = false; } }; // 덮개 안에서 누른 것은 덮개를 닫지 않는다. // 카드를 누르면 사이드바 아이콘을 누른 것과 같다
         widgetPanel.SettingsRequested += ShowWidgetMenu; // 카드 오른쪽 위 톱니바퀴: 공통(사이드바에 넣기 · 빼기) + 그 위젯의 설정
-        treeFrame.Body.Controls.Add(widgetPanel);
+        // 위젯 모음은 파일 트리 칸을 늘리고 줄이지 않고, 문서 위에 그냥 덮어 얹는다(칸 크기는 그대로)
+        widgetFrame = new WidgetOverlayForm(widgetPanel, AppShared.Settings.WidgetOverlayOpacity);
+        widgetFrame.CloseClicked += () => ShowWidgetOverlay(false);
+        widgetFrame.OpacityChanged += v => { AppShared.Settings.WidgetOverlayOpacity = v; AppShared.Settings.Save(); };
         StickyNotes.ListRequested += OnMemoListRequested;
         Disposed += (_, _) => StickyNotes.ListRequested -= OnMemoListRequested;
 
@@ -212,6 +217,10 @@ internal sealed class NovelWorkspace : Panel
         Controls.Add(outer);
         Controls.Add(rail);
         Controls.Add(mainHeader);
+        outer.SizeChanged += (_, _) => LayoutWidgetFrame();
+        outer.LocationChanged += (_, _) => LayoutWidgetFrame();
+        ParentChanged += (_, _) => HookOverlayOwner();
+        Disposed += (_, _) => widgetFrame.Dispose();
         // 핸들이 생길 때는 아직 폭이 작아서 SplitterDistance가 반토막으로 눌린다 — 폭이 잡힌 뒤 한 번만 정한다.
         HandleCreated += (_, _) => outer.SplitterWidth = inner.SplitterWidth = Math.Max(3, LogicalToDeviceUnits(4));
         outer.SizeChanged += (_, _) => ApplyTreeWidth();
@@ -501,24 +510,27 @@ internal sealed class NovelWorkspace : Panel
     {
         switch (key)
         {
+            case "library": case "novel": case "back": case "memo": case "tree": case "files": case "search": case "dict":
+            case "help": case "settings": case "full": case "pin":
+                if (!fromWidgetPanel) ShowWidgetOverlay(false); // 다른 사이드 바 아이콘을 누르면 위젯 모음 덮개는 닫고 그 창으로 돌아간다
+                break;
+        }
+        switch (key)
+        {
             case "library": HomeRequested?.Invoke(); break; // 서재 아이콘: 작품 목록으로
             case "novel": focused.ShowOverview(); BackToMain(); FocusPane(focused); break; // 책 아이콘: 소설 메인으로
             case "back": HomeRequested?.Invoke(); break;
-            case "memo": // 파일 트리를 닫고 그 자리에 메모 목록을 띄운다(다시 누르면 닫는다)
-                if (outer.Panel1Collapsed || !memoShown) { ShowMemo(true); SetTreeVisible(true); }
-                else SetTreeVisible(false);
-                break;
-            case "widget": // 파일 트리 자리에 위젯 목록을 띄운다(다시 누르면 닫는다)
-                if (outer.Panel1Collapsed || !widgetShown) { ShowWidgets(true); SetTreeVisible(true); }
-                else SetTreeVisible(false);
+            case "memo": StickyNotes.NewNote(NovelPath, FindForm()); break; // 새 메모(목록은 메모 창의 [메모 목록]에서)
+            case "widget": // 문서 위에 위젯 모음을 덮어 띄운다(다시 누르면 닫는다)
+                ShowWidgetOverlay(!widgetShown);
                 break;
             case "dict": ToggleDictionary(); break; // 사전 창 켜고 끄기
             case "tree":
-                if (outer.Panel1Collapsed || memoShown || widgetShown || Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; }
+                if (outer.Panel1Collapsed || memoShown || Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(0); treeFrame.Title = "파일 트리"; }
                 else SetTreeVisible(false);
                 break;
             case "files":
-                if (outer.Panel1Collapsed || memoShown || widgetShown || !Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(2); treeFrame.Title = "볼트 파일"; }
+                if (outer.Panel1Collapsed || memoShown || !Tree.ShowingFiles) { ShowMemo(false); SetTreeVisible(true); Tree.ShowPage(2); treeFrame.Title = "볼트 파일"; }
                 else SetTreeVisible(false);
                 break;
             case "search": NotReady("검색 보드"); break;
@@ -543,6 +555,7 @@ internal sealed class NovelWorkspace : Panel
         bool onMain = inner.Panel2Collapsed && left.DocPath == null;
         rail.Visible = !chromeHidden && !onMain;
         rail.DocMode = !onMain;
+        if (onMain && widgetShown) ShowWidgetOverlay(false); // 소설 메인 창에는 위젯 모음이 없다
         if (IsHandleCreated) BeginInvoke(SyncPomodoro);
         mainHeader.Visible = !chromeHidden && onMain;
         left.HeaderVisible = !chromeHidden && !onMain; // 소설 메인에는 칸 머리 줄(이름 · ×)도 없다
@@ -604,14 +617,14 @@ internal sealed class NovelWorkspace : Panel
 
     private void SyncRail()
     {
-        rail.Selected = outer.Panel1Collapsed ? null : widgetShown ? "widget" : memoShown ? "memo" : Tree.ShowingFiles ? "files" : "tree";
+        rail.Selected = outer.Panel1Collapsed ? null : memoShown ? "memo" : Tree.ShowingFiles ? "files" : "tree";
+        rail.SetActive("widget", widgetShown); // 위젯 모음이 떠 있으면 눌린 모양
         SyncWidgetMarks();
     }
 
     /// <summary>왼쪽 칸에 메모 목록(true) 또는 파일 트리(false)를 보인다.</summary>
     private void ShowMemo(bool on)
     {
-        if (widgetShown) { widgetShown = false; widgetPanel.Visible = false; }
         memoShown = on;
         memoList.Visible = on;
         Tree.Visible = !on;
@@ -619,19 +632,42 @@ internal sealed class NovelWorkspace : Panel
         else { treeFrame.Title = Tree.ShowingFiles ? "볼트 파일" : "파일 트리"; treeFrame.Glyph = treeGlyph; }
     }
 
-    /// <summary>왼쪽 칸에 위젯 목록을 보인다(true). 끌 때는 ShowMemo(false)가 파일 트리로 되돌린다.</summary>
-    private void ShowWidgets(bool on)
+    /// <summary>위젯 모음을 문서 위에 덮어 띄우거나(true) 닫는다(false). 칸 크기는 바꾸지 않는다.</summary>
+    private void ShowWidgetOverlay(bool on)
     {
-        if (!on) { ShowMemo(false); return; }
-        widgetShown = true;
-        memoShown = false;
-        memoList.Visible = false;
-        Tree.Visible = false;
-        widgetPanel.Visible = true;
-        widgetPanel.BringToFront();
-        treeFrame.Title = "위젯 모음";
-        treeFrame.Glyph = WorkspaceRail.Catalog.First(c => c.Key == "widget").Glyph;
-        SyncWidgetMarks();
+        widgetShown = on;
+        if (on)
+        {
+            HookOverlayOwner();
+            LayoutWidgetFrame();
+            if (!widgetFrame.Visible) { if (FindForm() is Form f) widgetFrame.Show(f); else widgetFrame.Show(); }
+        }
+        else if (widgetFrame.Visible) widgetFrame.Hide();
+        SyncRail();
+    }
+
+    private Form? overlayOwner;
+    /// <summary>주 창이 움직이거나 크기가 바뀌거나 가려질 때 덮개도 따라가게 한다.</summary>
+    private void HookOverlayOwner()
+    {
+        var f = FindForm();
+        if (f == overlayOwner) return;
+        if (overlayOwner != null) { overlayOwner.LocationChanged -= OnOwnerMoved; overlayOwner.SizeChanged -= OnOwnerMoved; }
+        overlayOwner = f;
+        if (f != null) { f.LocationChanged += OnOwnerMoved; f.SizeChanged += OnOwnerMoved; }
+    }
+    private void OnOwnerMoved(object? s, EventArgs e)
+    {
+        if (overlayOwner?.WindowState == FormWindowState.Minimized) return;
+        LayoutWidgetFrame();
+    }
+
+    /// <summary>덮개의 자리: 왼쪽 아이콘 막대 바로 옆에서 위 · 아래 끝까지, 폭은 파일 트리 정도(창이 좁으면 창의 반).</summary>
+    private void LayoutWidgetFrame()
+    {
+        if (!widgetShown) return;
+        int w = Math.Min(LogicalToDeviceUnits(360), Math.Max(LogicalToDeviceUnits(240), outer.Width / 2));
+        widgetFrame.Bounds = new Rectangle(PointToScreen(new Point(outer.Left, outer.Top)), new Size(w, outer.Height));
     }
 
     /// <summary>[사전] 아이콘: 사전 창을 켜고(다시 누르면 끈다). 창은 이 창 위에 따로 떠서 옮기고 접을 수 있다.</summary>
@@ -650,9 +686,7 @@ internal sealed class NovelWorkspace : Panel
     private void OnMemoListRequested(string dir)
     {
         if (!string.Equals(dir, NovelPath, StringComparison.OrdinalIgnoreCase)) return;
-        ShowMemo(true);
-        SetTreeVisible(true);
-        FindForm()?.Activate();
+        MemoWindow.ShowFor(NovelPath, FindForm(), palette ?? LibraryPalette.From(AppShared.LibraryTheme)); // 메모 목록 창(따로 뜬다)
     }
 
     /// <summary>몰입 모드: 아이콘 막대 · 파일 트리 · 칸 머리를 숨긴다(문서의 툴바와 함께).</summary>
@@ -679,6 +713,7 @@ internal sealed class NovelWorkspace : Panel
         rail.SetPalette(p);
         mainHeader.SetPalette(p);
         treeFrame.SetPalette(p);
+        widgetFrame.ApplyTheme(p);
         Tree.ApplyTheme(p);
         memoList.ApplyTheme(p);
         widgetPanel.ApplyTheme(p);
@@ -888,6 +923,19 @@ internal sealed class WorkspaceRail : Control
         Box(1f, 1f);    // 오른쪽 아래 (오른쪽 위는 비워 둔다)
     }
 
+    /// <summary>메모 아이콘: 얇은 선의 네모 안에 + (눌러서 새 메모를 만든다).</summary>
+    internal static void DrawMemoIcon(Graphics g, Rectangle r, Color c, float u)
+    {
+        float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, h = 7f * u, k = 3f * u, f = 3.5f * u;
+        using var pen = new Pen(c, Math.Max(1f, 1.05f * u)) { LineJoin = System.Drawing.Drawing2D.LineJoin.Round, StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        // 왼쪽 위 모서리를 살짝 접은 네모(접은 자리에 작은 삼각 선)
+        g.DrawLines(pen, new[] { new PointF(cx - h + f, cy - h), new PointF(cx + h, cy - h), new PointF(cx + h, cy + h), new PointF(cx - h, cy + h), new PointF(cx - h, cy - h + f), new PointF(cx - h + f, cy - h) });
+        g.DrawLines(pen, new[] { new PointF(cx - h + f, cy - h), new PointF(cx - h + f, cy - h + f), new PointF(cx - h, cy - h + f) });
+        g.DrawLine(pen, cx - k, cy, cx + k, cy);
+        g.DrawLine(pen, cx, cy - k, cx, cy + k);
+    }
+
     /// <summary>빠른 따옴표 아이콘: 왼쪽 위 “ 와 오른쪽 아래 ” 를 ┐ └ 모양 선으로 이은 모양.</summary>
     internal static void DrawQuoteIcon(Graphics g, Rectangle r, Color c, float u)
     {
@@ -927,6 +975,7 @@ internal sealed class WorkspaceRail : Control
             if (items[i].Key == "typewriter") { DrawTypewriterIcon(g, r, sel ? p.Fore : p.Dim, p.Side, du); continue; }
             if (items[i].Key == "quote") { DrawQuoteIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
             if (items[i].Key == "widget") { DrawWidgetIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
+            if (items[i].Key == "memo") { DrawMemoIcon(g, r, sel ? p.Fore : p.Dim, du); continue; }
             if (items[i].Key == "spell")
             {
                 using var sf = new Font(NovelStore.UiFontFamily, 13f * 0.75f * du, FontStyle.Bold, GraphicsUnit.Point);
@@ -1490,6 +1539,9 @@ internal sealed class DocPane : PaneFrame
     }
 
     /// <summary>비어 있을 때: 작품 화면(제목 · 소개 · [+ 새 편 쓰기] · 에피소드 / 위키 목록).</summary>
+    /// <summary>소설 메인 창을 [메모] 탭으로 연다.</summary>
+    public void ShowOverviewMemo() { ShowOverview(); overview?.ShowMemoTab(); }
+
     public void ShowOverview()
     {
         CloseContent();

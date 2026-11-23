@@ -2285,6 +2285,7 @@ internal sealed class NovelOverview : Panel
 
     /// <summary>[에피소드 | 위키 | 메모] 전환. 주 버튼도 [+ 새 편 쓰기] · [+ 새 위키 문서]로 바뀐다.</summary>
     public void SetWikiMode(bool wiki) => SetTab(wiki ? 1 : 0);
+    public void ShowMemoTab() => SetTab(2);
 
     private void SetTab(int t)
     {

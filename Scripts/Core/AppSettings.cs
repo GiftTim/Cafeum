@@ -138,6 +138,7 @@ public sealed class AppSettings
     public List<string> SpecialChars { get; set; } = new();
     /// <summary>특수문자 위젯의 크기: 0 작게 · 1 중간 · 2 크게.</summary>
     public int SpecialCharSize { get; set; } = 1;
+    public int WidgetOverlayOpacity { get; set; } = 100; // 위젯 모음 덮개의 투명도(20~100 %)
     /// <summary>시계 위젯의 시계 위치: Windows 시간대 아이디와 위젯에 보일 도시 이름(기본 서울).</summary>
     public string ClockZoneId { get; set; } = "Korea Standard Time";
     public string ClockCity { get; set; } = "Seoul";

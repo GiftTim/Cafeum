@@ -22,7 +22,10 @@ public partial class MainForm
     private string? writerKeyPath;
     private TallScroller? tall;
 
-    private bool WriterLayout => directEdit && shownKind == ContentKind.Txt && editorHost.Visible && EffPaper == null;
+    /// <summary>글 위에 회차 머리(번호 · 제목 · 상세 정보)를 다는 화면인가 — 편집 용지를 켠 글에서도 단다(머리는 용지 글 칸 폭에 맞춘다).</summary>
+    private bool HeaderLayout => directEdit && shownKind == ContentKind.Txt && editorHost.Visible;
+    /// <summary>머리 + 창 가운데 일정한 폭의 글 칸(편집 용지를 안 쓸 때). 용지는 용지 폭을 따른다.</summary>
+    private bool WriterLayout => HeaderLayout && EffPaper == null;
 
     private void InitWriter()
     {
@@ -97,7 +100,7 @@ public partial class MainForm
     private void SyncWriterTitle(int sideMargin, int rightMargin = -1)
     {
         if (writerTitle == null) return;
-        bool on = WriterLayout;
+        bool on = HeaderLayout;
         if (tall != null && (tall.Visible != on))
         {
             bool hadFocus = mainEditor.ContainsFocus;

@@ -49,7 +49,7 @@ internal sealed class PomodoroWidget : Control
 
     public static Size SizeFor(int dpi) => Pomodoro.S.Mini
         ? (IsBar ? new((int)(296 * dpi / 96.0), (int)(38 * dpi / 96.0)) : new((int)(46 * dpi / 96.0), (int)(46 * dpi / 96.0)))
-        : new((int)(220 * dpi / 96.0), (int)(284 * dpi / 96.0));
+        : new((int)(244 * dpi / 96.0), (int)(300 * dpi / 96.0));
 
     private void SetMini(bool mini)
     {
@@ -95,20 +95,20 @@ internal sealed class PomodoroWidget : Control
 
     private void LayoutParts()
     {
-        int w = Width, b = S(28);
-        closeRect = new Rectangle(w - b - S(6), S(6), b, b);
-        minRect = new Rectangle(closeRect.X - b, S(6), b, b);
-        nameRect = new Rectangle(b + S(6), S(6), Math.Max(S(20), w - 2 * (b + S(6)) - b), b);
-        int bw = S(58), bh = S(40), gap = S(8), by = S(206);
-        int x = (w - (bw * 3 + gap * 2)) / 2;
+        int w = Width;
+        closeRect = Rectangle.Empty; // 닫기 단추는 없다(사이드바의 타이머 아이콘으로 끈다)
+        nameRect = new Rectangle(S(12), S(6), Math.Max(S(20), w - S(24)), S(28));
+        int bw = S(50), bh = S(40), gap = S(8), by = S(214);
+        int x = (w - (bw * 4 + gap * 3)) / 2;
         playRect = new Rectangle(x, by, bw, bh);
         resetRect = new Rectangle(playRect.Right + gap, by, bw, bh);
         listRect = new Rectangle(resetRect.Right + gap, by, bw, bh);
-        muteRect = new Rectangle(S(16), S(258), S(22), S(20));
-        sliderRect = new Rectangle(muteRect.Right + S(8), S(258), w - muteRect.Right - S(8) - S(20), S(20));
+        minRect = new Rectangle(listRect.Right + gap, by, bw, bh); // 네 번째 단추: 작게 줄이기
+        muteRect = new Rectangle(S(16), S(270), S(22), S(20));
+        sliderRect = new Rectangle(muteRect.Right + S(8), S(270), w - muteRect.Right - S(8) - S(20), S(20));
     }
 
-    private Rectangle barPlay, barTrack, barTime;
+    private Rectangle barTrack;
     private (int W, int H, int Dpi) barKey; // 막대 자리를 마지막으로 계산했을 때의 크기 · 배율(같으면 다시 재지 않는다)
     private long lastBarClick;
 
@@ -118,24 +118,13 @@ internal sealed class PomodoroWidget : Control
         if (key == barKey) return; // 마우스를 움직이거나 그릴 때마다 글꼴을 만들어 글자 폭을 재지 않도록
         barKey = key;
         int h = Height;
-        barPlay = new Rectangle(S(14), 0, S(30), h);
-        // 진행한 시간 / 전체 시간: 글자 폭만큼만 잡아서 오른쪽 끝에 붙이고, 남는 폭은 모두 막대가 쓴다
-        int tw = TextRenderer.MeasureText("00:00 / 00:00", Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + S(2);
-        barTime = new Rectangle(Width - S(16) - tw, 0, tw, h);
-        int x0 = barPlay.Right + S(8), x1 = barTime.X - S(12);
-        barTrack = new Rectangle(x0, h / 2 - S(4) / 2, Math.Max(S(20), x1 - x0), S(4));
+        barTrack = new Rectangle(S(14), h / 2 - S(4) / 2, Math.Max(S(20), Width - S(28)), S(4));
     }
 
-    private int HitAt(Point p) => Pomodoro.S.Mini ? (IsBar ? BarHit(p) : -1) :
+    private int HitAt(Point p) => Pomodoro.S.Mini ? -1 :
         nameRect.Contains(p) ? 0 : minRect.Contains(p) ? 1 : closeRect.Contains(p) ? 2 :
         playRect.Contains(p) ? 3 : resetRect.Contains(p) ? 4 : listRect.Contains(p) ? 5 :
         muteRect.Contains(p) ? 6 : sliderRect.Contains(p) ? 7 : -1;
-
-    private int BarHit(Point p)
-    {
-        LayoutBar();
-        return barPlay.Contains(p) ? 10 : -1;
-    }
 
     private void SlideTo(int x)
     {
@@ -177,7 +166,7 @@ internal sealed class PomodoroWidget : Control
         int h = HitAt(e.Location);
         BringToFront(); // 늘 가장 앞에
         if (h == 7) { sliding = true; Capture = true; SlideTo(e.X); return; }
-        if (h < 0 && !(Pomodoro.S.Locked && Pomodoro.S.Mini && IsBar)) { dragging = true; dragMoved = false; dragFrom = e.Location; Capture = true; }
+        if ((h < 0 || (h == 0 && !Pomodoro.S.Mini)) && !(Pomodoro.S.Locked && Pomodoro.S.Mini && IsBar)) { dragging = true; dragMoved = false; dragFrom = e.Location; Capture = true; }
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
@@ -189,23 +178,9 @@ internal sealed class PomodoroWidget : Control
             bool moved = dragMoved; // 위젯이 마우스를 따라 움직이므로 좌표 차이로는 알 수 없다
             dragging = false; Capture = false;
             if (moved) { Moved?.Invoke(); return; }
-            if (!Pomodoro.S.Mini) return;
+            if (!Pomodoro.S.Mini && HitAt(e.Location) != 0) return; // 머리 줄은 끌지 않고 눌렀을 때만 다음 타이머로
         }
-        if (e.Button == MouseButtons.Right && Pomodoro.S.Mini && IsBar) { ShowBarMenu(e.Location); return; } // 긴 막대에는 단추가 없어서 우클릭 메뉴로 대신한다
         if (e.Button != MouseButtons.Left) return;
-        if (Pomodoro.S.Mini && IsBar)
-        {
-            switch (HitAt(e.Location))
-            {
-                case 10: Pomodoro.Toggle(); break;                                                    // 재생 / 일시정지
-                default:                                                                              // 빈 곳을 두 번 누르면 원래 크기로
-                    long now = Environment.TickCount64;
-                    if (now - lastBarClick <= SystemInformation.DoubleClickTime) { lastBarClick = 0; SetMini(false); }
-                    else lastBarClick = now;
-                    break;
-            }
-            return;
-        }
         if (Pomodoro.S.Mini)
         {
             if (clickTimer.Enabled) { clickTimer.Stop(); SetMini(false); } // 두 번 연속: 원래 크기로
@@ -303,13 +278,12 @@ internal sealed class PomodoroWidget : Control
         using (var bold = new Font(Font.FontFamily, 10.5f, FontStyle.Bold))
             TextRenderer.DrawText(g, (string.IsNullOrEmpty(banner) ? def.Name : banner).ToUpperInvariant(), bold, nameRect, hot == 0 && banner == "" ? accent : dim,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
-        Glyph("", minRect, 1);
-        Glyph("", closeRect, 2);
+        using (var ul = new Pen(ink)) g.DrawLine(ul, S(12), S(38), Width - S(12), S(38));
 
         // 고리 + 시간
-        int ringSize = S(150);
-        var ring = new Rectangle((Width - ringSize) / 2, S(44), ringSize, ringSize);
-        float stroke = S(13);
+        int ringSize = S(160);
+        var ring = new Rectangle((Width - ringSize) / 2, S(46), ringSize, ringSize);
+        float stroke = S(16);
         DrawRing(g, new RectangleF(ring.X + stroke / 2, ring.Y + stroke / 2, ring.Width - stroke, ring.Height - stroke), stroke, accent, track);
         using (var big = new Font(Font.FontFamily, 27f, FontStyle.Bold))
             TextRenderer.DrawText(g, Format(Pomodoro.RemainingMs), big, ring, ink, mid);
@@ -318,6 +292,16 @@ internal sealed class PomodoroWidget : Control
         Btn(Pomodoro.State == PomoState.Running ? "" : "", playRect, 3);
         Btn("", resetRect, 4);
         Btn("", listRect, 5);
+        Btn("", minRect, 1);
+        { // 작게 줄이기 아이콘: 테두리 네모 + 안쪽 화살표 + 오른쪽 아래 채운 네모
+            var m = minRect; int cx = m.X + m.Width / 2, cy = m.Y + m.Height / 2, q = S(5);
+            using var ip = new Pen(ink, 0.75f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+            g.DrawRectangle(ip, cx - q, cy - q, q * 2 - S(2), q * 2 - S(2));
+            g.DrawLine(ip, cx - q + S(2), cy - q + S(2), cx, cy);
+            g.DrawLine(ip, cx, cy - S(2), cx, cy);
+            g.DrawLine(ip, cx - S(2), cy, cx, cy);
+            g.DrawRectangle(ip, cx + S(1), cy + S(1), S(5), S(4));
+        }
 
         // 볼륨
         double v = Pomodoro.S.Volume;
@@ -330,23 +314,7 @@ internal sealed class PomodoroWidget : Control
         using (var kb = new SolidBrush(ink)) g.FillEllipse(kb, xv - S(7), ty - S(7), S(14), S(14));
     }
 
-    /// <summary>긴 막대의 우클릭 메뉴(고정 · 설정 · 닫기 · 원래 크기로). 막대에는 단추가 [재생]뿐이라 나머지는 여기서 고른다.</summary>
-    private void ShowBarMenu(Point at)
-    {
-        var m = new ContextMenuStrip();
-        MenuGuard.Attach(m);
-        m.Items.Add("원래 크기로", null, (_, _) => SetMini(false));
-        var lockItem = new ToolStripMenuItem("위치 고정") { Checked = Pomodoro.S.Locked };
-        lockItem.Click += (_, _) => { Pomodoro.S.Locked = !Pomodoro.S.Locked; Pomodoro.Save(); Invalidate(); };
-        m.Items.Add(lockItem);
-        m.Items.Add("설정…", null, (_, _) => BeginInvoke(OpenSettings));
-        m.Items.Add(new ToolStripSeparator());
-        m.Items.Add("닫기", null, (_, _) => CloseRequested?.Invoke());
-        m.Closed += (_, _) => BeginInvoke(() => m.Dispose());
-        m.Show(this, at);
-    }
-
-    /// <summary>긴 막대 모양 최소화: [재생] [진행 막대] [시간]. 빈 곳을 두 번 누르면 원래 크기로.</summary>
+    /// <summary>막대바 모양 최소화: 진행 막대만 있다. 한 번 누르면 정지/재생, 두 번 누르면 원래 크기로(멈추면 회색).</summary>
     private void PaintBar(Graphics g, LibraryPalette p, Color accent, Color face, Color track)
     {
         LayoutBar();
@@ -355,18 +323,7 @@ internal sealed class PomodoroWidget : Control
             using var fb = new SolidBrush(face); g.FillPath(fb, fp);
             using var bp = new Pen(Themes.Blend(p.Main, p.Fore, 0.18f)); g.DrawPath(bp, fp);
         }
-        // 재생 ▶ / 일시정지 ⏸ (직접 그려서 가운데에)
-        float cx = barPlay.X + barPlay.Width / 2f, cy = Height / 2f, u = Height * 0.14f;
-        using (var pb = new SolidBrush(accent))
-        {
-            if (Pomodoro.State == PomoState.Running)
-            {
-                float bw = u * 0.62f;
-                g.FillRectangle(pb, cx - u * 0.8f, cy - u, bw, u * 2);
-                g.FillRectangle(pb, cx + u * 0.8f - bw, cy - u, bw, u * 2);
-            }
-            else g.FillPolygon(pb, new[] { new PointF(cx - u * 0.75f, cy - u), new PointF(cx + u * 1.05f, cy), new PointF(cx - u * 0.75f, cy + u) });
-        }
+        if (Pomodoro.State != PomoState.Running) accent = Themes.Blend(p.Main, p.Fore, 0.4f); // 멈추면 회색
         // 진행 막대: 남은 시간만큼 색이 채워진다(줄어드는 방향은 설정을 따른다)
         double frac = Pomodoro.TotalMs > 0 ? Math.Clamp(Pomodoro.RemainingMs / Pomodoro.TotalMs, 0, 1) : 1;
         using (var tp = LibraryPalette.Rounded(barTrack, barTrack.Height / 2f)) using (var tb = new SolidBrush(track)) g.FillPath(tb, tp);
@@ -377,32 +334,14 @@ internal sealed class PomodoroWidget : Control
             var fr = right ? new Rectangle(barTrack.Right - fw, barTrack.Y, fw, barTrack.Height) : new Rectangle(barTrack.X, barTrack.Y, fw, barTrack.Height);
             using var fpth = LibraryPalette.Rounded(fr, barTrack.Height / 2f); using var fbb = new SolidBrush(accent); g.FillPath(fbb, fpth);
         }
-        // 막대 끝: 진행한 시간 / 전체 시간
-        int total = (int)Math.Round(Pomodoro.TotalMs / 1000.0), left = (int)Math.Ceiling(Pomodoro.RemainingMs / 1000.0);
-        int done = Math.Clamp(total - left, 0, total);
-        string F(int s) => $"{s / 60:00}:{s % 60:00}";
-        TextRenderer.DrawText(g, $"{F(done)} / {F(total)}", Font, barTime, Themes.Blend(p.Main, p.Fore, 0.6f), TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
     }
     private void PaintMini(Graphics g, LibraryPalette p, Color accent, Color face, Color track)
     {
+        if (Pomodoro.State != PomoState.Running) { accent = Themes.Blend(p.Main, p.Fore, 0.4f); face = Themes.Blend(p.Main, p.Fore, 0.08f); } // 멈추면 전체가 회색
         float st = S(5);
         var r = new RectangleF(st / 2 + 1.5f, st / 2 + 1.5f, Width - st - 3f, Height - st - 3f);
         using (var bgm = new SolidBrush(face)) g.FillEllipse(bgm, 1f, 1f, Width - 2f, Height - 2f);
         DrawRing(g, r, st, accent, track);
-        // 재생/일시정지 표시는 직접 그려서 동그라미 정중앙에 놓는다
-        using var gb = new SolidBrush(Pomodoro.State == PomoState.Idle ? p.Dim : accent);
-        float cx = Width / 2f, cy = Height / 2f, u = Width * 0.17f;
-        if (Pomodoro.State == PomoState.Running)
-        {
-            float bw = u * 0.62f;
-            g.FillRectangle(gb, cx - u * 0.75f, cy - u, bw, u * 2);
-            g.FillRectangle(gb, cx + u * 0.75f - bw, cy - u, bw, u * 2);
-        }
-        else
-        {
-            float sh = u * 0.3f; // 삼각형은 무게 중심이 왼쪽이라 살짝 오른쪽으로
-            g.FillPolygon(gb, new[] { new PointF(cx - u * 0.8f + sh, cy - u), new PointF(cx + u * 0.95f + sh, cy), new PointF(cx - u * 0.8f + sh, cy + u) });
-        }
     }
 }
 
@@ -521,7 +460,7 @@ internal sealed class PomodoroSettingsDialog : Form
         Controls.Add(drain);
         Controls.Add(L("최소화 모양", 330, y + 56));
         var miniStyle = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
-        miniStyle.Items.AddRange(new object[] { "작은 동그라미", "긴 막대 (재생 · 진행 막대 · 핀 · 설정 · 닫기)" });
+        miniStyle.Items.AddRange(new object[] { "작은 동그라미", "막대바" });
         miniStyle.SelectedIndex = s.MiniStyle == "bar" ? 1 : 0;
         miniStyle.SetBounds(Dpi(330), Dpi(y + 78), Dpi(290), Dpi(26)); StyleInput(miniStyle);
         miniStyle.SelectedIndexChanged += (_, _) => s.MiniStyle = miniStyle.SelectedIndex == 1 ? "bar" : "circle";
