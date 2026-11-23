@@ -1,0 +1,12 @@
+MainForm.Immersive.cs (101줄, partial class MainForm의 몰입 모드 조각)
+
+몰입 모드 조각이에요(Shell 폴더). MainForm.Features.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(몰입 모드)
+16~21	HostForm: 이 화면이 들어 있는 실제 창
+23~24	IsHostActive: 그 창이 지금 앞에 있는지
+26~46	ShowMainMenu: 머리 막대 ☰ 버튼 밑에 문서 메뉴 띄우기
+47	ToggleImmersionFromHost: 볼트 창에서 몰입 모드 켜고 끄기
+49~50	ImmersionAllowed: 몰입 모드를 쓸 수 있는지(참고 자료는 PIP 창에서만)
+52~62	UpdateImmersionAvailability: 몰입 단추와 메뉴 항목을 지금 문서에 맞게 켜고 회색으로
+64~100	ToggleImmersion: 몰입 모드(제목 막대·테두리를 숨기고 화면 전체로)

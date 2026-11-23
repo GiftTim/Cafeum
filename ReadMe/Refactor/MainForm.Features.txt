@@ -1,4 +1,4 @@
-MainForm.Features.cs (752줄, MainForm의 일부)
+MainForm.Features.cs (575줄, MainForm의 일부)
 
 읽기 화면의 부가 기능을 모아 둔 파일이에요. (읽던 자리 기억 · PDF · 낭독 구간은 Viewer 폴더의 MainForm.Resume · Pdf · Tts로 옮겼어요.)
 메뉴(최근 파일, 테마, PDF 야간 모드, 자동 재생, 낭독 속도·목소리), 테마와 여백 적용, 설정이 바뀌었을 때의 반영(OnSettingsChanged), 읽던 자리 기억, 파일 끌어놓기, 우클릭 메뉴와 웹 검색, 안내 글(토스트), PDF 열기, 몰입 모드(전체 화면), 단축키, 낭독(TTS)이 들어 있어요.
@@ -42,21 +42,7 @@ epub 안에서 낭독을 돕는 스크립트(EpubTtsScript)와 윈도우 시스�
 511~543	OnEpubContextMenuRequested: epub 웹 화면의 우클릭 메뉴
 545	구분 주석(토스트)
 547~552	ShowToast: 화면 아래쪽에 잠깐 뜨는 안내 글
-555	구분 주석(몰입 모드)
-557~562	HostForm: 이 화면이 들어 있는 실제 창
-564~565	IsHostActive: 그 창이 지금 앞에 있는지
-567~587	ShowMainMenu: 머리 막대 ☰ 버튼 밑에 문서 메뉴 띄우기
-588	ToggleImmersionFromHost: 볼트 창에서 몰입 모드 켜고 끄기
-590~591	ImmersionAllowed: 몰입 모드를 쓸 수 있는지(참고 자료는 PIP 창에서만)
-593~603	UpdateImmersionAvailability: 몰입 단추와 메뉴 항목을 지금 문서에 맞게 켜고 회색으로
-605~641	ToggleImmersion: 몰입 모드(제목 막대·테두리를 숨기고 화면 전체로)
-643	구분 주석(단축키)
-645~677	TryHandleFeatureKey: F5, F11, Esc, F1, ] [, Ctrl+L, Ctrl+S, Ctrl+, , Ctrl+±/0, Ctrl+F, 방향키 처리
-679~686	CanUseArrowPaging: ← →를 쪽 넘기기로 쓸 수 있는 상태인지
-688~689	ProcessCmdKey: 키 입력을 위 함수로 먼저 보내기
-691~711	HookWebViewKeys: 웹 화면에 포커스가 있어도 키를 가로채도록 걸기
-713~729	ImmersionHoverTick: 몰입 모드에서 마우스를 맨 위에 대면 메뉴가 잠깐 나타남
-732	구분 주석(Win32)
-734~739	윈도우 메시지·창 스타일 상수
-741~751	SendMessage, GetWindowLongPtr, SetWindowLongPtr, SetWindowPos 불러오기
-752	MainForm 끝
+555	구분 주석(Win32)
+557~562	윈도우 메시지·창 스타일 상수
+564~574	SendMessage, GetWindowLongPtr, SetWindowLongPtr, SetWindowPos 불러오기
+575	MainForm 끝

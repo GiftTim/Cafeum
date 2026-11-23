@@ -1,0 +1,10 @@
+MainForm.Keys.cs (101줄, partial class MainForm의 단축키 조각)
+
+단축키 조각이에요(Shell 폴더). MainForm.Features.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(단축키)
+16~48	TryHandleFeatureKey: F5, F11, Esc, F1, ] [, Ctrl+L, Ctrl+S, Ctrl+, , Ctrl+±/0, Ctrl+F, 방향키 처리
+50~57	CanUseArrowPaging: ← →를 쪽 넘기기로 쓸 수 있는 상태인지
+59~60	ProcessCmdKey: 키 입력을 위 함수로 먼저 보내기
+62~82	HookWebViewKeys: 웹 화면에 포커스가 있어도 키를 가로채도록 걸기
+84~100	ImmersionHoverTick: 몰입 모드에서 마우스를 맨 위에 대면 메뉴가 잠깐 나타남
