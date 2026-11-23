@@ -49,7 +49,7 @@ internal sealed class PillButton : Control
     public override Size GetPreferredSize(Size proposedSize)
     {
         var t = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-        if (glyph != null) t.Width += S(26);
+        if (glyph != null) t.Width += Text.Length == 0 ? S(18) : S(26); // 글자 없이 아이콘만이면 간격은 없다
         return Compact ? new Size(t.Width + S(12) * 2, t.Height + S(7) * 2) : new Size(t.Width + S(14) * 2, t.Height + S(8) * 2);
     }
 
@@ -126,7 +126,7 @@ internal sealed class PillButton : Control
         }
         var gi = GlyphFactory != null ? factoryBmp : GlyphImage;
         int isz = gi != null ? S(18) : TextRenderer.MeasureText(glyph, icon, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
-        int gap = S(8);
+        int gap = Text.Length == 0 ? 0 : S(8);
         int x = (Width - (isz + gap + tw)) / 2;
         if (gi != null)
         {

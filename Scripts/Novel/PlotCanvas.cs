@@ -1331,9 +1331,15 @@ internal sealed class PlotCanvasPage : Panel
         View.AddDocRequested += at => ShowPicker(at);
 
         var f = new Font(ff, 9.5f);
-        addDoc = new PillButton("에피소드 · 위키 추가") { Glyph = "", Font = f };
-        addMemo = new PillButton("메모") { Glyph = "", Font = f };
-        addGroup = new PillButton("묶음") { Glyph = "", Font = f };
+        addDoc = new PillButton("") { Glyph = "", Font = f };
+        addMemo = new PillButton("") { Glyph = "", Font = f };
+        addGroup = new PillButton("") { Glyph = "", Font = f };
+        // 글자 없이 아이콘만 두고, 마우스를 올리면 이름이 보인다
+        var tip = new ToolTip();
+        tip.SetToolTip(addDoc, "에피소드 · 위키 추가");
+        tip.SetToolTip(addMemo, "메모 추가");
+        tip.SetToolTip(addGroup, "묶음 상자 추가");
+        Disposed += (_, _) => tip.Dispose();
         zoomOut = new PillButton("−") { Font = f, Compact = true };
         zoomIn = new PillButton("+") { Font = f, Compact = true };
         fit = new PillButton("전체 보기") { Font = f, Compact = true };

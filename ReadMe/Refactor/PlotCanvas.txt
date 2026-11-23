@@ -1,4 +1,4 @@
-PlotCanvas.cs (1470줄)
+PlotCanvas.cs (1476줄)
 
 플롯 캔버스를 만드는 파일이에요. 에피소드, 위키 문서, 메모를 넓은 판 위에 놓고 선으로 이어서 작품의 흐름과 관계를 정리하는 화면이에요.
 파일 트리의 에피소드 그룹 줄 오른쪽 [캔버스] 아이콘을 누르면 그 그룹의 캔버스가 문서 칸에 열려요. 그룹마다 하나씩이고 작품폴더\canvas\그룹이름.canvas에 저장돼요.
@@ -110,13 +110,13 @@ CanvasNode, CanvasEdge, CanvasDoc은 파일에 담기는 값이고, CanvasStore�
 1311~1312	PlotCanvasPage 설명과 클래스 선언(문서 칸에 열리는 캔버스 화면)
 1314~1319	필드: 작품 폴더, 도구 줄, 버튼들, 확대 비율 글자, 색, 문서 고르는 목록
 1321~1322	View, OpenRequested
-1324~1355	생성자: 캔버스 판과 도구 줄 만들기
-1357	S
-1359	OnHandleCreated: 도구 줄 높이
-1361~1373	LayoutBar: 도구 줄 배치(좁으면 확대 버튼 숨김)
-1375	SyncZoom: 확대 비율 글자
-1377~1385	ApplyTheme
-1387	Save: 저장
-1389~1410	ShowMenuAt: 칸 머리 ⋯ 메뉴(내보내기, 가져오기, 되돌리기, 설정)
-1412~1469	ShowPicker: 에피소드·위키를 찾아 캔버스에 놓는 검색 목록
-1470	PlotCanvasPage 클래스 끝
+1324~1361	생성자: 캔버스 판과 도구 줄 만들기
+1363	S
+1365	OnHandleCreated: 도구 줄 높이
+1367~1379	LayoutBar: 도구 줄 배치(좁으면 확대 버튼 숨김)
+1381	SyncZoom: 확대 비율 글자
+1383~1391	ApplyTheme
+1393	Save: 저장
+1395~1416	ShowMenuAt: 칸 머리 ⋯ 메뉴(내보내기, 가져오기, 되돌리기, 설정)
+1418~1475	ShowPicker: 에피소드·위키를 찾아 캔버스에 놓는 검색 목록
+1476	PlotCanvasPage 클래스 끝
