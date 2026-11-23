@@ -1,0 +1,18 @@
+MainForm.Tts.cs (355줄, partial class MainForm의 낭독(TTS) 조각)
+
+낭독(TTS) 조각이에요(Viewer 폴더). MainForm.Features.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(낭독)
+16~21	ToggleAutoPlay: F5 — 만화는 슬라이드쇼, 소설은 낭독
+23~27	ToggleTts: 낭독 켜고 끄기
+29~33	UpdateAutoPlayMenu: 메뉴 글자("시작"/"정지") 맞추기
+35~97	StartTts: 낭독 시작(epub, txt에 따라 시작 위치를 정함)
+99~108	StopTts: 낭독 멈춤
+110~117	FinishTts: 낭독이 끝났을 때 안내
+119~124	OnTtsSentenceFinished: 한 문장이 끝나면 다음 문장으로
+126~156	SpeakNextTxt: txt에서 다음 문장을 찾아 표시하고 읽기
+158~166	HighlightTxt: 읽는 문장 표시
+168~180	PrepareEpubTts: epub 챕터의 낭독 스크립트와 본문 글 준비
+182~213	SpeakNextEpub: epub에서 다음 문장을 읽고 표시
+215~218	ClearEpubTtsMark: epub의 읽는 문장 표시 지우기
+220~354	EpubTtsScript: 본문 글자를 이어 붙인 글과 화면 위치를 맞추고, 읽는 문장을 문서를 건드리지 않는 방식(CSS Custom Highlight)으로 표시하며, F5·F11·[ ] 키와 Ctrl+휠을 앱에 알리는 스크립트

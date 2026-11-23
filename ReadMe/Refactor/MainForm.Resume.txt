@@ -1,0 +1,14 @@
+MainForm.Resume.cs (188줄, partial class MainForm의 읽던 자리 기억 조각)
+
+읽던 자리 기억 조각이에요(Viewer 폴더). MainForm.Features.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(읽던 자리)
+16~24	OnBookOpened: 파일을 열 때마다 읽은 기록에 마지막으로 연 시각을 남기고 서식 불러오기
+26~61	CapturePosition: 지금 보는 위치를 읽은 기록에 적기(메모리에만, 디스크 저장은 따로)
+63~77	QueryEpubRatio: epub 챕터 안 위치(‰)를 웹 화면에서 읽어 오기
+79~86	TxtTopOffset: txt에서 화면 맨 위 글자의 위치
+88~108	CharIndexAtPoint: 클릭한 자리의 글자 위치
+110~118	ScrollCharToTop: 그 글자가 있는 줄이 화면 맨 위에 오게 스크롤
+120~135	TakeSavedEpubStart: epub을 열 때 읽던 챕터 번호 돌려주기
+137~143	SavedImagePage: 만화에서 읽던 쪽 번호
+145~187	AfterEpubChapterReady: epub 챕터가 다 뜬 직후 읽던 위치로 옮기고, 이동·선택 대기와 낭독 이어가기 처리

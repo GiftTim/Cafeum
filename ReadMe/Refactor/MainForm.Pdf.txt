@@ -1,0 +1,6 @@
+MainForm.Pdf.cs (37줄, partial class MainForm의 PDF 보기 조각)
+
+PDF 보기 조각이에요(Viewer 폴더). MainForm.Features.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(PDF)
+16~36	NavigatePdf: PDF를 웹 화면으로 열기(야간 모드면 색을 뒤집은 얇은 웹 페이지에 담아서)
