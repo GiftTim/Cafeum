@@ -1,0 +1,24 @@
+MainForm.Epub.cs (814줄, partial class MainForm의 epub 조각)
+
+epub 읽기 조각이에요(Viewer 폴더). epub을 열고, 챕터를 옮기고, 페이지 · 글자 크기를 바꾸고, 웹 화면(WebView2)과 주고받는 메시지를 처리하고, 읽기 방식(스크롤 · 페이지)에 쓰는 자바스크립트를 들고 있어요. MainForm.cs에 있던 epub 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(epub)
+16~66	LoadEpubFile: epub을 임시 폴더에 풀고 웹 화면에 열기
+68~107	LoadPdfFile: pdf를 웹 화면(Edge의 PDF 뷰어)에 열기
+109~116	EnsurePdfViewAsync: pdf용 웹 화면 만들기
+118~133	EnsureEpubViewAsync: epub용 웹 화면 만들기(확대 비활성, 외부 주소 차단, 메시지 받기, 우클릭 메뉴)
+135~154	ShowEpubChapter: 챕터 파일을 웹 화면으로 이동
+156~169	FlushEpubChapterEdits: 고친 챕터의 HTML을 풀어 둔 파일에 쓰기
+171~242	OnEpubNavigationCompleted: 챕터가 뜰 때마다 테마, 글자 크기, 쪽 나누기 또는 스크롤 감시, 이미지 확대 스크립트 심기
+244~253	ApplyShowImages: 이미지 숨기기·보이기
+255~263	PushEpubTapEnabled: 터치 켜짐 여부만 현재 문서에 갱신
+265~290	ApplyEpubFontSize: 글자 크기·글꼴·줄 간격을 책 스타일 위에 덮어쓰기
+292~340	EpubKeepPlaceScript: 글자 크기를 바꿔도 읽던 글자가 화면에 남게 하는 스크립트
+342~394	OnEpubWebMessage: 웹 화면 스크립트가 보내는 메시지(챕터 넘김, 쪽 번호, 키, 확대) 처리
+396~410	EpubChangePage: 화살표로 쪽·챕터 넘기기
+412~431	BuildEpubThemeScript: 책 스타일이 어두워도 지금 테마 색을 강제하는 스크립트 만들기
+433~448	EpubResetColumnsScript: 스크롤 모드에서 책이 켠 다단을 끄는 스크립트
+450~453	BuildEpubResetColumnsScript: 여백 값을 채워 넣기
+455~679	EpubPaginateScript: 본문을 화면 폭만큼의 단으로 나눠 한 칸씩 밀어 쪽처럼 보이게 하는 스크립트(사진 설명 묶기, 창 크기 변경 대응, 키·휠·탭 처리)
+681~712	EpubScrollWatchScript: 바닥에 닿으면 다음 챕터, 맨 위에서 더 올리면 이전 챕터
+714~813	EpubImageZoomScript: 책 속 그림을 누르면 전체 화면 확대(휠 확대, 드래그 이동, 더블클릭 리셋), 커버접기 줄 동작
