@@ -361,7 +361,7 @@ internal sealed class WikiGroupPage : Control
         string head = kind == "category" ? "대분류:" : "분류:", name = kind == "category" ? cat.Label : key;
         if (draw)
         {
-            FillRounded(g, new Rectangle(left, y, box, box), S(14), chip);
+            Shapes.FillRounded(g, new Rectangle(left, y, box, box), S(14), chip);
             Txt(g, kind == "category" ? cat.Glyph : "\uE8B7", iconBig, new Rectangle(left, y, box, box), dim, F | TextFormatFlags.HorizontalCenter);
             int hw = TextRenderer.MeasureText(head, big, Size.Empty, TextFormatFlags.NoPadding).Width;
             var tr = new Rectangle(left + box + S(24), y, right - left - box - S(24), box);
@@ -389,8 +389,7 @@ internal sealed class WikiGroupPage : Control
                 {
                     float cx = cr.X + cr.Width / 2f, cy = cr.Y + cr.Height / 2f, d = 4f * DeviceDpi / 96f;
                     using var pen = new Pen(fore, Math.Max(1.2f, 1.3f * DeviceDpi / 96f)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-                    g.DrawLine(pen, cx - d, cy - d, cx + d, cy + d);
-                    g.DrawLine(pen, cx - d, cy + d, cx + d, cy - d);
+                    Shapes.Cross(g, pen, cx, cy, d);
                 }
                 Link(cr, act);
             }
@@ -481,7 +480,7 @@ internal sealed class WikiGroupPage : Control
                     int idx = hits.Count;
                     if (draw)
                     {
-                        if (hover == idx) FillRounded(g, r, S(8), chip);
+                        if (hover == idx) Shapes.FillRounded(g, r, S(8), chip);
                         int av = S(30);
                         using (var b = new SolidBrush(Themes.Blend(main, fore, 0.12f))) g.FillEllipse(b, gx + S(4), gy + (S(40) - av) / 2, av, av);
                         Txt(g, it.DocPath != null ? it.Cat.Glyph : "\uE8B7", itemIcon, new Rectangle(gx + S(4), gy, av, S(40)), dim, F | TextFormatFlags.HorizontalCenter);
@@ -500,16 +499,7 @@ internal sealed class WikiGroupPage : Control
     {
         float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, u = DeviceDpi / 96f;
         using var pen = new Pen(c, Math.Max(1.6f, 1.8f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        if (up) g.DrawLines(pen, new[] { new PointF(cx - 5 * u, cy + 2.5f * u), new PointF(cx, cy - 2.5f * u), new PointF(cx + 5 * u, cy + 2.5f * u) });
-        else if (down) g.DrawLines(pen, new[] { new PointF(cx - 5 * u, cy - 2.5f * u), new PointF(cx, cy + 2.5f * u), new PointF(cx + 5 * u, cy - 2.5f * u) });
-        else g.DrawLines(pen, new[] { new PointF(cx - 2.5f * u, cy - 5 * u), new PointF(cx + 2.5f * u, cy), new PointF(cx - 2.5f * u, cy + 5 * u) });
-    }
-
-    private static void FillRounded(Graphics g, Rectangle r, int radius, Color fill, Color? line = null)
-    {
-        using var path = LibraryPalette.Rounded(new RectangleF(r.X, r.Y, r.Width - 1, r.Height - 1), radius);
-        using (var b = new SolidBrush(fill)) g.FillPath(b, path);
-        if (line != null) using (var pen = new Pen(line.Value)) g.DrawPath(pen, path);
+        Shapes.Chevron(g, pen, cx, cy, 5 * u, 2.5f * u, up ? Arrow.Up : down ? Arrow.Down : Arrow.Right);
     }
 
     protected override void OnPaint(PaintEventArgs e)

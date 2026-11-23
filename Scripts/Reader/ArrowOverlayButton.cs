@@ -58,9 +58,7 @@ public sealed class ArrowOverlayButton : Control
         // 꺾쇠: 원 높이의 40%쯤. 방향에 따라 좌우만 뒤집는다.
         float cx = Width / 2f, cy = Height / 2f;
         float half = Height * 0.2f, depth = half * 0.9f;
-        float tipX = pointsLeft ? cx - depth / 2 : cx + depth / 2;
-        float tailX = pointsLeft ? cx + depth / 2 : cx - depth / 2;
         using var pen = new Pen(Color.White, 3.2f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        g.DrawLines(pen, new[] { new PointF(tailX, cy - half), new PointF(tipX, cy), new PointF(tailX, cy + half) });
+        Shapes.Chevron(g, pen, cx, cy, half, depth / 2, pointsLeft ? Arrow.Left : Arrow.Right);
     }
 }

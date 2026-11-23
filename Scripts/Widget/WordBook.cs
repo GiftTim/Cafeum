@@ -357,8 +357,7 @@ internal sealed class WordBookView : Control
     {
         using var pen = new Pen(c, S(1) + 0.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
         float w = S(5), h = S(3);
-        if (down) g.DrawLines(pen, new[] { new PointF(cx - w, cy - h), new PointF(cx, cy + h), new PointF(cx + w, cy - h) });
-        else g.DrawLines(pen, new[] { new PointF(cx - h, cy - w), new PointF(cx + h, cy), new PointF(cx - h, cy + w) });
+        Shapes.Chevron(g, pen, cx, cy, w, h, down ? Arrow.Down : Arrow.Right);
     }
 }
 

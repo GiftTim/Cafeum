@@ -932,8 +932,7 @@ internal sealed class WorkspaceRail : Control
         // 왼쪽 위 모서리를 살짝 접은 네모(접은 자리에 작은 삼각 선)
         g.DrawLines(pen, new[] { new PointF(cx - h + f, cy - h), new PointF(cx + h, cy - h), new PointF(cx + h, cy + h), new PointF(cx - h, cy + h), new PointF(cx - h, cy - h + f), new PointF(cx - h + f, cy - h) });
         g.DrawLines(pen, new[] { new PointF(cx - h + f, cy - h), new PointF(cx - h + f, cy - h + f), new PointF(cx - h, cy - h + f) });
-        g.DrawLine(pen, cx - k, cy, cx + k, cy);
-        g.DrawLine(pen, cx, cy - k, cx, cy + k);
+        Shapes.Plus(g, pen, cx, cy, k);
     }
 
     /// <summary>빠른 따옴표 아이콘: 왼쪽 위 “ 와 오른쪽 아래 ” 를 ┐ └ 모양 선으로 이은 모양.</summary>

@@ -252,8 +252,7 @@ internal sealed class ClassStrip : Control
             float cx = xr.X + xr.Width / 2f, cy = xr.Y + xr.Height / 2f, d = 2.8f * u;
             if (hoverX == i) using (var hb = new SolidBrush(Themes.Blend(p.AccentSoft, p.Fore, 0.15f))) g.FillEllipse(hb, cx - 7 * u, cy - 7 * u, 14 * u, 14 * u);
             using var xp = new Pen(hoverX == i ? p.Fore : p.Dim, Math.Max(1.2f, 1.2f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
-            g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
+            Shapes.Cross(g, xp, cx, cy, d);
         }
         if (addRect.Width <= 0) return;
         using (var path = LibraryPalette.Rounded(new RectangleF(addRect.X, addRect.Y, addRect.Width - 1, addRect.Height - 1), S(6)))
@@ -261,8 +260,7 @@ internal sealed class ClassStrip : Control
         TextRenderer.DrawText(g, "분류 추가", Font, new Rectangle(addRect.X + S(10), addRect.Y, addRect.Width - S(34), addRect.Height), hoverAdd ? p.Fore : p.Dim, WikiUi.Flags | TextFormatFlags.Left);
         float px = addRect.Right - S(15), py = addRect.Y + addRect.Height / 2f, pd = 4f * u;
         using var pp = new Pen(hoverAdd ? p.Fore : p.Dim, Math.Max(1.3f, 1.3f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        g.DrawLine(pp, px - pd, py, px + pd, py);
-        g.DrawLine(pp, px, py - pd, px, py + pd);
+        Shapes.Plus(g, pp, px, py, pd);
     }
 }
 
@@ -459,7 +457,7 @@ internal sealed class PickPopup : Form
         // 검색칸 오른쪽 ⌄
         float cx = Width - S(24), cy = SearchH / 2f + 1, d = 4f * u;
         using (var cp = new Pen(p.Fore, Math.Max(1.6f, 1.6f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
-            g.DrawLines(cp, new[] { new PointF(cx - d, cy - d / 2), new PointF(cx, cy + d / 2), new PointF(cx + d, cy - d / 2) });
+            Shapes.Chevron(g, cp, cx, cy, d, d / 2, Arrow.Down);
         if (creating) return;
         using (var sep = new Pen(p.Line)) g.DrawLine(sep, 1, SearchH + 1, Width - 2, SearchH + 1);
         if (shown.Count == 0)

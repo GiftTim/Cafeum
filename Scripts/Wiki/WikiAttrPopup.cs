@@ -233,8 +233,7 @@ internal sealed class AttrPopup : Form
         }
         float cx = Width - S(24), cy = fr.Y + fr.Height / 2f, d = 4f * u;
         using (var cp = new Pen(p.Fore, Math.Max(1.6f, 1.6f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
-            g.DrawLines(cp, open ? new[] { new PointF(cx - d, cy + d / 2), new PointF(cx, cy - d / 2), new PointF(cx + d, cy + d / 2) }
-                                 : new[] { new PointF(cx - d, cy - d / 2), new PointF(cx, cy + d / 2), new PointF(cx + d, cy - d / 2) });
+            Shapes.Chevron(g, cp, cx, cy, d, d / 2, open ? Arrow.Up : Arrow.Down);
         if (!open) return;
         // 목록
         var lr = ListRect;

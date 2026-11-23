@@ -937,8 +937,7 @@ internal sealed class ScheduleView : Panel
         {
             float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, h = S(11), w = S(6);
             using var pen = new Pen(col, S(2) + 0.4f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-            float dx = left ? w : -w;
-            g.DrawLines(pen, new[] { new PointF(cx + dx, cy - h), new PointF(cx - dx, cy), new PointF(cx + dx, cy + h) });
+            Shapes.Chevron(g, pen, cx, cy, h, w, left ? Arrow.Left : Arrow.Right);
         }
         private static void DrawChip(Graphics g, ScheduleEntry en, Rectangle r, Font f, LibraryPalette pal, TextFormatFlags left, bool allDay)
         {
@@ -1488,7 +1487,7 @@ internal sealed class ScheduleView : Panel
             using var path = LibraryPalette.Rounded(sw0, S(8));
             if (cal.Visible) { using var b = new SolidBrush(col); g.FillPath(b, path); }
             else { using var pen = new Pen(col, S(2)); g.DrawPath(pen, path); } // 안 보이게 해 둔 스케줄: 빈 칸(테두리만)
-            if (cal.IsDefault) { using var pl = new Pen(Color.White, S(2)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round }; float cx0 = sw0.X + sw0.Width / 2f, cy0 = sw0.Y + sw0.Height / 2f, ar = S(5); g.DrawLine(pl, cx0 - ar, cy0, cx0 + ar, cy0); g.DrawLine(pl, cx0, cy0 - ar, cx0, cy0 + ar); }
+            if (cal.IsDefault) { using var pl = new Pen(Color.White, S(2)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round }; float cx0 = sw0.X + sw0.Width / 2f, cy0 = sw0.Y + sw0.Height / 2f, ar = S(5); Shapes.Plus(g, pl, cx0, cy0, ar); }
             else if (cal.Visible) // 보이는 스케줄: 색 칸 안에 체크 표시
             {
                 using var ck = new Pen(Color.White, S(2) + 0.5f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
@@ -1662,8 +1661,7 @@ internal sealed class ScheduleView : Panel
             using (var pp = new Pen(hot == 1000 ? pal.Fore : Themes.Blend(pal.Side, pal.Fore, 0.6f), S(1) + 0.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
                 float pcx = pr.X + pr.Width / 2f, pcy = pr.Y + pr.Height / 2f, arm = S(6);
-                g.DrawLine(pp, pcx - arm, pcy, pcx + arm, pcy);
-                g.DrawLine(pp, pcx, pcy - arm, pcx, pcy + arm);
+                Shapes.Plus(g, pp, pcx, pcy, arm);
             }
         }
     }

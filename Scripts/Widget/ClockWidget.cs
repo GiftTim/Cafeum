@@ -181,8 +181,7 @@ internal sealed class ClockWidget : Control
         using (var pen = new Pen(hotFold ? fore : dim, Math.Max(1.6f, 1.8f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
         {
             float cx = foldRect.X + foldRect.Width / 2f, cy = foldRect.Y + foldRect.Height / 2f, d = 5f * u;
-            if (expanded) g.DrawLines(pen, new[] { new PointF(cx - d, cy + d / 2), new PointF(cx, cy - d / 2), new PointF(cx + d, cy + d / 2) });
-            else g.DrawLines(pen, new[] { new PointF(cx - d, cy - d / 2), new PointF(cx, cy + d / 2), new PointF(cx + d, cy - d / 2) });
+            Shapes.Chevron(g, pen, cx, cy, d, d / 2, expanded ? Arrow.Up : Arrow.Down);
         }
 
         if (!expanded)

@@ -115,13 +115,6 @@ internal abstract class WikiViewBase : Control
     protected abstract void OnData();
 
     protected static readonly TextFormatFlags Flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
-
-    protected static void FillRounded(Graphics g, Rectangle r, int radius, Color fill, Color? line = null)
-    {
-        using var path = LibraryPalette.Rounded(new RectangleF(r.X, r.Y, r.Width - 1, r.Height - 1), radius);
-        using (var b = new SolidBrush(fill)) g.FillPath(b, path);
-        if (line != null) using (var pen = new Pen(line.Value)) g.DrawPath(pen, path);
-    }
 }
 
 /// <summary>위키 탭 맨 위의 보기 전환 막대: [간단히 보기 | 마인드맵 보기]. 고른 쪽만 이름이 보인다.</summary>

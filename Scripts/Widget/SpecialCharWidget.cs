@@ -204,14 +204,13 @@ internal sealed class SpecialCharWidget : Control
         using (var pen = new Pen(hotBtn == 0 ? fore : dim, Math.Max(1.6f, 1.8f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
         {
             float cx = plusRect.X + plusRect.Width / 2f, cy = plusRect.Y + plusRect.Height / 2f, d = 6f * u;
-            g.DrawLine(pen, cx - d, cy, cx + d, cy); g.DrawLine(pen, cx, cy - d, cx, cy + d);
+            Shapes.Plus(g, pen, cx, cy, d);
         }
         using (var pen = new Pen(hotBtn == 1 ? fore : dim, Math.Max(1.6f, 1.8f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
         {
             float cx = foldRect.X + foldRect.Width / 2f, cy = foldRect.Y + foldRect.Height / 2f, d = 5f * u;
             // 펼쳐 있으면 ^ (눌러서 접는다), 접혀 있으면 v (눌러서 편다)
-            if (expanded) g.DrawLines(pen, new[] { new PointF(cx - d, cy + d / 2), new PointF(cx, cy - d / 2), new PointF(cx + d, cy + d / 2) });
-            else g.DrawLines(pen, new[] { new PointF(cx - d, cy - d / 2), new PointF(cx, cy + d / 2), new PointF(cx + d, cy - d / 2) });
+            Shapes.Chevron(g, pen, cx, cy, d, d / 2, expanded ? Arrow.Up : Arrow.Down);
         }
         if (!expanded) return;
         if (cells.Count == 0)
@@ -308,6 +307,6 @@ internal sealed class SpecialCharDialog : Form
         closeRect = new Rectangle(Width - S(24) - S(28), S(20), S(28), S(28));
         float cx = closeRect.X + closeRect.Width / 2f, cy = closeRect.Y + closeRect.Height / 2f, d = 6f * DeviceDpi / 96f;
         using var pen = new Pen(hoverClose ? Color.Black : Color.FromArgb(0x30, 0x30, 0x32), Math.Max(1.8f, 2f * DeviceDpi / 96f)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        g.DrawLine(pen, cx - d, cy - d, cx + d, cy + d); g.DrawLine(pen, cx - d, cy + d, cx + d, cy - d);
+        Shapes.Cross(g, pen, cx, cy, d);
     }
 }

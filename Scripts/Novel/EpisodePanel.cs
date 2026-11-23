@@ -2703,8 +2703,7 @@ internal sealed class TagStrip : Control
             float cx = xr.X + xr.Width / 2f - S(1), cy = xr.Y + xr.Height / 2f, d = 2.8f * u;
             if (hoverX == i) using (var hb = new SolidBrush(p.CardHover)) g.FillEllipse(hb, cx - 7 * u, cy - 7 * u, 14 * u, 14 * u);
             using var xp = new Pen(hoverX == i ? p.Fore : p.Dim, Math.Max(1.2f, 1.2f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
-            g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
+            Shapes.Cross(g, xp, cx, cy, d);
         }
         if (addRect.Width <= 0) return;
         if (editing)
@@ -2721,8 +2720,7 @@ internal sealed class TagStrip : Control
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
         float px = addRect.Right - S(12), py = addRect.Y + addRect.Height / 2f, pd = 3.5f * u;
         using var pp = new Pen(hoverAdd ? p.Fore : p.Dim, Math.Max(1.2f, 1.2f * u)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        g.DrawLine(pp, px - pd, py, px + pd, py);
-        g.DrawLine(pp, px, py - pd, px, py + pd);
+        Shapes.Plus(g, pp, px, py, pd);
     }
 }
 

@@ -179,7 +179,7 @@ internal static class OverflowButtonPainter
         for (int k = 0; k < 2; k++)
         {
             float y = cy - gap / 2f - h / 2f + k * gap;
-            g.DrawLines(pen, new[] { new PointF(cx - w, y), new PointF(cx, y + h), new PointF(cx + w, y) });
+            Shapes.Chevron(g, pen, cx, y + h / 2f, w, h / 2f, Arrow.Down);
         }
     }
 }

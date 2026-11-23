@@ -569,16 +569,14 @@ internal sealed class DictChrome : Control
     {
         using var pen = new Pen(c, S(1) + 0.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
         float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, w = S(7), h = S(4);
-        if (down) g.DrawLines(pen, new[] { new PointF(cx - w, cy - h), new PointF(cx, cy + h), new PointF(cx + w, cy - h) });
-        else g.DrawLines(pen, new[] { new PointF(cx - w, cy + h), new PointF(cx, cy - h), new PointF(cx + w, cy + h) });
+        Shapes.Chevron(g, pen, cx, cy, w, h, down ? Arrow.Down : Arrow.Up);
     }
 
     private void DrawClose(Graphics g, Rectangle r, Color c)
     {
         using var pen = new Pen(c, S(1) + 0.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
         float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, a = S(6);
-        g.DrawLine(pen, cx - a, cy - a, cx + a, cy + a);
-        g.DrawLine(pen, cx - a, cy + a, cx + a, cy - a);
+        Shapes.Cross(g, pen, cx, cy, a);
     }
 }
 
@@ -753,8 +751,7 @@ internal sealed class GroupButton : Control
         using (var pp = new Pen(pal.Accent, S(1) + 0.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
         {
             float pcx = r.X + S(16), pcy = r.Y + r.Height / 2f, arm = S(6);
-            g.DrawLine(pp, pcx - arm, pcy, pcx + arm, pcy);
-            g.DrawLine(pp, pcx, pcy - arm, pcx, pcy + arm);
+            Shapes.Plus(g, pp, pcx, pcy, arm);
         }
         TextRenderer.DrawText(g, "Group", fonts.Get(ScriptFace, 10.5f, FontStyle.Bold), new Rectangle(r.X + S(30), r.Y, r.Width - S(34), r.Height), pal.Accent, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
     }

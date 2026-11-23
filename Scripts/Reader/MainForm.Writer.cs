@@ -776,10 +776,9 @@ public partial class MainForm
 
         private void DrawChevron(Graphics g, Point c, int dir, Color color) // dir: 0 아래 · 1 오른쪽
         {
-            using var cp = new Pen(color, Math.Max(1.3f, DeviceDpi / 96f * 1.3f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
+            using var cp = new Pen(color, Math.Max(1.3f, DeviceDpi / 96f * 1.3f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
             float d = S(4);
-            if (dir == 0) { g.DrawLine(cp, c.X - d, c.Y - d * 0.5f, c.X, c.Y + d * 0.5f); g.DrawLine(cp, c.X, c.Y + d * 0.5f, c.X + d, c.Y - d * 0.5f); }
-            else { g.DrawLine(cp, c.X - d * 0.5f, c.Y - d, c.X + d * 0.5f, c.Y); g.DrawLine(cp, c.X + d * 0.5f, c.Y, c.X - d * 0.5f, c.Y + d); }
+            Shapes.Chevron(g, cp, c.X, c.Y, d, d * 0.5f, dir == 0 ? Arrow.Down : Arrow.Right);
         }
 
         private void DrawButton(Graphics g, Rectangle r, string text, bool hot, string? leadGlyph, int chevronDir)
@@ -812,8 +811,7 @@ public partial class MainForm
             if (!removable) return;
             using var xp = new Pen(xHot ? fore : Themes.Blend(back, fore, 0.5f), Math.Max(1.2f, DeviceDpi / 96f * 1.2f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
             float cx = r.Right - S(11), cy = r.Y + r.Height / 2f, d = S(3);
-            g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
-            g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
+            Shapes.Cross(g, xp, cx, cy, d);
         }
 
         private void DrawPlus(Graphics g, Rectangle r, string text, bool hot)
@@ -823,8 +821,7 @@ public partial class MainForm
             TextRenderer.DrawText(g, text, chipFont, new Rectangle(r.X + S(8), r.Y, r.Width - S(28), r.Height), Themes.Blend(back, fore, 0.55f), vc);
             using var pen = new Pen(hot ? fore : Themes.Blend(back, fore, 0.55f), Math.Max(1.2f, DeviceDpi / 96f * 1.2f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
             float cx = r.Right - S(13), cy = r.Y + r.Height / 2f, d = S(4);
-            g.DrawLine(pen, cx - d, cy, cx + d, cy);
-            g.DrawLine(pen, cx, cy - d, cx, cy + d);
+            Shapes.Plus(g, pen, cx, cy, d);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -854,8 +851,7 @@ public partial class MainForm
                 {
                     using var xp = new Pen(hoverId == "del:" + c.Key ? fore : dim, Math.Max(1.3f, DeviceDpi / 96f * 1.3f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
                     float cx = c.DelRect.X + c.DelRect.Width / 2f, cy = c.DelRect.Y + c.DelRect.Height / 2f, d = S(4);
-                    g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
-                    g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
+                    Shapes.Cross(g, xp, cx, cy, d);
                 }
                 switch (c.Kind)
                 {
@@ -886,8 +882,7 @@ public partial class MainForm
                 using (var pen = new Pen(hoverId == "add" ? fore : dim, Math.Max(1.3f, DeviceDpi / 96f * 1.3f)) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round })
                 {
                     float px = addRect.X + S(11), py = addRect.Y + addRect.Height / 2f, pd = S(5);
-                    g.DrawLine(pen, px - pd, py, px + pd, py);
-                    g.DrawLine(pen, px, py - pd, px, py + pd);
+                    Shapes.Plus(g, pen, px, py, pd);
                 }
                 TextRenderer.DrawText(g, "속성 추가하기", labelFont, new Rectangle(addRect.X + S(30), addRect.Y, addRect.Width - S(30), addRect.Height), hoverId == "add" ? fore : dim, vc);
             }

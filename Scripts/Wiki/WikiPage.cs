@@ -1164,8 +1164,7 @@ internal sealed class WikiPage : Panel
                     var xr = XRect(i);
                     float cx = xr.X + xr.Width / 2f, cy = xr.Y + xr.Height / 2f, d = S(4);
                     using var xp = new Pen(hoverX == i ? p.Accent : p.Dim, Math.Max(1.4f, DeviceDpi / 96f * 1.4f)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-                    g.DrawLine(xp, cx - d, cy - d, cx + d, cy + d);
-                    g.DrawLine(xp, cx - d, cy + d, cx + d, cy - d);
+                    Shapes.Cross(g, xp, cx, cy, d);
                 }
                 if (dragging && i == dragIndex) using (var gh = new SolidBrush(Color.FromArgb(70, fore))) g.FillRectangle(gh, 0, r.Y, Width, r.Height); // 끌고 있는 줄은 흐리게
             }
