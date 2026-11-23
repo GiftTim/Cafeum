@@ -296,9 +296,9 @@ public partial class MainForm
         int m = Math.Clamp(settings.SideMargin, 0, 300);
         if (EffPaper is { } paper)
         {
-            // 용지 칸 폭만큼만 글이 놓이게, 남는 폭을 좌우 여백으로 나눈다(창이 좁으면 0).
+            // 용지 칸 폭만큼만 글이 놓이게, 남는 폭을 좌우 여백으로 나눈다. 칸이 용지보다 좁아도(칸을 나눠 연 경우 등) 글이 칸 가장자리에 붙지 않게 최소 여백을 둔다.
             int usable = MmToPx(paper.ContentWidth) * ViewZoom / 100;
-            m = Math.Clamp((mainEditor.ClientSize.Width - usable) / 2, 0, 2000);
+            m = Math.Clamp((mainEditor.ClientSize.Width - usable) / 2, LogicalToDeviceUnits(24), 2000);
         }
         int mr = -1;
         if (EffPaper == null && WriterLayout) (m, mr) = WriterMargins(m); // 회차 글쓰기: 글을 창 가운데 일정한 폭의 칸에
