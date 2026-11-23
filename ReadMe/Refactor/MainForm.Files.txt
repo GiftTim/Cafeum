@@ -1,0 +1,21 @@
+MainForm.Files.cs (399줄, partial class MainForm의 파일 열기 · 저장 조각)
+
+파일 열기 · 저장 조각이에요(Viewer 폴더). MainForm.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14	구분 주석(파일 열기/저장)
+16~25	OpenFileDialog: 열기 대화상자와 지원 형식 목록
+27~65	LoadFile: txt를 백그라운드에서 읽기(진행률, 취소), 글 파일이 아니면 열지 않음
+67~138	ShowLoadedText: 읽은 글을 화면에 올리기(바로 쓰는 편집기 또는 읽기용 웹 화면, 읽던 자리 복원)
+140~151	AttachMenuGuards: 툴바 드롭다운에 밖을 누르면 닫기 걸기
+153~191	ShowTxtWeb: txt를 문서 여러 개로 나눠 웹 화면으로 띄우기(웹 화면을 못 쓰면 텍스트 상자로)
+193~209	ShowTxtWebAt: txt 웹 화면에서 원본 글자 위치로 이동
+211~228	TxtWebSelect: 찾은 글을 웹 화면에서 표시
+230~243	QueryTxtTop: 웹 화면 맨 위 줄의 원본 위치를 읽어 두기
+245~251	ReloadEpubKeepingPlace: 글꼴·여백이 바뀌면 보던 자리 근처에서 다시 불러오기
+253~255	IsReferenceFile: 참고 자료 폴더의 파일이거나 PIP 창의 문서인가
+257~267	LeaveTxtWebForEditing: 수정하기를 켜면 웹 화면에서 텍스트 상자로
+269~280	ReturnToTxtWeb: 수정을 마치면 챕터를 다시 나누고 웹 화면으로
+282~302	ReadAllTextWithProgress: 큰 txt를 청크로 읽으며 진행률 보고
+304~337	SaveFile: txt 저장(zip·한글 문서에서 뽑은 글은 항상 다른 이름으로)
+339~372	SaveEpubFile: 고친 챕터를 반영하고 epub으로 다시 묶어 저장
+374~398	RepackEpub: 풀어 둔 폴더를 epub 규격(mimetype 먼저, 압축 없이)으로 묶기

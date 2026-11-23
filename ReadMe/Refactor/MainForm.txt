@@ -1,7 +1,7 @@
-MainForm.cs (1380줄, partial class MainForm의 본체)
+MainForm.cs (764줄, partial class MainForm의 본체)
 
 소설·만화·PDF·한글 문서를 읽는 화면의 본체예요.
-MainForm.*.cs 여러 파일이 한 클래스를 나눠 쓰는데, 이 파일은 화면 부품 선언, 생성자(메뉴, 터치, 찾기), 파일 열기·저장, PDF 열기, 읽기 방식 전환, 종류별 화면 전환(SetContentMode)을 맡아요.
+MainForm.*.cs 여러 파일이 한 클래스를 나눠 쓰는데, 이 파일은 화면 부품 선언, 생성자(메뉴, 터치, 찾기), PDF 열기, 종류별 화면 전환(SetContentMode)을 맡아요. 파일 열기·저장은 Viewer/MainForm.Files.cs, 읽기 방식 전환은 Viewer/MainForm.ReadingMode.cs로 옮겼어요.
 txt는 읽을 때 epub과 같은 웹 화면으로 보여주고, 고칠 때만 텍스트 상자로 바꿔요. 종류마다 화면 자리가 따로 있고 한 번에 하나만 보여요.
 
 1~7	도구함(zip, 글자, JSON, WebView2), 이름 칸
@@ -43,47 +43,18 @@ txt는 읽을 때 epub과 같은 웹 화면으로 보여주고, 고칠 때만 �
 443~449	창을 닫을 때 정리(불러오기 취소, 이미지 해제, 타이머, 풀어 둔 임시 폴더 삭제)
 451~452	시작 파일이 없으면 안내 문구
 455~474	OpenPath: 확장자를 보고 hwp, epub, pdf, zip, 이미지, txt 중 어느 쪽으로 열지 정하기
-476	구분 주석(파일 열기/저장)
-478~487	OpenFileDialog: 열기 대화상자와 지원 형식 목록
-489~527	LoadFile: txt를 백그라운드에서 읽기(진행률, 취소), 글 파일이 아니면 열지 않음
-529~600	ShowLoadedText: 읽은 글을 화면에 올리기(바로 쓰는 편집기 또는 읽기용 웹 화면, 읽던 자리 복원)
-602~613	AttachMenuGuards: 툴바 드롭다운에 밖을 누르면 닫기 걸기
-615~653	ShowTxtWeb: txt를 문서 여러 개로 나눠 웹 화면으로 띄우기(웹 화면을 못 쓰면 텍스트 상자로)
-655~671	ShowTxtWebAt: txt 웹 화면에서 원본 글자 위치로 이동
-673~690	TxtWebSelect: 찾은 글을 웹 화면에서 표시
-692~705	QueryTxtTop: 웹 화면 맨 위 줄의 원본 위치를 읽어 두기
-707~713	ReloadEpubKeepingPlace: 글꼴·여백이 바뀌면 보던 자리 근처에서 다시 불러오기
-715~717	IsReferenceFile: 참고 자료 폴더의 파일이거나 PIP 창의 문서인가
-719~729	LeaveTxtWebForEditing: 수정하기를 켜면 웹 화면에서 텍스트 상자로
-731~742	ReturnToTxtWeb: 수정을 마치면 챕터를 다시 나누고 웹 화면으로
-744~764	ReadAllTextWithProgress: 큰 txt를 청크로 읽으며 진행률 보고
-766~799	SaveFile: txt 저장(zip·한글 문서에서 뽑은 글은 항상 다른 이름으로)
-801~834	SaveEpubFile: 고친 챕터를 반영하고 epub으로 다시 묶어 저장
-836~860	RepackEpub: 풀어 둔 폴더를 epub 규격(mimetype 먼저, 압축 없이)으로 묶기
-862	구분 주석(읽기 ↔ 편집 모드)
-864~879	SetEditMode: 수정하기를 txt와 epub 중 알맞은 쪽으로 보내기
-881~896	SetTxtEditMode: txt 읽기 전용 켜고 끄기
-898~909	SetEpubEditMode: epub 챕터를 웹 페이지째 고칠 수 있게(contentEditable)
-911	구분 주석(챕터·이미지 목록)
-913~920	CurrentChapterNames: 탐색 막대에 보일 챕터 또는 이미지 이름들
-922~940	OnChapterActivated: 목록에서 고른 챕터·이미지로 이동
-942~963	GoToOffset: 전체 글 기준 위치로 이동
-965~990	SelectInDocument: 찾기 결과를 화면에 표시(페이지 모드면 그 쪽으로)
-994~997	ContentKind: txt, epub, 이미지, pdf 중 어느 화면인지
-999~1086	SetContentMode: 종류가 바뀔 때 보일 화면과 켜고 끌 메뉴를 한꺼번에 정하기
-1088~1105	UpdatePageNavVisibility: 화살표·하단 위치 표시줄 켜고 끄기
-1107~1138	쪽 넘김 화살표 나타남/숨김(마우스가 가까이 오면 나타나고 0.5초 뒤 숨음)
-1140~1142	구분 주석(읽기 방식)과 ReadingMode(스크롤, 페이지, 페이지 터치)
-1144~1178	SetReadingMode: 읽기 방식 전환
-1180~1185	UpdateReadingModeMenuChecks: 메뉴 체크 맞추기
-1187~1193	SetEpubPageMode: epub 읽기 방식 전환
-1195~1229	SetTxtPageMode: txt 편집기의 페이지 방식 전환
-1231~1255	RepositionOverlays: 찾기 바, 화살표 등 겹쳐 뜬 부품 위치 다시 잡기
-1257~1263	ShowCurrentPage: 현재 쪽 보여주기
-1265~1295	ChangePage: txt 편집기에서 쪽 넘기기
-1297~1310	EstimateCharsPerPage: 한 쪽에 들어갈 글자 수 대략 추정
-1312~1324	FitsOnScreen: 글을 실제로 넣어 보고 화면에 다 들어가는지 재기
-1326~1347	FindPageEnd: 한 쪽이 끝나는 위치를 이진 탐색으로 찾기
-1349~1368	FindPageStart: 이전 쪽이 시작하는 위치 찾기
-1370	구분 주석(글자 크기)
-1372~1379	SetFontSize: 글자 크기 바꾸기(열린 파일이 있으면 그 파일에만 기억)
+476	구분 주석(읽기 ↔ 편집 모드)
+478~493	SetEditMode: 수정하기를 txt와 epub 중 알맞은 쪽으로 보내기
+495~510	SetTxtEditMode: txt 읽기 전용 켜고 끄기
+512~523	SetEpubEditMode: epub 챕터를 웹 페이지째 고칠 수 있게(contentEditable)
+525	구분 주석(챕터·이미지 목록)
+527~534	CurrentChapterNames: 탐색 막대에 보일 챕터 또는 이미지 이름들
+536~554	OnChapterActivated: 목록에서 고른 챕터·이미지로 이동
+556~577	GoToOffset: 전체 글 기준 위치로 이동
+579~604	SelectInDocument: 찾기 결과를 화면에 표시(페이지 모드면 그 쪽으로)
+608~611	ContentKind: txt, epub, 이미지, pdf 중 어느 화면인지
+613~700	SetContentMode: 종류가 바뀔 때 보일 화면과 켜고 끌 메뉴를 한꺼번에 정하기
+702~719	UpdatePageNavVisibility: 화살표·하단 위치 표시줄 켜고 끄기
+721~752	쪽 넘김 화살표 나타남/숨김(마우스가 가까이 오면 나타나고 0.5초 뒤 숨음)
+754	구분 주석(글자 크기)
+756~763	SetFontSize: 글자 크기 바꾸기(열린 파일이 있으면 그 파일에만 기억)

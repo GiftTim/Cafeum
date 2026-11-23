@@ -11,7 +11,7 @@ AI        라마(AI): LlamaClient, LlamaDialogs, LlamaWriterTools(도구 > AI �
 Widget    위젯과 떠 있는 창: WidgetPanel, WidgetOverlayForm, TypewriterOverlay, ClockWidget, SpecialCharWidget, SpellWidget, SpellRules, PomodoroWidget, PomodoroCore, DictionaryWindow, DictionaryData, WordBook, MemoView, MemoWindow, StickyNote, IWriterHost(위젯이 에피소드 창을 쓰는 창구), FloatingWidgetPlacer(떠 있는 위젯 자리 잡기), ClockWidgetController, SpecialWidgetController, SpellWidgetController
 Reader    읽기 화면(뷰어)과 MainForm의 나머지 조각들
             Writer   글쓰기(에피소드 창): 글 상자 머리 · 위젯 창구 · txt 편집 · 빠른 교정 · 문단 · 서식 메뉴
-            Viewer   읽기: epub · 만화(그림) · 읽던 자리 · PDF · 낭독 · 책 끝 처리 · hwp · zip · 네비게이션 바 · 읽기 여백 · 줄바꿈 설정 · 잠금 모드
+            Viewer   읽기: 파일 열기·저장 · 읽기 방식 · epub · 만화(그림) · 읽던 자리 · PDF · 낭독 · 책 끝 처리 · hwp · zip · 네비게이션 바 · 읽기 여백 · 줄바꿈 설정 · 잠금 모드
             Shell    껍데기: 몰입 모드 · 단축키 · 툴바 · 서식 줄 · 상태 줄 · 참고 자료 줄 · 낭독 팝업
             (MainForm.cs · MainForm.Features.cs에는 읽기 · 글쓰기가 아직 섞여 있어요. MainForm.cs에서 epub · 만화 구간은 떼어 냈어요)
 Schedule  일정: ScheduleView

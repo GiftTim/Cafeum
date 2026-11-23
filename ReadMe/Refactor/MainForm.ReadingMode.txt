@@ -1,0 +1,16 @@
+MainForm.ReadingMode.cs (243줄, partial class MainForm의 읽기 방식 조각)
+
+읽기 방식 조각이에요(Viewer 폴더). MainForm.cs에 있던 구간을 그대로 옮긴 거예요.
+
+14~16	구분 주석(읽기 방식)과 ReadingMode(스크롤, 페이지, 페이지 터치)
+18~52	SetReadingMode: 읽기 방식 전환
+54~59	UpdateReadingModeMenuChecks: 메뉴 체크 맞추기
+61~67	SetEpubPageMode: epub 읽기 방식 전환
+69~103	SetTxtPageMode: txt 편집기의 페이지 방식 전환
+105~129	RepositionOverlays: 찾기 바, 화살표 등 겹쳐 뜬 부품 위치 다시 잡기
+131~137	ShowCurrentPage: 현재 쪽 보여주기
+139~169	ChangePage: txt 편집기에서 쪽 넘기기
+171~184	EstimateCharsPerPage: 한 쪽에 들어갈 글자 수 대략 추정
+186~198	FitsOnScreen: 글을 실제로 넣어 보고 화면에 다 들어가는지 재기
+200~221	FindPageEnd: 한 쪽이 끝나는 위치를 이진 탐색으로 찾기
+223~242	FindPageStart: 이전 쪽이 시작하는 위치 찾기
