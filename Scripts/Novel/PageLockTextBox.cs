@@ -119,18 +119,32 @@ internal sealed class PageLockTextBox : RichTextBox
             dySpaceAfter = (int)(p.After * 20),
             rgxTabs = new int[32],
         };
-        if (p.LineMode == 1) { f.bLineSpacingRule = 4; f.dyLineSpacing = (int)(p.LinePt * 20); }      // 고정 값(pt)
+        int minTwips = NaturalLineTwips(); // "정확히" 줄 높이가 글자 한 줄 높이보다 작으면 글자 위쪽이 앞 줄에 가려 잘려 보인다
+        if (p.LineMode == 1) { f.bLineSpacingRule = 4; f.dyLineSpacing = Math.Max(minTwips, (int)(p.LinePt * 20)); }      // 고정 값(pt)
         else
         {
             // 한글처럼 "글자에 따라 160%" = 줄 높이가 글자 크기의 160%. RichEdit의 "n줄"은 글꼴의 한 줄 높이(글자 크기보다 큼)를 기준으로 하니,
-            // 글자 크기에 퍼센트를 곱한 값을 "정확히(twips)"로 지정해서 같은 줄 간격이 되게 한다.
+            // 글자 크기에 퍼센트를 곱한 값을 "정확히(twips)"로 지정해서 같은 줄 간격이 되게 한다. 다만 글꼴의 한 줄 높이(minTwips)보다는 좁히지 않는다.
             f.bLineSpacingRule = 4;
-            f.dyLineSpacing = Math.Max(20, (int)Math.Round(p.LinePercent / 100.0 * Font.SizeInPoints * 20));
+            f.dyLineSpacing = Math.Max(Math.Max(20, minTwips), (int)Math.Round(p.LinePercent / 100.0 * Font.SizeInPoints * 20));
         }
         int s = SelectionStart, l = SelectionLength;
         SendMessage(Handle, EM_SETSEL, IntPtr.Zero, new IntPtr(-1));
         SendMessage(Handle, EM_SETPARAFORMAT, IntPtr.Zero, ref f);
         SendMessage(Handle, EM_SETSEL, new IntPtr(s), new IntPtr(s + l));
+    }
+
+    /// <summary>지금 글꼴의 한 줄 높이(글자 위 · 아래 여유 포함)를 twips로. 줄 간격이 이보다 좁으면 글자가 잘린다.</summary>
+    private int NaturalLineTwips()
+    {
+        try
+        {
+            var fam = Font.FontFamily;
+            var st = Font.Style;
+            double cell = (fam.GetCellAscent(st) + fam.GetCellDescent(st)) / (double)fam.GetEmHeight(st);
+            return (int)Math.Ceiling(cell * Font.SizeInPoints * 20);
+        }
+        catch { return (int)Math.Ceiling(Font.SizeInPoints * 1.3 * 20); }
     }
 
     // ───────── 좌우 여백 ─────────
