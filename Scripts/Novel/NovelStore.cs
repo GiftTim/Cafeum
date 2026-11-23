@@ -293,9 +293,7 @@ internal static class NovelStore
     {
         try
         {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var sr = new StreamReader(fs, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true);
-            return sr.ReadToEnd().Contains(q, StringComparison.CurrentCultureIgnoreCase);
+            return SafeFile.ReadAllTextDetect(path).Contains(q, StringComparison.CurrentCultureIgnoreCase);
         }
         catch { return false; }
     }
@@ -677,9 +675,7 @@ internal static class NovelStore
             if (!fi.Exists) return 0;
             lock (charCache)
                 if (charCache.TryGetValue(path, out var c) && c.Size == fi.Length && c.Time == fi.LastWriteTimeUtc) return c.Chars;
-            string text;
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var sr = new StreamReader(fs, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true)) text = sr.ReadToEnd();
+            string text = SafeFile.ReadAllTextDetect(path);
             int n = 0;
             foreach (char ch in text)
             {

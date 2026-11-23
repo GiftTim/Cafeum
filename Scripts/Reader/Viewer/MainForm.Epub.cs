@@ -29,6 +29,8 @@ public partial class MainForm
             await EnsureEpubViewAsync();
             // 열 때마다 새 폴더에 푼다(같은 책을 두 창에서 열어도 서로의 폴더를 지우지 않게). 다 읽은 폴더는 지운다(TempCleanup).
             string extractDir = Path.Combine(Path.GetTempPath(), "CafeumEpub", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(extractDir);
+            TempCleanup.Hold(extractDir);
             string? previousExtractDir = epubExtractDir;
             var progress = new Progress<double>(loadingOverlay.Report);
             // 이미지가 많이 든 큰 epub은 통째로 풀어두는(EpubBook.Load 안의 압축 해제) 부분이 시간이

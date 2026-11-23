@@ -1,4 +1,4 @@
-EpisodePanel.cs (3050줄)
+EpisodePanel.cs (3053줄)
 
 작품의 회차, 위키 문서, 참고 자료를 목록으로 보여 주는 파일이에요. 한 파일에 클래스 여덟 개가 들어 있어요.
 EpisodePanel은 워크스페이스 왼쪽 "파일 트리" 칸 전체이고, 맨 위 작품 카드(NovelCard)와 그 밑 목록(NovelTreeView)을 묶어요. 회차를 만들고 지우고 이름을 바꾸는 일, 그룹 만들기, 참고 자료 넣기와 정렬, 오른쪽 클릭 메뉴가 여기서 일어나고, 실제 파일과 기록은 NovelStore에 맡겨요. 문서를 열거나 닫는 일은 이벤트로 워크스페이스에 알려요.
@@ -41,168 +41,168 @@ NovelOverview는 칸이 비었을 때 보이는 작품 화면이에요. 표지, 
 324~331	CreateGroup: 새 에피소드 그룹 만들기
 333~335	SnapPathOf: 끌어 놓은 줄이 그룹 줄이면 그 그룹의 캔버스 경로로
 337~338	RequestCanvas: 그룹의 캔버스 열어 달라고 알리기
-340~368	ShowGroupMenu: 그룹 오른쪽 클릭 메뉴(새 에피소드, 이름 바꾸기, 그룹 지우기)
-370	addDropDown: 에피소드 줄 + 목록
-372~389	ShowAddDropDown: + 를 누르면 뜨는 [에피소드 | 새 에피소드 그룹] 목록
-391~402	AddEpisode: 새 회차를 만들고 바로 열기(그룹이 정해졌으면 그 그룹에)
-404~412	CreateWiki: 새 위키 문서 만들고 열기
-414	menu: 지금 떠 있는 오른쪽 클릭 메뉴
-417~431	ShowEpisodeMenu: 회차 오른쪽 클릭 메뉴(열기, PIP, 이름 바꾸기, 탐색기, 휴지통)
-433~441	Move: 회차를 위나 아래로 한 칸 옮기기
-444~457	CreateWikiClass (메서드)
-459	folderMenu
-461~476	분류 이름을 바꾼다. 그 분류를 쓰던 문서는 열려 있으면 저장하고 닫았다가 바꾼 뒤 다시 연다(옛 분류가 다시 저장되지 않게).
-478~494	분류 폴더를 우클릭했을 때: 하위 분류 만들기 · 이름 바꾸기 · 분류 지우기.
-496~510	바로 열려서 속성 · 본문을 채울 수 있다. category · cls는 마인드맵 점 위 [틀 만들기]에서 온 미리 채울 대분류 · 분류.
-512~530	파일 트리 [위키 문서 +]: 에피소드 [+]와 같은 아이콘 목록(문서 · 분류 · 템플릿).
-532~541	대분류(카테고리) 줄을 우클릭했을 때: 그 대분류에 분류 만들기.
-543~567	문서 우클릭 메뉴의 [분류에 넣기]: 이 작품의 분류(폴더)들이 체크 목록으로 나온다. 여러 분류에 넣을 수 있고, 체크를 끄면 그 분류에서 빠진다.
-569~570	문서를 분류(폴더)에 넣거나 뺀다. 열려 있던 문서 칸은 저장하고 닫았다가 바꾼 뒤 다시 연다.
-572~585	위키 문서 하나를 고친다(열려 있던 문서 칸은 저장하고 닫았다가 고친 뒤 다시 연다).
-587~594	만들어 둔 분류의 요약 · 대분류 · 상위 분류를 고친다(null은 그대로).
-596~612	문서의 분류를 바꾼다: remove 분류에서 빼고(null이면 안 뺀다) add 분류에 넣는다(null이면 안 넣는다). removeAll이면 모든 분류에서 뺀다.
-614~639	ShowWikiMenu: 위키 오른쪽 클릭 메뉴
-641	RenameEpisodeTo: 바깥(문서 머리의 제목 편집)에서 이름 바꾸기
-643~648	Rename: 이름 입력 창을 열어 이름 바꾸기
-650~665	DoRename: 이름 바꾸기(열린 문서 칸을 닫았다가 새 이름으로 다시 열고, 실패하면 원래 이름으로 다시 열기)
-667~678	Delete: 확인 뒤 회차를 휴지통으로 보내고 순서 저장
-680	Warn: 경고 창
-682~746	NovelCard: 파일 트리 맨 위 작품 카드(표지, 제목, N편 · 위키 M)
-685~690	NovelCard 필드와 Clicked 이벤트
-692~696	NovelCard 생성자
-697~709	NovelCard 작은 함수들: 크기, 색, 제목, 표지, 통계, 높이, 마우스
-711~745	NovelCard.OnPaint: 카드 그리기
-747	EpisodePanel 클래스 끝
-749~752	NovelTreeView 설명
-753	NovelTreeView 클래스 선언
-755~756	Kind(줄 종류), Row(한 줄의 값)
-758~779	필드: 스크롤, 줄들, 그룹·유형·회차·위키·참고 자료, 글자 수, 접힌 묶음, 마우스 올림, 끌기 상태
-782~809	이벤트: 회차·위키·참고 자료 선택, 추가 요청, 메뉴 요청, 끌기·놓기, 순서·그룹 바뀜, 파일 놓기
-811~821	생성자: 글꼴, 스크롤, 끌어다 놓기 받기
-823~828	Current, SetPalette, ApplyFont, SetRefs
-830~832	S, RowH(줄 높이), Offset(스크롤 위치)
-834~853	SetEpisodes, SetTypes, SetGroups, SetWiki: 목록 받아 두기
-855~867	RefreshCounts: 회차 글자 수 다시 세기
-869~930	Rebuild: 보일 줄 만들기(그룹 밖 회차 → 그룹 줄과 그 회차들, 위키 분류, 참고 자료)
-932~941	ContentHeight, SyncScroll: 내용 높이와 스크롤바
-943	OnResize
-945~968	IndexAt, RowTop, Width0, PlusRect, CanvasRect, SortRect: 줄과 버튼 자리 계산
-970~975	OnMouseWheel: 휠 스크롤
-977~1016	OnMouseMove: 끌기 처리와 마우스 올린 줄·버튼 표시
-1018~1032	DropAt: 순서 바꾸기에서 놓을 자리 정하기
-1034~1041	EndReorder: 순서 바꾸기 끝내기
-1043~1046	OnLeave, OnVisibleChanged, OnMouseLeave
-1048~1058	OnMouseDown: 끌 줄 정하기
-1060~1067	OnKeyDown: Esc로 끌기 그만두기
-1069~1170	OnMouseUp: 놓기(순서·그룹 바꾸기 또는 문서 칸에 열기), 클릭(열기, 접기, +, 정렬, 캔버스), 오른쪽 클릭 메뉴
-1172~1339	OnPaint: 구역 머리, 회차, 그룹, 위키 분류와 문서, 참고 자료, 놓을 자리 표시선 그리기
-1340	NovelTreeView 클래스 끝
-1342~1347	EpisodeList 설명
-1348	EpisodeList 클래스 선언
-1350~1351	RowKind, Row
-1353~1371	필드: 회차 경로들, 줄들, 글자 수, 스크롤, 끌기와 놓을 자리, 그룹·상태·유형·시각 표, 상태 뱃지 자리
-1373~1384	Paths와 이벤트: 회차 선택, 순서·그룹 바뀜, 메뉴, 머리줄 정렬, 상태 뱃지 눌림, 캔버스
-1386~1392	생성자
-1394~1424	속성: Current, ReorderMode(순서 관리), ShowEmptyGroups, SortMode와 SortDescending(보기 정렬), Compact(간단히 보기), EmptyText
-1426~1427	SetSort: 정렬 기준 정하기
-1429~1441	ApplySort: 이름, 글자 수, 고친 때로 정렬(보기만 바꾸고 저장된 순서는 건드리지 않음)
-1443~1446	Surface, SetPalette, ApplyFont
-1448~1459	S와 줄 높이, 머리줄 높이, 보이는 높이, PreferredHeight(전체를 펼치는 데 필요한 높이)
-1461~1470	StatusNames, StatusOf: 집필 상태 네 가지와 지금 상태(정한 적이 없으면 글자 수로 자동)
-1472~1487	SetStatuses, SetTypes, TypeOf: 상태·유형 표 받아 두기
-1489~1496	SetGroups: 그룹 표 받아 두기
-1498~1508	TimesOf, ReadTimes: 만든 때·고친 때(담아 두고 씀)
-1510~1517	SetPaths: 회차 경로 목록 넣기
-1519~1520	collapsed: 접어 둔 그룹
-1522~1538	Rebuild: 보일 줄 만들기(그룹 밖 회차 → 그룹 줄과 그 회차들, 번호는 000부터)
-1540~1555	RefreshCounts: 글자 수와 시각 다시 읽기
-1557~1564	Move: 한 칸 옮기기
-1566~1581	SyncScroll: 스크롤바 맞추기
-1583	OnResize
-1585~1600	RowTop, IndexAt: 줄 자리 계산
-1602~1613	DropTargetAt: 끌다가 놓을 자리 정하기
-1615	EpisodeRowIndices
-1617~1623	OnMouseWheel
-1625~1647	열 자리와 머리줄 칸(ColEdited, ColCreated, ColSize, ListWidth, HeaderCell, HeaderColAt)
-1649	구분 주석(마우스)
-1651~1662	GroupCanvasRect와 캔버스 버튼 상태·이벤트
-1664~1685	OnMouseMove
-1687	OnMouseLeave
-1689~1699	OnMouseDown
-1701~1765	OnMouseUp: 머리줄 정렬, 상태 뱃지, 캔버스, 그룹 접기, 끌어 놓기, 회차 열기
-1767	구분 주석(그리기)
-1769~1925	OnPaint: 머리줄, 그룹 줄, 회차 줄(번호·제목·상태 뱃지·크기·고친 때), 놓을 자리 표시선
-1926	EpisodeList 클래스 끝
-1928~1933	NovelOverview 설명
-1934	NovelOverview 클래스 선언
-1936~1965	필드: 파일 트리 패널, 머리, 쪽 스크롤, 라벨, 태그, 표지, 버튼들, 검색, 메모 칸, 타이머, 목록 셋, 탭, 검색어, memoDir(메모 칸의 글이 속한 작품)
-1968~1975	이벤트: 열기, 위키 열기, 참고 자료 열기, 삭제, 이름 바꾸기(제목 오른쪽 환경설정 버튼의 SettingsRequested는 1615~1616)
-1977~2085	생성자: 라벨, 버튼, 탭, 검색, 목록 셋과 메모 칸을 만들고 이벤트 잇기
-2087~2090	S, AvailWidth, ColumnWidth, ColumnLeft: 폭 계산
-2092~2165	LayoutHead: 머리 배치(표지, 제목, 태그, 소개, 버튼, 탭 줄, 도구 줄)
-2167~2175	BodyHeight: 탭마다 본문 높이
-2177~2178	위키 보기가 쓰는 폭: 표 · 마인드맵은 쪽 전체 폭, 나머지는 본문 칸 폭.
-2180~2211	LayoutPage: 머리와 본문을 쪽 스크롤만큼 올려서 놓기
-2213~2228	OnMouseWheel, OnLayout
-2230~2251	ApplyTheme: 색 입히기
-2253~2258	UpdateDescStyle: 소개가 비었을 때 연한 글씨
-2260~2282	Sync: 왼쪽 패널과 같은 내용으로 맞추기(작품이 바뀌면 이전 작품의 메모를 먼저 저장하고 새 메모로 바꿈)
-2284	구분 주석(탭·검색)
-2286~2287	SetWikiMode: 에피소드·위키 탭 전환
-2288	ShowMemoTab (메서드)
-2290~2331	SetTab: 탭 바꾸기(메모 저장, 보일 목록과 버튼 이름 바꾸기)
-2333~2344	FilteredRefs, FilteredWiki: 검색어에 맞는 참고 자료·위키
-2346~2363	ApplyQuery: 소설 내 검색(제목과 글 속 말로 찾기)
-2365	구분 주석(정렬·목록 설정)
-2367~2386	OnHeaderSort, ApplyListMode, ApplySort: 머리줄 정렬과 순서 관리 모드
-2388	구분 주석(소개·태그·상태·메모)
-2390~2393	newMenu, wikiMenu: 떠 있는 목록
-2395~2411	ShowWikiMenu: [새 위키 문서] 목록(문서, 분류, 템플릿)
-2413~2417	ShowNewMenu: [새 편 쓰기] 목록 열기(실패하면 알림)
-2419~2434	ShowNewMenuCore: [에피소드 | 새 에피소드 그룹] 목록 만들기
-2436~2452	OpenInfo: 기본 정보 창(제목, 소개, 표지)을 열고 저장(저장 중 오류는 알림, 제목이 바뀌면 이름 바꾸기 요청)
-2454~2463	AddTagText: 태그 하나 저장
-2465~2471	RemoveTag: 태그 지우기
-2473~2483	ChangeRefState: 참고 자료 독서상태를 한 단계 넘기기
-2485~2490	ReloadRefMeta: 독서상태·즐겨찾기 다시 읽기
-2492~2499	CycleStatus: 집필 상태를 한 단계 넘기기
-2500	NovelOverview 클래스 끝
-2502~2507	TagStrip 설명과 클래스 선언(태그 칩 줄)
-2509~2525	필드와 이벤트: 색, 태그, 칩 자리, 입력칸, 입력 중 여부, 추가 버튼 자리, 지우기·제출 알림
-2527~2547	생성자: 입력칸 만들기(Enter로 태그 제출, Esc로 끝)
-2549~2556	FinishOnClickAway: 입력칸 밖을 누르면 끝내고 적던 태그는 살리기
-2558~2572	ClickAwayFilter: 입력 중에만 켜 두는 창 전체 클릭 감시
-2574~2578	Dispose: 입력 중에 사라져도 클릭 감시를 풀기
-2580~2590	S, SetPalette, SetTags
-2592~2614	BeginEdit, EndEdit: 입력칸 켜고 끄기(클릭 감시 걸고 풀기)
-2616~2638	ChipH, FitHeight: 칩을 이 폭에 늘어놓고 필요한 높이 알려 주기
-2640~2647	XRect, XIndexAt: 칩의 지우기(×) 자리
-2649~2658	OnMouseMove, OnMouseLeave
-2660~2681	OnMouseUp: ×로 지우기, [새 태그 추가] 누르기, 오른쪽 클릭 지우기 메뉴
-2683~2724	OnPaint: 칩과 [새 태그 추가 +] 그리기
-2725	TagStrip 클래스 끝
-2727~2732	CoverBox 설명과 클래스 선언(작품 화면 표지 사진)
-2733~2738	필드와 Clicked
-2740~2746	생성자
-2748~2749	S, SetPalette
-2751~2762	LoadFor: 표지 읽기(파일 크기와 고친 시각이 같으면 다시 읽지 않음)
-2764~2767	마우스와 Dispose
-2769~2796	OnPaint: 표지 그림 또는 "그림이 아직 준비되지 못했어요" 그리기
-2797	CoverBox 클래스 끝
-2799~2806	RefList 설명과 클래스 선언(참고자료 탭 목록)
-2807	StateNames: 독서상태 이름(안 읽음, 읽는 중, 완독)
-2809~2818	필드: 파일들, 크기·고친 때, 독서상태·즐겨찾기 표, 뱃지·별 자리, 색, 정렬
-2820~2823	이벤트: 선택, 메뉴, 독서상태 눌림, 즐겨찾기 눌림
-2825~2829	생성자
-2831~2836	S, 줄 높이, 머리줄 높이, PreferredHeight, SetPalette
-2838~2847	SetMeta: 독서상태·즐겨찾기 표 받아 두기
-2849~2858	SetFiles: 파일 목록과 크기·고친 때 읽기
-2860~2861	StateOf, IsFav
-2863~2871	Kind: 파일 종류 이름(만화, PDF, 이미지, 전자책, 한글 문서, 소설)
-2873~2887	Sorted: 고른 열로 정렬
-2889~2897	열 자리(ColFav ~ ColKind, NameLeft, Wide): 좁으면 형식·크기 열을 숨김
-2899~2915	HeaderCell, ColVisible, HeaderColAt, IndexAt
-2917~2926	OnMouseMove, OnMouseLeave
-2928~2948	OnMouseUp: 머리줄 정렬, 독서상태 뱃지, 즐겨찾기 별, 열기, 메뉴
-2950~3049	OnPaint: 줄(아이콘, 이름, 형식, 크기, 고친 때, 독서상태 뱃지, 별)과 머리줄
-3050	RefList 클래스 끝
+340~371	ShowGroupMenu: 그룹 오른쪽 클릭 메뉴(새 에피소드, 이름 바꾸기, 그룹 지우기)
+373	addDropDown: 에피소드 줄 + 목록
+375~392	ShowAddDropDown: + 를 누르면 뜨는 [에피소드 | 새 에피소드 그룹] 목록
+394~405	AddEpisode: 새 회차를 만들고 바로 열기(그룹이 정해졌으면 그 그룹에)
+407~415	CreateWiki: 새 위키 문서 만들고 열기
+417	menu: 지금 떠 있는 오른쪽 클릭 메뉴
+420~434	ShowEpisodeMenu: 회차 오른쪽 클릭 메뉴(열기, PIP, 이름 바꾸기, 탐색기, 휴지통)
+436~444	Move: 회차를 위나 아래로 한 칸 옮기기
+447~460	CreateWikiClass (메서드)
+462	folderMenu
+464~479	분류 이름을 바꾼다. 그 분류를 쓰던 문서는 열려 있으면 저장하고 닫았다가 바꾼 뒤 다시 연다(옛 분류가 다시 저장되지 않게).
+481~497	분류 폴더를 우클릭했을 때: 하위 분류 만들기 · 이름 바꾸기 · 분류 지우기.
+499~513	바로 열려서 속성 · 본문을 채울 수 있다. category · cls는 마인드맵 점 위 [틀 만들기]에서 온 미리 채울 대분류 · 분류.
+515~533	파일 트리 [위키 문서 +]: 에피소드 [+]와 같은 아이콘 목록(문서 · 분류 · 템플릿).
+535~544	대분류(카테고리) 줄을 우클릭했을 때: 그 대분류에 분류 만들기.
+546~570	문서 우클릭 메뉴의 [분류에 넣기]: 이 작품의 분류(폴더)들이 체크 목록으로 나온다. 여러 분류에 넣을 수 있고, 체크를 끄면 그 분류에서 빠진다.
+572~573	문서를 분류(폴더)에 넣거나 뺀다. 열려 있던 문서 칸은 저장하고 닫았다가 바꾼 뒤 다시 연다.
+575~588	위키 문서 하나를 고친다(열려 있던 문서 칸은 저장하고 닫았다가 고친 뒤 다시 연다).
+590~597	만들어 둔 분류의 요약 · 대분류 · 상위 분류를 고친다(null은 그대로).
+599~615	문서의 분류를 바꾼다: remove 분류에서 빼고(null이면 안 뺀다) add 분류에 넣는다(null이면 안 넣는다). removeAll이면 모든 분류에서 뺀다.
+617~642	ShowWikiMenu: 위키 오른쪽 클릭 메뉴
+644	RenameEpisodeTo: 바깥(문서 머리의 제목 편집)에서 이름 바꾸기
+646~651	Rename: 이름 입력 창을 열어 이름 바꾸기
+653~668	DoRename: 이름 바꾸기(열린 문서 칸을 닫았다가 새 이름으로 다시 열고, 실패하면 원래 이름으로 다시 열기)
+670~681	Delete: 확인 뒤 회차를 휴지통으로 보내고 순서 저장
+683	Warn: 경고 창
+685~749	NovelCard: 파일 트리 맨 위 작품 카드(표지, 제목, N편 · 위키 M)
+688~693	NovelCard 필드와 Clicked 이벤트
+695~699	NovelCard 생성자
+700~712	NovelCard 작은 함수들: 크기, 색, 제목, 표지, 통계, 높이, 마우스
+714~748	NovelCard.OnPaint: 카드 그리기
+750	EpisodePanel 클래스 끝
+752~755	NovelTreeView 설명
+756	NovelTreeView 클래스 선언
+758~759	Kind(줄 종류), Row(한 줄의 값)
+761~782	필드: 스크롤, 줄들, 그룹·유형·회차·위키·참고 자료, 글자 수, 접힌 묶음, 마우스 올림, 끌기 상태
+785~812	이벤트: 회차·위키·참고 자료 선택, 추가 요청, 메뉴 요청, 끌기·놓기, 순서·그룹 바뀜, 파일 놓기
+814~824	생성자: 글꼴, 스크롤, 끌어다 놓기 받기
+826~831	Current, SetPalette, ApplyFont, SetRefs
+833~835	S, RowH(줄 높이), Offset(스크롤 위치)
+837~856	SetEpisodes, SetTypes, SetGroups, SetWiki: 목록 받아 두기
+858~870	RefreshCounts: 회차 글자 수 다시 세기
+872~933	Rebuild: 보일 줄 만들기(그룹 밖 회차 → 그룹 줄과 그 회차들, 위키 분류, 참고 자료)
+935~944	ContentHeight, SyncScroll: 내용 높이와 스크롤바
+946	OnResize
+948~971	IndexAt, RowTop, Width0, PlusRect, CanvasRect, SortRect: 줄과 버튼 자리 계산
+973~978	OnMouseWheel: 휠 스크롤
+980~1019	OnMouseMove: 끌기 처리와 마우스 올린 줄·버튼 표시
+1021~1035	DropAt: 순서 바꾸기에서 놓을 자리 정하기
+1037~1044	EndReorder: 순서 바꾸기 끝내기
+1046~1049	OnLeave, OnVisibleChanged, OnMouseLeave
+1051~1061	OnMouseDown: 끌 줄 정하기
+1063~1070	OnKeyDown: Esc로 끌기 그만두기
+1072~1173	OnMouseUp: 놓기(순서·그룹 바꾸기 또는 문서 칸에 열기), 클릭(열기, 접기, +, 정렬, 캔버스), 오른쪽 클릭 메뉴
+1175~1342	OnPaint: 구역 머리, 회차, 그룹, 위키 분류와 문서, 참고 자료, 놓을 자리 표시선 그리기
+1343	NovelTreeView 클래스 끝
+1345~1350	EpisodeList 설명
+1351	EpisodeList 클래스 선언
+1353~1354	RowKind, Row
+1356~1374	필드: 회차 경로들, 줄들, 글자 수, 스크롤, 끌기와 놓을 자리, 그룹·상태·유형·시각 표, 상태 뱃지 자리
+1376~1387	Paths와 이벤트: 회차 선택, 순서·그룹 바뀜, 메뉴, 머리줄 정렬, 상태 뱃지 눌림, 캔버스
+1389~1395	생성자
+1397~1427	속성: Current, ReorderMode(순서 관리), ShowEmptyGroups, SortMode와 SortDescending(보기 정렬), Compact(간단히 보기), EmptyText
+1429~1430	SetSort: 정렬 기준 정하기
+1432~1444	ApplySort: 이름, 글자 수, 고친 때로 정렬(보기만 바꾸고 저장된 순서는 건드리지 않음)
+1446~1449	Surface, SetPalette, ApplyFont
+1451~1462	S와 줄 높이, 머리줄 높이, 보이는 높이, PreferredHeight(전체를 펼치는 데 필요한 높이)
+1464~1473	StatusNames, StatusOf: 집필 상태 네 가지와 지금 상태(정한 적이 없으면 글자 수로 자동)
+1475~1490	SetStatuses, SetTypes, TypeOf: 상태·유형 표 받아 두기
+1492~1499	SetGroups: 그룹 표 받아 두기
+1501~1511	TimesOf, ReadTimes: 만든 때·고친 때(담아 두고 씀)
+1513~1520	SetPaths: 회차 경로 목록 넣기
+1522~1523	collapsed: 접어 둔 그룹
+1525~1541	Rebuild: 보일 줄 만들기(그룹 밖 회차 → 그룹 줄과 그 회차들, 번호는 000부터)
+1543~1558	RefreshCounts: 글자 수와 시각 다시 읽기
+1560~1567	Move: 한 칸 옮기기
+1569~1584	SyncScroll: 스크롤바 맞추기
+1586	OnResize
+1588~1603	RowTop, IndexAt: 줄 자리 계산
+1605~1616	DropTargetAt: 끌다가 놓을 자리 정하기
+1618	EpisodeRowIndices
+1620~1626	OnMouseWheel
+1628~1650	열 자리와 머리줄 칸(ColEdited, ColCreated, ColSize, ListWidth, HeaderCell, HeaderColAt)
+1652	구분 주석(마우스)
+1654~1665	GroupCanvasRect와 캔버스 버튼 상태·이벤트
+1667~1688	OnMouseMove
+1690	OnMouseLeave
+1692~1702	OnMouseDown
+1704~1768	OnMouseUp: 머리줄 정렬, 상태 뱃지, 캔버스, 그룹 접기, 끌어 놓기, 회차 열기
+1770	구분 주석(그리기)
+1772~1928	OnPaint: 머리줄, 그룹 줄, 회차 줄(번호·제목·상태 뱃지·크기·고친 때), 놓을 자리 표시선
+1929	EpisodeList 클래스 끝
+1931~1936	NovelOverview 설명
+1937	NovelOverview 클래스 선언
+1939~1968	필드: 파일 트리 패널, 머리, 쪽 스크롤, 라벨, 태그, 표지, 버튼들, 검색, 메모 칸, 타이머, 목록 셋, 탭, 검색어, memoDir(메모 칸의 글이 속한 작품)
+1971~1978	이벤트: 열기, 위키 열기, 참고 자료 열기, 삭제, 이름 바꾸기(제목 오른쪽 환경설정 버튼의 SettingsRequested는 1615~1616)
+1980~2088	생성자: 라벨, 버튼, 탭, 검색, 목록 셋과 메모 칸을 만들고 이벤트 잇기
+2090~2093	S, AvailWidth, ColumnWidth, ColumnLeft: 폭 계산
+2095~2168	LayoutHead: 머리 배치(표지, 제목, 태그, 소개, 버튼, 탭 줄, 도구 줄)
+2170~2178	BodyHeight: 탭마다 본문 높이
+2180~2181	위키 보기가 쓰는 폭: 표 · 마인드맵은 쪽 전체 폭, 나머지는 본문 칸 폭.
+2183~2214	LayoutPage: 머리와 본문을 쪽 스크롤만큼 올려서 놓기
+2216~2231	OnMouseWheel, OnLayout
+2233~2254	ApplyTheme: 색 입히기
+2256~2261	UpdateDescStyle: 소개가 비었을 때 연한 글씨
+2263~2285	Sync: 왼쪽 패널과 같은 내용으로 맞추기(작품이 바뀌면 이전 작품의 메모를 먼저 저장하고 새 메모로 바꿈)
+2287	구분 주석(탭·검색)
+2289~2290	SetWikiMode: 에피소드·위키 탭 전환
+2291	ShowMemoTab (메서드)
+2293~2334	SetTab: 탭 바꾸기(메모 저장, 보일 목록과 버튼 이름 바꾸기)
+2336~2347	FilteredRefs, FilteredWiki: 검색어에 맞는 참고 자료·위키
+2349~2366	ApplyQuery: 소설 내 검색(제목과 글 속 말로 찾기)
+2368	구분 주석(정렬·목록 설정)
+2370~2389	OnHeaderSort, ApplyListMode, ApplySort: 머리줄 정렬과 순서 관리 모드
+2391	구분 주석(소개·태그·상태·메모)
+2393~2396	newMenu, wikiMenu: 떠 있는 목록
+2398~2414	ShowWikiMenu: [새 위키 문서] 목록(문서, 분류, 템플릿)
+2416~2420	ShowNewMenu: [새 편 쓰기] 목록 열기(실패하면 알림)
+2422~2437	ShowNewMenuCore: [에피소드 | 새 에피소드 그룹] 목록 만들기
+2439~2455	OpenInfo: 기본 정보 창(제목, 소개, 표지)을 열고 저장(저장 중 오류는 알림, 제목이 바뀌면 이름 바꾸기 요청)
+2457~2466	AddTagText: 태그 하나 저장
+2468~2474	RemoveTag: 태그 지우기
+2476~2486	ChangeRefState: 참고 자료 독서상태를 한 단계 넘기기
+2488~2493	ReloadRefMeta: 독서상태·즐겨찾기 다시 읽기
+2495~2502	CycleStatus: 집필 상태를 한 단계 넘기기
+2503	NovelOverview 클래스 끝
+2505~2510	TagStrip 설명과 클래스 선언(태그 칩 줄)
+2512~2528	필드와 이벤트: 색, 태그, 칩 자리, 입력칸, 입력 중 여부, 추가 버튼 자리, 지우기·제출 알림
+2530~2550	생성자: 입력칸 만들기(Enter로 태그 제출, Esc로 끝)
+2552~2559	FinishOnClickAway: 입력칸 밖을 누르면 끝내고 적던 태그는 살리기
+2561~2575	ClickAwayFilter: 입력 중에만 켜 두는 창 전체 클릭 감시
+2577~2581	Dispose: 입력 중에 사라져도 클릭 감시를 풀기
+2583~2593	S, SetPalette, SetTags
+2595~2617	BeginEdit, EndEdit: 입력칸 켜고 끄기(클릭 감시 걸고 풀기)
+2619~2641	ChipH, FitHeight: 칩을 이 폭에 늘어놓고 필요한 높이 알려 주기
+2643~2650	XRect, XIndexAt: 칩의 지우기(×) 자리
+2652~2661	OnMouseMove, OnMouseLeave
+2663~2684	OnMouseUp: ×로 지우기, [새 태그 추가] 누르기, 오른쪽 클릭 지우기 메뉴
+2686~2727	OnPaint: 칩과 [새 태그 추가 +] 그리기
+2728	TagStrip 클래스 끝
+2730~2735	CoverBox 설명과 클래스 선언(작품 화면 표지 사진)
+2736~2741	필드와 Clicked
+2743~2749	생성자
+2751~2752	S, SetPalette
+2754~2765	LoadFor: 표지 읽기(파일 크기와 고친 시각이 같으면 다시 읽지 않음)
+2767~2770	마우스와 Dispose
+2772~2799	OnPaint: 표지 그림 또는 "그림이 아직 준비되지 못했어요" 그리기
+2800	CoverBox 클래스 끝
+2802~2809	RefList 설명과 클래스 선언(참고자료 탭 목록)
+2810	StateNames: 독서상태 이름(안 읽음, 읽는 중, 완독)
+2812~2821	필드: 파일들, 크기·고친 때, 독서상태·즐겨찾기 표, 뱃지·별 자리, 색, 정렬
+2823~2826	이벤트: 선택, 메뉴, 독서상태 눌림, 즐겨찾기 눌림
+2828~2832	생성자
+2834~2839	S, 줄 높이, 머리줄 높이, PreferredHeight, SetPalette
+2841~2850	SetMeta: 독서상태·즐겨찾기 표 받아 두기
+2852~2861	SetFiles: 파일 목록과 크기·고친 때 읽기
+2863~2864	StateOf, IsFav
+2866~2874	Kind: 파일 종류 이름(만화, PDF, 이미지, 전자책, 한글 문서, 소설)
+2876~2890	Sorted: 고른 열로 정렬
+2892~2900	열 자리(ColFav ~ ColKind, NameLeft, Wide): 좁으면 형식·크기 열을 숨김
+2902~2918	HeaderCell, ColVisible, HeaderColAt, IndexAt
+2920~2929	OnMouseMove, OnMouseLeave
+2931~2951	OnMouseUp: 머리줄 정렬, 독서상태 뱃지, 즐겨찾기 별, 열기, 메뉴
+2953~3052	OnPaint: 줄(아이콘, 이름, 형식, 크기, 고친 때, 독서상태 뱃지, 별)과 머리줄
+3053	RefList 클래스 끝

@@ -9,10 +9,34 @@ internal static class TempCleanup
 {
     internal static readonly string[] Roots = { "CafeumEpub", "CafeumTxt", "CafeumZip" };
 
+    private static readonly HashSet<string> held = new(StringComparer.OrdinalIgnoreCase);
+    private static System.Threading.Timer? heartbeat;
+
+    /// <summary>
+    /// 지금 쓰고 있는 임시 폴더로 등록한다. 쓰는 동안 30분마다 폴더의 "마지막 손댄 때"를 갱신해서, 다른 창(두 번째 실행)이
+    /// 켜질 때 하루 넘게 열어 둔 책의 폴더를 옛 폴더로 보고 지우지 않게 한다. 폴더를 지우면(DeleteQuietly) 등록도 풀린다.
+    /// </summary>
+    public static void Hold(string dir)
+    {
+        lock (held)
+        {
+            held.Add(dir);
+            Touch(dir);
+            heartbeat ??= new System.Threading.Timer(_ => { string[] all; lock (held) all = held.ToArray(); foreach (var d in all) Touch(d); }, null, TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30));
+        }
+    }
+
+    private static void Touch(string dir)
+    {
+        try { if (Directory.Exists(dir)) Directory.SetLastWriteTimeUtc(dir, DateTime.UtcNow); }
+        catch (Exception ex) { AppLog.Write($"임시 폴더 시각을 갱신하지 못했어요: {dir}", ex); }
+    }
+
     /// <summary>폴더 하나를 지운다(없거나 못 지우면 조용히 넘어가고 기록만 남긴다).</summary>
     public static void DeleteQuietly(string? dir)
     {
         if (string.IsNullOrEmpty(dir)) return;
+        lock (held) held.Remove(dir);
         try { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
         catch (Exception ex) { AppLog.Write($"임시 폴더를 지우지 못했어요: {dir}", ex); }
     }

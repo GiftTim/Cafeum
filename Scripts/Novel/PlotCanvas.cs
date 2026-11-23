@@ -97,6 +97,21 @@ internal static class CanvasStore
     /// <summary>캔버스를 저장한다(임시 파일을 거쳐 바꾸고, 실패하면 false — 알림은 JsonFile이 한다).</summary>
     public static bool Save(string path, CanvasDoc doc) => JsonFile.Save(path, doc, Opt);
 
+    /// <summary>그룹을 지우면 그 캔버스 파일(과 .bak)을 휴지통으로 보낸다 — 같은 이름의 새 그룹이 옛 캔버스를 물려받지 않게.</summary>
+    public static void Delete(string novelDir, string group)
+    {
+        string a = PathFor(novelDir, group);
+        foreach (string f in new[] { a, a + ".bak" })
+        {
+            try
+            {
+                if (File.Exists(f))
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(f, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+            }
+            catch (Exception ex) { AppLog.Write("캔버스 파일을 휴지통으로 보내지 못했어요", ex); }
+        }
+    }
+
     /// <summary>그룹 이름이 바뀌면 캔버스 파일도 따라간다(백업 .bak도 함께).</summary>
     public static void Rename(string novelDir, string oldGroup, string newGroup)
     {

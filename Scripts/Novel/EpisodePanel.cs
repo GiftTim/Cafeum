@@ -359,8 +359,11 @@ internal sealed class EpisodePanel : Panel
         m.Items.Add(new ToolStripSeparator());
         m.Items.Add("그룹 지우기 (에피소드는 그룹 밖으로 나와요)", null, (_, _) => BeginInvoke(() =>
         {
-            if (MessageBox.Show(FindForm(), $"'{group}' 그룹을 지울까요?\n그룹 안의 에피소드는 지워지지 않고 그룹 밖으로 나와요.", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            bool hasCanvas = File.Exists(CanvasStore.PathFor(dir, group));
+            if (MessageBox.Show(FindForm(), $"'{group}' 그룹을 지울까요?\n그룹 안의 에피소드는 지워지지 않고 그룹 밖으로 나와요." + (hasCanvas ? "\n이 그룹의 플롯 캔버스는 휴지통으로 가요." : ""), AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            PathAboutToChange?.Invoke(CanvasStore.PathFor(dir, group)); // 캔버스가 열려 있으면 먼저 닫는다
             NovelStore.DeleteGroup(dir, group);
+            CanvasStore.Delete(dir, group);
             Reload();
             Reloaded?.Invoke();
         }));

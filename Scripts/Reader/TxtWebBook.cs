@@ -37,6 +37,7 @@ public sealed class TxtWebBook
         // 만들 때마다 새 폴더를 쓴다(같은 글을 두 창에서 열어도, 글꼴을 바꿔 다시 만들어도 서로 지우지 않게). 옛 폴더는 부른 쪽이 지운다.
         string dir = Path.Combine(Path.GetTempPath(), "CafeumTxt", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
+        TempCleanup.Hold(dir);
 
         var parts = new List<(string Name, int Start, int End)>();
         foreach (var ch in chapters)

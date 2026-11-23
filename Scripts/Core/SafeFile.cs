@@ -53,6 +53,29 @@ internal static class SafeFile
     }
 
     /// <summary>
+    /// 글 파일을 읽는다(다른 프로그램이 열어 둬도 읽는다). BOM이 있으면 그 인코딩, 없으면 UTF-8로 먼저 읽고,
+    /// UTF-8이 아니면(예전 한글 메모장에서 고친 파일) CP949로 읽는다 — 그대로 UTF-8로 읽으면 한글이 전부 깨진다.
+    /// </summary>
+    public static string ReadAllTextDetect(string path)
+    {
+        byte[] b;
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        {
+            b = new byte[fs.Length];
+            fs.ReadExactly(b);
+        }
+        if (b.Length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) return new UTF8Encoding(true).GetString(b, 3, b.Length - 3);
+        if (b.Length >= 2 && b[0] == 0xFF && b[1] == 0xFE) return Encoding.Unicode.GetString(b, 2, b.Length - 2);
+        if (b.Length >= 2 && b[0] == 0xFE && b[1] == 0xFF) return Encoding.BigEndianUnicode.GetString(b, 2, b.Length - 2);
+        try { return new UTF8Encoding(false, true).GetString(b); }
+        catch (DecoderFallbackException)
+        {
+            var cp949 = CodePagesEncodingProvider.Instance.GetEncoding(949);
+            return (cp949 ?? new UTF8Encoding(false)).GetString(b);
+        }
+    }
+
+    /// <summary>
     /// preferred 인코딩으로 content를 글자 하나 잃지 않고 저장할 수 있으면 그대로, 못 하면 UTF-8(BOM 없음).
     /// 예전 한글 txt(CP949)에 이모지처럼 그 인코딩에 없는 글자를 쓰면, 그냥 저장할 때 조용히 '?'로 바뀌어 글자가 사라지기 때문이다.
     /// </summary>

@@ -592,7 +592,7 @@ internal sealed class WikiPage : Panel
             doc.Body = body.ToText(out var heads);
             SetToc(heads);
             now = doc.Serialize();
-            string? old = File.Exists(doc.Path) ? File.ReadAllText(doc.Path) : null;
+            string? old = File.Exists(doc.Path) ? SafeFile.ReadAllTextDetect(doc.Path) : null;
             if (old == now) return;
             WikiStore.Save(doc);
             Changed?.Invoke();

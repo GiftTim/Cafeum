@@ -1,4 +1,4 @@
-MainForm.Zip.cs (222줄, MainForm의 일부)
+MainForm.Zip.cs (223줄, MainForm의 일부)
 
 zip 파일을 열 때 안을 보고 소설인지 만화인지 정하는 파일이에요.
 그림이 많으면 만화로, txt가 있으면 이름 순서(2화, 10화)로 이어 붙여 한 권의 소설로, epub이나 pdf가 있으면 임시 폴더에 꺼내서 그 뷰어로 열어요.
@@ -19,4 +19,5 @@ OneDrive처럼 클라우드에만 있는 파일을 못 읽을 때는 zip이 깨�
 110~147	LoadZipNovel: zip 안의 txt들을 백그라운드에서 읽어 한 권으로 이어 붙이기(진행률, 취소)
 149~181	ReadZipNovel: 이름 순서로 txt를 읽어 줄바꿈을 맞추고 챕터를 나눠 이어 붙이기
 183~194	DecodeText: BOM이 있으면 그대로, 없으면 UTF-8로 읽어 보고 깨지면 한글 CP949로
-196~221	OpenFromZip: zip 안의 epub·pdf 하나를 임시 폴더에 꺼내 그 뷰어로 열기(이름만 써서 폴더 밖으로 못 나가게)
+196~222	OpenFromZip: zip 안의 epub·pdf 하나를 임시 폴더에 꺼내 그 뷰어로 열기(이름만 써서 폴더 밖으로 못 나가게)
+223	MainForm 끝

@@ -646,9 +646,7 @@ internal static class WikiStore
 
     public static WikiDoc Load(string path)
     {
-        string text;
-        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-        using (var sr = new StreamReader(fs, new UTF8Encoding(false), true)) text = sr.ReadToEnd();
+        string text = SafeFile.ReadAllTextDetect(path);
         return WikiDoc.Parse(path, text);
     }
 

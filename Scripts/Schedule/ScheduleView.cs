@@ -289,7 +289,11 @@ internal sealed class ScheduleView : Panel
         m.Items.Add(en.Done ? "완료 취소" : "완료로 표시", null, (_, _) => { en.Done = !en.Done; ScheduleStore.Save(); });
         m.Items.Add("수정…", null, (_, _) => BeginInvoke(() => EditEntry(en, screen)));
         m.Items.Add(new ToolStripSeparator());
-        m.Items.Add("삭제", null, (_, _) => ScheduleStore.RemoveDay(en, selected));
+        m.Items.Add("삭제", null, (_, _) => BeginInvoke(() =>
+        {
+            if (MessageBox.Show(FindForm(), $"'{en.Text}' 일정을 삭제할까요?\n되돌릴 수 없어요.", AppShared.AppDisplayName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            ScheduleStore.RemoveDay(en, selected);
+        }));
         m.Closed += (_, _) => BeginInvoke(() => m.Dispose());
         m.Show(screen);
     }
