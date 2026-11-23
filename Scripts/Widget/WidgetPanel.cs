@@ -288,7 +288,7 @@ internal sealed class WidgetPanel : Panel
             if (On)
             {
                 int w = TextRenderer.MeasureText(g, Def.Title, titleFont, titleR.Size, flags).Width;
-                DrawCheck(g, new Rectangle(tx + Math.Min(w, titleR.Width) + S(8), S(12) + S(8), S(14), S(14)), p.Accent);
+                Icons.Check(g, new Rectangle(tx + Math.Min(w, titleR.Width) + S(8), S(12) + S(8), S(14), S(14)), p.Accent);
             }
             else if (dim)
             {
@@ -317,8 +317,8 @@ internal sealed class WidgetPanel : Panel
             float u = DeviceDpi / 96f;
             switch (Def.Key)
             {
-                case "typewriter": WorkspaceRail.DrawTypewriterIcon(g, r, c, bg, u); return;
-                case "quote": WorkspaceRail.DrawQuoteIcon(g, r, c, u); return;
+                case "typewriter": Icons.Typewriter(g, r, c, bg, u); return;
+                case "quote": Icons.Quote(g, r, c, u); return;
                 case "count":
                     {
                         int cs = r.Width;
@@ -349,17 +349,6 @@ internal sealed class WidgetPanel : Panel
             };
             using var icon = new Font(MainForm.IconFontName(), 15f);
             TextRenderer.DrawText(g, glyph, icon, r, c, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        }
-
-        private static void DrawCheck(Graphics g, Rectangle r, Color c)
-        {
-            using var pen = new Pen(c, Math.Max(1.6f, r.Width / 8f)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-            g.DrawLines(pen, new[]
-            {
-                new PointF(r.X + r.Width * 0.12f, r.Y + r.Height * 0.55f),
-                new PointF(r.X + r.Width * 0.40f, r.Y + r.Height * 0.82f),
-                new PointF(r.X + r.Width * 0.88f, r.Y + r.Height * 0.20f),
-            });
         }
     }
 }

@@ -44,6 +44,5 @@ ChipButton은 분류 칩, WidgetCard는 카드 한 장이에요(둘 다 직접 �
 250~256	마우스 클릭
 258~313	그리기
 315~352	DrawIcon (메서드)
-354~363	DrawCheck (메서드)
-364	WidgetCard 끝
-365	WidgetPanel 끝
+353	WidgetCard 끝
+354	WidgetPanel 끝
