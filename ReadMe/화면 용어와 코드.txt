@@ -21,7 +21,7 @@
 ─────────────────────────────────────────────
 3. 에피소드 창 — 소설 메인 창에서 에피소드 → 회차를 눌러 나오는 창
 ─────────────────────────────────────────────
-· 화면: MainForm  (Scripts/Reader/MainForm*.cs, 클래스 선언 MainForm.cs:15)  — 회차 하나 = MainForm 하나(TopLevel=false로 칸 안에 박혀요). txt 편집, 낭독, 위젯이 모두 여기 있어요.
+· 화면: MainForm  (Scripts/Reader/MainForm*.cs · 하위 Writer · Viewer · Shell, 클래스 선언 MainForm.cs:15)  — 회차 하나 = MainForm 하나(TopLevel=false로 칸 안에 박혀요). txt 편집, 낭독, 위젯이 모두 여기 있어요.
 · 담는 칸: DocPane  (Scripts/Novel/NovelWorkspace.cs:1090)의 doc 필드. 칸을 만들 때 new MainForm(path)(:1319쯤).
 
 ─────────────────────────────────────────────
