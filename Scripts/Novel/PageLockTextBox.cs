@@ -119,14 +119,15 @@ internal sealed class PageLockTextBox : RichTextBox
             dySpaceAfter = (int)(p.After * 20),
             rgxTabs = new int[32],
         };
-        int minTwips = NaturalLineTwips(); // "정확히" 줄 높이가 글자 한 줄 높이보다 작으면 글자 위쪽이 앞 줄에 가려 잘려 보인다
-        if (p.LineMode == 1) { f.bLineSpacingRule = 4; f.dyLineSpacing = Math.Max(minTwips, (int)(p.LinePt * 20)); }      // 고정 값(pt)
+        // RichEdit가 줄마다 글자 높이를 재서 계산하게 한다("정확히"로 고정하면 줄 높이가 글자보다 작을 때 글자 위쪽이 앞 줄에 가려 잘린다).
+        if (p.LineMode == 1) { f.bLineSpacingRule = 3; f.dyLineSpacing = (int)(p.LinePt * 20); }      // 고정 값(pt) = 최소 줄 높이(pt). 글자가 더 크면 그 줄만 늘어난다
         else
         {
-            // 한글처럼 "글자에 따라 160%" = 줄 높이가 글자 크기의 160%. RichEdit의 "n줄"은 글꼴의 한 줄 높이(글자 크기보다 큼)를 기준으로 하니,
-            // 글자 크기에 퍼센트를 곱한 값을 "정확히(twips)"로 지정해서 같은 줄 간격이 되게 한다. 다만 글꼴의 한 줄 높이(minTwips)보다는 좁히지 않는다.
-            f.bLineSpacingRule = 4;
-            f.dyLineSpacing = Math.Max(Math.Max(20, minTwips), (int)Math.Round(p.LinePercent / 100.0 * Font.SizeInPoints * 20));
+            // 한글처럼 "글자에 따라 160%" = 줄 높이가 글자 크기의 160%. RichEdit의 "n줄"은 글꼴의 한 줄 높이(글자 크기보다 큼)의 n배이니,
+            // 글자 크기 기준 퍼센트를 한 줄 높이 기준 줄 수로 바꿔서 건다(줄 수의 단위는 1/20줄). 한 줄보다 좁히지는 않는다.
+            double lines = Math.Max(1.0, p.LinePercent / 100.0 * Font.SizeInPoints * 20 / NaturalLineTwips());
+            f.bLineSpacingRule = 5;
+            f.dyLineSpacing = (int)Math.Round(lines * 20);
         }
         int s = SelectionStart, l = SelectionLength;
         SendMessage(Handle, EM_SETSEL, IntPtr.Zero, new IntPtr(-1));
