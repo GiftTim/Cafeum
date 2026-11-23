@@ -268,7 +268,7 @@ public partial class MainForm
         mainEditor.BackColor = theme.Back;
         mainEditor.ForeColor = theme.Fore;
         writerTitle?.SetColors(theme.Back, theme.Fore);
-        SyncGoalWidget(); SyncSpecialWidget(); SyncClockWidget(); SyncSpellWidget();
+        SyncGoalWidget(); SyncFloatingWidgets();
         if (epubView != null) epubView.DefaultBackgroundColor = theme.Back;
         if (epubMode) RunEpubScript(BuildEpubThemeScript());
 

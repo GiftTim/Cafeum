@@ -7,10 +7,10 @@ UI        그림 표현(아이콘 · 도형): PinIcon, PurpleIcons. 앞으로 �
 Window    창과 서재 화면의 틀: VaultForm, VaultSidebar, SettingsForm, HelpForm, WindowTitleBar, DocTabStrip, SidebarBrand, LibraryChrome(서재 화면 부품), FullScreenButton, ToastLabel
 Novel     작품 안의 작업 화면: NovelHome, NovelWorkspace, EpisodePanel, NovelStore, HeadingEditor, PageLockTextBox, PlotCanvas 등. 여러 화면이 쓰는 부품도 여기 있어요: UnitUpDown, FontCache, GroupOverflow, IconMenuItem, ScopedMenuItem
 Wiki      위키: Wiki, WikiPage(위키 창), WikiGroupPage(대분류창 · 분류창), WikiMindMapView, WikiSimpleView, WikiViewBase, WikiWidgets, WikiAttrPopup, WikiClassDialog, WikiCreateDialog, PhotoCropDialog
-AI        라마(AI): LlamaClient, LlamaDialogs, MainForm.Llama
-Widget    위젯과 떠 있는 창: WidgetPanel, WidgetOverlayForm, TypewriterOverlay, ClockWidget, SpecialCharWidget, SpellWidget, SpellRules, PomodoroWidget, PomodoroCore, DictionaryWindow, DictionaryData, WordBook, MemoView, MemoWindow, StickyNote, MainForm.Clock, MainForm.Special, MainForm.Spell
+AI        라마(AI): LlamaClient, LlamaDialogs, LlamaWriterTools(도구 > AI 메뉴)
+Widget    위젯과 떠 있는 창: WidgetPanel, WidgetOverlayForm, TypewriterOverlay, ClockWidget, SpecialCharWidget, SpellWidget, SpellRules, PomodoroWidget, PomodoroCore, DictionaryWindow, DictionaryData, WordBook, MemoView, MemoWindow, StickyNote, IWriterHost(위젯이 에피소드 창을 쓰는 창구), FloatingWidgetPlacer(떠 있는 위젯 자리 잡기), ClockWidgetController, SpecialWidgetController, SpellWidgetController
 Reader    읽기 화면(뷰어)과 MainForm의 나머지 조각들
 Schedule  일정: ScheduleView
 Test      개발용 점검: ShotTest, MenuGuard.Test (Debug 빌드에만 들어가요)
 
-MainForm은 아직 한 클래스가 여러 폴더(Reader, AI, Widget)에 걸쳐 있어요(partial). 다음 단계에서 위젯 · AI 조각을 떼어 독립 클래스로 만들 예정이에요.
+MainForm에서 위젯 · AI 조각(시계, 특수문자, 맞춤법, 라마)은 떼어 냈어요(2026-11-23). MainForm은 IWriterHost라는 창구만 내어 주고(MainForm.WriterHost.cs), 위젯 · AI 쪽 코드는 Widget · AI 폴더의 독립 클래스가 맡아요. 남은 일: UI에 공용 도형 도우미 합치기, 읽기와 글쓰기 나누기.

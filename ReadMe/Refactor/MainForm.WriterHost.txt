@@ -1,0 +1,20 @@
+MainForm.WriterHost.cs (52줄)
+
+MainForm의 일부로, 글쓰기 위젯(시계, 특수문자, 맞춤법)과 AI 도구가 에피소드 창을 쓰는 창구(IWriterHost)를 구현하고, 그 위젯들을 들고 있는 자리예요. 위젯과 AI 도구의 코드는 Widget과 AI 폴더의 독립 클래스(ClockWidgetController, SpecialWidgetController, SpellWidgetController, LlamaWriterTools)에 있고, 여기서는 글 상자를 만든 뒤 한 번 만들어(InitFloatingWidgets) 켜고 끄는 입구만 남겼어요. 사이드바와 위젯 모음이 부르는 이름(ToggleClockWidget 등)은 그대로 두고 안쪽 클래스로 넘겨요.
+
+1	네임스페이스
+3~8	MainForm 설명과 선언: 글쓰기 위젯(시계 · 특수문자 · 맞춤법)과 AI 도구가 에피소드 창(MainForm)을 쓰는 창구(IWriterHost)와, 그 위젯들을 들고 있는 자리.
+9~12	필드
+14~20	글쓰기 위젯을 만든다(글 상자를 만든 뒤, 한 번). 시계는 특수문자 위젯이 보이면 그 아래에 처음 자리를 잡는다.
+22~23	켜 둔 위젯을 지금 화면(txt 편집 중인지, 글 칸이 보이는지)에 맞게 보이거나 감춘다.
+26	ToggleClockWidget (메서드)
+27	시계가 켜져 있는지
+28	ApplyClockPlace (메서드)
+29	ToggleSpecialWidget (메서드)
+30	특수문자 위젯이 켜져 있는지
+31	ApplySpecialSize (메서드)
+32	ToggleSpellWidget (메서드)
+33	맞춤법 위젯이 켜져 있는지
+35	[도구] 메뉴에 AI 묶음 넣기
+37	구분 주석: IWriterHost
+52	MainForm 끝
