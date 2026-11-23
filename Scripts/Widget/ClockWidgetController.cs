@@ -29,6 +29,9 @@ internal sealed class ClockWidgetController
 
     public bool IsOn => widget.Visible;
 
+    /// <summary>다른 위젯이 처음 자리를 잡을 때 이 위젯 아래로 비켜 가려고 쓴다: 보이면 이 위젯의 높이, 아니면 null.</summary>
+    public int? VisibleHeight => widget.Visible ? widget.Height : null;
+
     /// <summary>위젯 모음의 시계 카드 · 사이드바 시계 아이콘: 위젯을 켜고 끈다.</summary>
     public void Toggle() { shown = !shown; Sync(); }
 

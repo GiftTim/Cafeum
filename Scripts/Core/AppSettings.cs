@@ -148,6 +148,15 @@ public sealed class AppSettings
     public int SpecialRightGap { get; set; } = -1;
     public int SpecialTop { get; set; } = -1;
     /// <summary>맞춤법 검사기 위젯을 마지막으로 놓은 자리(위와 같은 기준).</summary>
+    public bool NameKorean { get; set; }
+    public bool NameKSurname { get; set; } = true;
+    public string NameKStart { get; set; } = "";
+    public int NameMin { get; set; } = 4;
+    public int NameMax { get; set; } = 8;
+    public string NameStart { get; set; } = "";
+    public int NameCount { get; set; } = 10;
+    public int NameRightGap { get; set; } = -1;
+    public int NameTop { get; set; } = -1;
     public int SpellRightGap { get; set; } = -1;
     public int SpellTop { get; set; } = -1;
     /// <summary>아이콘 막대에서 숨긴 항목들. 볼트 파일은 처음엔 숨겨 둔다.</summary>

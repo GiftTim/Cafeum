@@ -9,6 +9,7 @@ public partial class MainForm : IWriterHost
     private ClockWidgetController? clock;
     private SpecialWidgetController? special;
     private SpellWidgetController? spell;
+    private NameWidgetController? names;
     private LlamaWriterTools? llama;
 
     /// <summary>글쓰기 위젯을 만든다(글 상자를 만든 뒤, 한 번). 시계는 특수문자 위젯이 보이면 그 아래에 처음 자리를 잡는다.</summary>
@@ -17,10 +18,11 @@ public partial class MainForm : IWriterHost
         special = new SpecialWidgetController(this);
         clock = new ClockWidgetController(this, () => special?.VisibleHeight is int h ? h + LogicalToDeviceUnits(12) : 0);
         spell = new SpellWidgetController(this);
+        names = new NameWidgetController(this, () => { int h = 0; if (special?.VisibleHeight is int a) h += a + LogicalToDeviceUnits(12); if (clock?.VisibleHeight is int c) h += c + LogicalToDeviceUnits(12); return h; });
     }
 
     /// <summary>켜 둔 위젯을 지금 화면(txt 편집 중인지, 글 칸이 보이는지)에 맞게 보이거나 감춘다.</summary>
-    private void SyncFloatingWidgets() { special?.Sync(); clock?.Sync(); spell?.Sync(); }
+    private void SyncFloatingWidgets() { special?.Sync(); clock?.Sync(); spell?.Sync(); names?.Sync(); }
 
     // 위젯 모음 · 사이드바가 부르는 입구(NovelWorkspace → DocPane → 여기)
     internal void ToggleClockWidget() => clock?.Toggle();
@@ -31,6 +33,8 @@ public partial class MainForm : IWriterHost
     internal void ApplySpecialSize() => special?.ApplySize();
     internal void ToggleSpellWidget() => spell?.Toggle();
     internal bool SpellWidgetOn => spell?.IsOn ?? false;
+    internal void ToggleNameWidget() => names?.Toggle();
+    internal bool NameWidgetOn => names?.IsOn ?? false;
 
     private void AddLlamaMenu(ToolStripMenuItem tools) => (llama ??= new LlamaWriterTools(this)).AddMenu(tools);
 
