@@ -2346,6 +2346,8 @@ internal sealed class NovelOverview : Panel
         query.Length == 0 ? source.WikiDocs
             : source.WikiDocs.Where(d => d.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) || d.Summary.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
 
+    private int searchVersion; // 검색어가 바뀔 때마다 올려서, 늦게 끝난 옛 검색 결과를 버린다
+
     private void ApplyQuery(string q, bool force = false)
     {
         if (!force && q == query) return;
@@ -2355,10 +2357,23 @@ internal sealed class NovelOverview : Panel
         reorderButton.Enabled = sortMode == 0 && !filtering;
         list.ShowEmptyGroups = !filtering; // 검색 중에는 빈 그룹을 숨긴다
         list.EmptyText = filtering ? $"'{q}'에 맞는 에피소드가 없어요." : null;
-        IEnumerable<string> eps = source.EpisodePaths;
+        int version = ++searchVersion;
+        var all = source.EpisodePaths.ToList();
         if (filtering)
-            eps = eps.Where(p => Path.GetFileNameWithoutExtension(p).Contains(q, StringComparison.CurrentCultureIgnoreCase) || NovelStore.ContainsText(p, q));
-        list.SetPaths(eps.ToList());
+        {
+            // 제목으로 맞는 것부터 바로 보여 주고, 본문까지 읽어 보는 건 배경에서 한다(회차가 많으면 화면이 멈추지 않게).
+            var byTitle = all.Where(p => Path.GetFileNameWithoutExtension(p).Contains(q, StringComparison.CurrentCultureIgnoreCase)).ToList();
+            var rest = all.Except(byTitle).ToList();
+            list.SetPaths(byTitle);
+            Task.Run(() => rest.Where(p => NovelStore.ContainsText(p, q)).ToHashSet()).ContinueWith(t =>
+            {
+                if (t.IsFaulted || version != searchVersion || IsDisposed) return;
+                if (t.Result.Count == 0) return;
+                list.SetPaths(all.Where(p => byTitle.Contains(p) || t.Result.Contains(p)).ToList()); // 원래 순서 그대로
+                list.RefreshCounts();
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+        else list.SetPaths(all);
         list.RefreshCounts();
         memoView.SetQuery(q);
         RefreshWikiView();
