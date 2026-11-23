@@ -3,7 +3,7 @@
 2026-11-23에 기능별로 나눴어요. 모든 파일이 같은 네임스페이스(Cafeum)라서 폴더는 찾기 쉽게 하려는 것일 뿐 코드의 동작과는 상관없어요.
 
 Core      저장 · 설정 · 테마 같은 화면 없는 공용 코드: AppLog, AppSettings, AppShared, DebouncedSave, DialogExtensions, JsonFile, LibraryStore, MenuGuard, NaturalStringComparer, SafeFile, SettingKind, ShellMenu, TempCleanup, Themes, Updater
-UI        그림 표현(아이콘 · 도형): PinIcon, PurpleIcons, Shapes(공용 도형: 꺾쇠 · × · + · 둥근 네모), Icons(사이드바 · 위젯 패널이 같이 쓰는 타입라이터 · 위젯 · 메모 · 따옴표 · 체크 아이콘). 둘 이상 쓰는 아이콘 그리기는 여기로 모아요.
+UI        그림 표현(아이콘 · 도형): PinIcon, PurpleIcons, Shapes(공용 도형: 꺾쇠 · × · + · 둥근 네모), LibraryPalette(색 묶음) · PillButton(둥근 납작 버튼, 여섯 곳이 씀) · Icons(사이드바 · 위젯 패널이 같이 쓰는 타입라이터 · 위젯 · 메모 · 따옴표 · 체크 아이콘). 둘 이상 쓰는 아이콘 그리기는 여기로 모아요.
 Window    창과 서재 화면의 틀: VaultForm, VaultSidebar, SettingsForm, HelpForm, WindowTitleBar, DocTabStrip, SidebarBrand, LibraryChrome(서재 화면 부품), FullScreenButton, ToastLabel
 Novel     작품 안의 작업 화면: NovelHome, NovelWorkspace, EpisodePanel, NovelStore, HeadingEditor, PageLockTextBox, PlotCanvas 등. 여러 화면이 쓰는 부품도 여기 있어요: UnitUpDown, FontCache, GroupOverflow, IconMenuItem, ScopedMenuItem
 Wiki      위키: Wiki, WikiPage(위키 창), WikiGroupPage(대분류창 · 분류창), WikiMindMapView, WikiSimpleView, WikiViewBase, WikiWidgets, WikiAttrPopup, WikiClassDialog, WikiCreateDialog, PhotoCropDialog
