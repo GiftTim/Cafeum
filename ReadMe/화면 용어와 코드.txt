@@ -25,11 +25,12 @@
 · 담는 칸: DocPane  (Scripts/Novel/NovelWorkspace.cs:1090)의 doc 필드. 칸을 만들 때 new MainForm(path)(:1319쯤).
 
 ─────────────────────────────────────────────
-4. 문서영역 — 에피소드 창에서 글을 쓰는 곳
+4. 문서영역 — 에피소드 창에서 글을 쓰는 곳(글 상자만 뜻함)
 ─────────────────────────────────────────────
-· 글 상자: MainForm 안의 mainEditor(편집용 글 상자, 페이지 모드는 PageLockTextBox — Scripts/Novel/PageLockTextBox.cs).
-· 둘레: 글 상자를 둘러싼 서식줄(MainForm.LookBar), 상태 줄(MainForm.StatusBar), 떠 있는 위젯(글자 수, 시계, 특수문자, 맞춤법 — MainForm.Clock/Special/Spell/Writer).
-· 아직 정하지 않은 것: 문서영역이 "글 상자만"인지, "글 상자와 그 둘레 전체"인지, 또는 "문서 칸(DocPane) 전체"인지 — 말씀해 주시면 표를 고쳐요.
+· 글 상자: MainForm 안의 mainEditor  (Scripts/Reader/MainForm.cs:17, 만드는 곳 :167).
+· 종류: PageLockTextBox  (Scripts/Novel/PageLockTextBox.cs:10, RichTextBox) — 스크롤 방식과 페이지 방식(한 번에 일부만 담는 방식)을 둘 다 이 글 상자가 맡아요.
+· 문서영역이 아닌 것: 글 상자를 둘러싼 서식줄(MainForm.LookBar), 상태 줄(MainForm.StatusBar), 글 상자 위에 떠 있는 위젯(글자 수, 시계, 특수문자, 맞춤법), 문서 칸 머리. 이것들은 에피소드 창 안에 있지만 문서영역은 아니에요.
+· 위키 창의 본문 칸은 위키 창 안의 글 칸이라서(WikiPage), 문서영역이라 부르지 않아요. 에피소드 창에서만 써요.
 
 ─────────────────────────────────────────────
 5. 사이드 바 — 문서영역 왼쪽의 막대
@@ -53,7 +54,7 @@
 · 화면: WikiPage  (Scripts/Novel/WikiPage.cs:17)  — 위키 문서 하나. 위에 경로(작품 › 대분류 › 문서 이름), 속성 칸, 본문. 저장은 Wiki.cs(WikiStore).
 · 담는 칸: DocPane의 wiki 필드(NovelWorkspace.cs:1281쯤). 경로의 대분류를 누르면 DocPane.OpenGroup("category", 키)를 불러요(:1289).
 · 위키 문서를 만드는 창: WikiCreateDialog  (Scripts/Novel/WikiCreateDialog.cs:3).
-· 비교: 소설 메인 창 안의 [위키] 탭(WikiSimpleView, WikiMindMapView)은 위키 문서 "목록 보기"예요. 위키 창(문서 하나를 쓰는 창)과는 달라요.
+· 비교: 소설 메인 창 안의 [위키] 탭(WikiSimpleView 간단히 보기, WikiMindMapView 마인드맵 보기)은 위키 문서 "목록 보기"라서 위키 창이 아니에요. 소설 메인 창의 한 탭일 뿐이고, 위키 창(WikiPage, 문서 하나를 쓰는 창)은 거기서 문서를 눌러야 열려요(확인함).
 
 ─────────────────────────────────────────────
 8. 대분류창, 분류창 — 위키 창에서 대분류 / 분류를 눌러 나오는 창
@@ -66,11 +67,11 @@
 ─────────────────────────────────────────────
 이름이 아직 없는 것 (정하고 싶으시면 알려 주세요)
 ─────────────────────────────────────────────
-· 문서 칸(DocPane): 문서영역 안의 칸 하나. 왼쪽 칸 / 옆(오른쪽) 칸으로 나눠 열 수 있어요(Ctrl+누르면 옆 칸).
+· 문서 칸(DocPane): 소설 메인 창 아래쪽(사이드 창 오른쪽)에서 문서를 담는 칸 하나. 왼쪽 칸 / 옆(오른쪽) 칸으로 나눠 열 수 있어요(Ctrl+누르면 옆 칸).
 · 칸 머리(MainHeaderBar, NovelWorkspace.cs:1584): 문서 칸 위의 아이콘 · 이름 · ⋯ · × 줄.
 · 사전 창(DictionaryWindow): 따로 떠 있는 작은 창(국어사전 · 한영 · 영한 · 단어장).
-· 위젯(글자 수, 시계, 특수문자, 맞춤법, 뽀모도로): 문서영역 위에 떠 있는 작은 카드들.
+· 위젯(글자 수, 시계, 특수문자, 맞춤법, 뽀모도로): 에피소드 창 안에서 글 상자 위에 떠 있는 작은 카드들.
 · 참고 자료 창(PipForm, Scripts/Reader/PipForm.cs:7): 다른 창 위에 늘 떠 있는 작은 창.
 · 설정 창(SettingsForm, Scripts/Window/SettingsForm.cs:13).
 · 플롯 캔버스(PlotCanvasPage, Scripts/Novel/PlotCanvas.cs:1297, 에피소드 그룹의 캔버스) — 문서 칸에 열려요.
-· 서식줄(MainForm.LookBar) · 읽기줄 · 참고자료 줄: 문서영역 위의 줄들.
+· 서식줄(MainForm.LookBar) · 읽기줄 · 참고자료 줄: 에피소드 창에서 글 상자(문서영역) 위에 있는 줄들.
