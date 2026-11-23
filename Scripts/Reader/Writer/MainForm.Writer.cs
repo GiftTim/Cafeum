@@ -443,7 +443,8 @@ public partial class MainForm
             titleRect = new Rectangle(x, y - titleFont.Height - S(10), w, titleFont.Height + S(4));
             hits.Add((titleRect, "title"));
             if (titleEditing) titleEditor.SetBounds(x, titleRect.Y + S(2), w, titleFont.Height);
-            tagEditor.Visible = false;
+            // 태그를 치는 중이면 입력칸을 숨기지 않는다(그리기마다 배치를 다시 하는데, 포커스가 있는 칸을 숨기면 포커스가 빠져 입력이 바로 끝났다)
+            if (!tagEditing) tagEditor.Visible = false;
             if (expanded)
             {
                 int rowH = S(40), btnH = S(28), valueDx = S(110);
@@ -499,6 +500,7 @@ public partial class MainForm
             toggleRect = new Rectangle(x, y, Math.Min(Math.Max(w, S(120)), S(220)), S(32));
             hits.Add((toggleRect, "toggle"));
             y += S(32);
+            if (tagEditing && !cells.Any(cl => cl.Key == "tags")) { tagEditing = false; tagEditor.Visible = false; } // 태그 칸이 사라졌으면(접기 · 속성 빼기) 입력도 끝낸다
             return y + S(16);
         }
 
