@@ -150,6 +150,7 @@ public sealed class AppSettings
     /// <summary>맞춤법 검사기 위젯을 마지막으로 놓은 자리(위와 같은 기준).</summary>
     public bool NameKorean { get; set; }
     public bool NameKSurname { get; set; } = true;
+    public string NameKGender { get; set; } = "";
     public string NameKStart { get; set; } = "";
     public int NameMin { get; set; } = 4;
     public int NameMax { get; set; } = 8;

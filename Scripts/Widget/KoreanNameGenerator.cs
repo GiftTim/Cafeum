@@ -25,13 +25,16 @@ internal static class KoreanNameGenerator
         return pool[lo];
     }
 
-    public static List<string> Make(bool withSurname, string start, int count, Random? rng = null)
+    /// <summary>gender: "" 전체(B열) · "남" · "여"(C~F열의 인원 비례. 그 열이 비어 있으면 B열).</summary>
+    public static List<string> Make(bool withSurname, string gender, string start, int count, Random? rng = null)
     {
         rng ??= Random.Shared;
         NameDb.EnsureLoaded();
         char cho = (start ?? "").Length == 1 ? start![0] : '\0';
         var result = new List<string>();
         if (NameDb.Names.Length == 0) return result;
+        var (pool, cum) = gender switch { "남" => NameDb.Male, "여" => NameDb.Female, _ => (NameDb.Names, Array.Empty<double>()) };
+        if (pool.Length == 0) { pool = NameDb.Names; cum = Array.Empty<double>(); }
 
         // 성: 순위가 앞일수록 가중치가 크다(1/순위). 시작 초성을 골랐으면 그 초성의 성만.
         string[] surPool = Array.Empty<string>(); double[] surCum = Array.Empty<double>();
@@ -42,12 +45,12 @@ internal static class KoreanNameGenerator
             double run = 0; surCum = idx.Select(i => run += 1.0 / (i + 1)).ToArray();
             if (surPool.Length == 0) return result;
         }
-        else if (cho != '\0' && !NameDb.Names.Any(n => StartsWithCho(n, cho))) return result;
+        else if (cho != '\0' && !pool.Any(n => StartsWithCho(n, cho))) return result;
 
         var seen = new HashSet<string>();
         for (int attempt = 0; attempt < count * 200 && result.Count < count; attempt++)
         {
-            string given = NameDb.Names[rng.Next(NameDb.Names.Length)];
+            string given = cum.Length == 0 ? pool[rng.Next(pool.Length)] : PickSurname(rng, pool, cum); // 인원 비례(누계로 고른다)
             string name;
             if (surPool.Length > 0) name = PickSurname(rng, surPool, surCum) + given;
             else { if (cho != '\0' && !StartsWithCho(given, cho)) continue; name = given; }

@@ -23,6 +23,8 @@ internal sealed class NameWidget : Control
     public bool Korean;
     /// <summary>한국어 이름에 성을 붙일까.</summary>
     public bool KSurname = true;
+    /// <summary>한국어 이름의 성별: "" 전체 · "남" · "여".</summary>
+    public string KGender = "";
 
     public event Action<string>? NameChosen;
     /// <summary>조건(글자 수 · 시작 글자 · 개수)을 바꿨다 — 설정에 적는다.</summary>
@@ -54,7 +56,7 @@ internal sealed class NameWidget : Control
     /// <summary>지금 모양(펼침 · 접힘)에서 위젯이 차지할 크기.</summary>
     public Size DesiredSize()
     {
-        int w = S(380);
+        int w = S(420);
         if (!expanded) return new Size(w, HeaderH);
         int rows = Math.Min(VisibleRows, items.Count);
         int h = HeaderH + S(6) + S(32) + S(10) + S(40) + S(14) + (rows > 0 ? rows * RowH + S(4) : S(28)) + S(12);
@@ -83,7 +85,7 @@ internal sealed class NameWidget : Control
     }
 
     private string[] ChipTexts => Korean
-        ? new[] { "한국어", KSurname ? "성 포함" : "이름만", KStart.Length == 0 ? "시작 없음" : $"시작 {KStart}", $"개수 {Count}", "자료" }
+        ? new[] { "한국어", KGender == "남" ? "남자" : KGender == "여" ? "여자" : "성별 전체", KSurname ? "성 포함" : "이름만", KStart.Length == 0 ? "시작 없음" : $"시작 {KStart}", $"개수 {Count}", "자료" }
         : new[] { "영어", $"최소 {MinLen}", $"최대 {MaxLen}", Start.Length == 0 ? "시작 없음" : $"시작 {Start}", $"개수 {Count}" };
 
     private void Layout()
@@ -92,8 +94,9 @@ internal sealed class NameWidget : Control
         foldRect = new Rectangle(Width - Pad - bs, (HeaderH - bs) / 2, bs, bs);
         chipRects.Clear();
         if (!expanded) { makeRect = listRect = Rectangle.Empty; return; }
-        int y = HeaderH + S(6), gap = S(5), cw = (Width - Pad * 2 - gap * 4) / 5;
-        for (int i = 0; i < 5; i++) chipRects.Add(new Rectangle(Pad + i * (cw + gap), y, cw, S(32)));
+        int nChips = ChipTexts.Length;
+        int y = HeaderH + S(6), gap = S(5), cw = (Width - Pad * 2 - gap * (nChips - 1)) / nChips;
+        for (int i = 0; i < nChips; i++) chipRects.Add(new Rectangle(Pad + i * (cw + gap), y, cw, S(32)));
         y += S(32) + S(10);
         makeRect = new Rectangle(Pad, y, Width - Pad * 2, S(40));
         y += S(40) + S(14);
@@ -112,7 +115,7 @@ internal sealed class NameWidget : Control
     public void Generate()
     {
         SetNames(Korean
-            ? KoreanNameGenerator.Make(KSurname, KStart, Count).Select(n => (n, "")).ToList()
+            ? KoreanNameGenerator.Make(KSurname, KGender, KStart, Count).Select(n => (n, "")).ToList()
             : NameGenerator.Make(MinLen, MaxLen, Start, Count));
         ExpandedChanged?.Invoke(); // 목록 줄 수에 맞춰 크기를 다시 잡는다
     }
@@ -131,13 +134,21 @@ internal sealed class NameWidget : Control
         }
         else if (Korean && chip == 1)
         {
+            foreach (var (label, g) in new[] { ("성별 전체", ""), ("남자 이름", "남"), ("여자 이름", "여") })
+            {
+                string val = g;
+                m.Items.Add(new ToolStripMenuItem(label, null, (_, _) => BeginInvoke(() => { KGender = val; OptionsChanged?.Invoke(); Invalidate(); })) { Checked = KGender == val });
+            }
+        }
+        else if (Korean && chip == 2)
+        {
             foreach (bool sur in new[] { true, false })
             {
                 bool v = sur;
                 m.Items.Add(new ToolStripMenuItem(v ? "성 포함 (많이 쓰는 성이 더 자주)" : "이름만", null, (_, _) => BeginInvoke(() => { KSurname = v; OptionsChanged?.Invoke(); Invalidate(); })) { Checked = KSurname == v });
             }
         }
-        else if (Korean && chip == 2)
+        else if (Korean && chip == 3)
         {
             m.Items.Add(new ToolStripMenuItem("없음", null, (_, _) => BeginInvoke(() => { KStart = ""; OptionsChanged?.Invoke(); Invalidate(); })) { Checked = KStart.Length == 0 });
             foreach (string c in KoreanNameGenerator.Starts)
@@ -146,7 +157,7 @@ internal sealed class NameWidget : Control
                 m.Items.Add(new ToolStripMenuItem(s, null, (_, _) => BeginInvoke(() => { KStart = s; OptionsChanged?.Invoke(); Invalidate(); })) { Checked = KStart == s });
             }
         }
-        else if (Korean && chip == 4)
+        else if (Korean && chip == 5)
         {
             NameDb.EnsureLoaded();
             m.Items.Add(new ToolStripMenuItem($"지금 쓰는 자료: {(NameDb.Source == NameDb.UserPath ? "내 엑셀 파일" : "기본 자료")} (성 {NameDb.Surnames.Length:N0}개 · 이름 {NameDb.Names.Length:N0}줄)") { Enabled = false });

@@ -16,7 +16,7 @@ internal sealed class NameWidgetController
     {
         this.host = host;
         var s = host.Settings;
-        widget = new NameWidget { Visible = false, MinLen = s.NameMin, MaxLen = s.NameMax, Start = s.NameStart, Count = s.NameCount, Korean = s.NameKorean, KSurname = s.NameKSurname, KStart = s.NameKStart };
+        widget = new NameWidget { Visible = false, MinLen = s.NameMin, MaxLen = s.NameMax, Start = s.NameStart, Count = s.NameCount, Korean = s.NameKorean, KSurname = s.NameKSurname, KGender = s.NameKGender, KStart = s.NameKStart };
         host.EditorHost.Controls.Add(widget);
         placer = new FloatingWidgetPlacer(host, widget, widget.DesiredSize, widget.SetColors,
             () => (host.Settings.NameRightGap, host.Settings.NameTop),
@@ -26,7 +26,7 @@ internal sealed class NameWidgetController
         widget.OptionsChanged += () =>
         {
             s.NameMin = widget.MinLen; s.NameMax = widget.MaxLen; s.NameStart = widget.Start; s.NameCount = widget.Count;
-            s.NameKorean = widget.Korean; s.NameKSurname = widget.KSurname; s.NameKStart = widget.KStart;
+            s.NameKorean = widget.Korean; s.NameKSurname = widget.KSurname; s.NameKGender = widget.KGender; s.NameKStart = widget.KStart;
             s.Save();
         };
         widget.Moved += placer.SavePos;
