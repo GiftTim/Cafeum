@@ -1,4 +1,4 @@
-MainForm.Features.cs (575줄, MainForm의 일부)
+MainForm.Features.cs (585줄, MainForm의 일부)
 
 읽기 화면의 부가 기능을 모아 둔 파일이에요. (읽던 자리 기억 · PDF · 낭독 구간은 Viewer 폴더의 MainForm.Resume · Pdf · Tts로 옮겼어요.)
 메뉴(최근 파일, 테마, PDF 야간 모드, 자동 재생, 낭독 속도·목소리), 테마와 여백 적용, 설정이 바뀌었을 때의 반영(OnSettingsChanged), 읽던 자리 기억, 파일 끌어놓기, 우클릭 메뉴와 웹 검색, 안내 글(토스트), PDF 열기, 몰입 모드(전체 화면), 단축키, 낭독(TTS)이 들어 있어요.
@@ -23,26 +23,26 @@ epub 안에서 낭독을 돕는 스크립트(EpubTtsScript)와 윈도우 시스�
 243	구분 주석(테마·여백·설정 반영)
 245~280	ApplyTheme: 지금 테마의 색을 화면 전체에 칠하기
 282~291	ApplyMargins: 위아래 여백과 좌우 여백 적용
-293~307	ApplySideMargin: 글 칸의 좌우 여백(용지가 있으면 용지 폭에 맞춤)
-309~316	TryGetTxtForPreview: 설정창의 챕터 나누기 미리보기에 지금 보는 txt의 전체 글 주기
-318~383	OnSettingsChanged: 설정이 바뀌었을 때 종류(SettingKind)에 맞게 화면·엔진에 바로 반영
-385~388	SyncTtsMenu: 낭독 속도 메뉴 체크 맞추기
-390~400	ReflowAfterLookChange: 글꼴·여백이 바뀌면 쪽을 다시 재기
-402~413	ApplyEpubLook: epub에 글자 크기·테마 다시 적용
-415~419	RunEpubScript: epub 웹 화면에서 스크립트 실행
-422	구분 주석(볼트·끌어놓기·설정/도움말 창)
-424~429	ShowLibrary: 홈 화면으로 돌아가 달라고 알리기(Ctrl+L)
-431	ShowSettings: 설정창 열기
-433~439	ShowHelp: 도움말 창
-441~444	OnFileDragEnter: 파일을 끌어 오면 복사 모양 커서
-446~460	OnFileDrop: 끌어다 놓은 파일은 열고, 폴더는 볼트로 열기
-462	구분 주석(우클릭 메뉴·웹 검색)
-464~500	BuildEditorContextMenu: 편집기 우클릭 메뉴(여기서부터 낭독, 복사, 네이버·구글 검색, 편집 항목)
-502~509	WebSearch: 고른 글(최대 200자)을 검색 주소에 넣어 기본 브라우저로 열기
-511~543	OnEpubContextMenuRequested: epub 웹 화면의 우클릭 메뉴
-545	구분 주석(토스트)
-547~552	ShowToast: 화면 아래쪽에 잠깐 뜨는 안내 글
-555	구분 주석(Win32)
-557~562	윈도우 메시지·창 스타일 상수
-564~574	SendMessage, GetWindowLongPtr, SetWindowLongPtr, SetWindowPos 불러오기
-575	MainForm 끝
+293~317	ApplySideMargin: 글 칸의 좌우 여백(용지가 있으면 용지 폭에 맞춤)
+319~326	TryGetTxtForPreview: 설정창의 챕터 나누기 미리보기에 지금 보는 txt의 전체 글 주기
+328~393	OnSettingsChanged: 설정이 바뀌었을 때 종류(SettingKind)에 맞게 화면·엔진에 바로 반영
+395~398	SyncTtsMenu: 낭독 속도 메뉴 체크 맞추기
+400~410	ReflowAfterLookChange: 글꼴·여백이 바뀌면 쪽을 다시 재기
+412~423	ApplyEpubLook: epub에 글자 크기·테마 다시 적용
+425~429	RunEpubScript: epub 웹 화면에서 스크립트 실행
+432	구분 주석(볼트·끌어놓기·설정/도움말 창)
+434~439	ShowLibrary: 홈 화면으로 돌아가 달라고 알리기(Ctrl+L)
+441	ShowSettings: 설정창 열기
+443~449	ShowHelp: 도움말 창
+451~454	OnFileDragEnter: 파일을 끌어 오면 복사 모양 커서
+456~470	OnFileDrop: 끌어다 놓은 파일은 열고, 폴더는 볼트로 열기
+472	구분 주석(우클릭 메뉴·웹 검색)
+474~510	BuildEditorContextMenu: 편집기 우클릭 메뉴(여기서부터 낭독, 복사, 네이버·구글 검색, 편집 항목)
+512~519	WebSearch: 고른 글(최대 200자)을 검색 주소에 넣어 기본 브라우저로 열기
+521~553	OnEpubContextMenuRequested: epub 웹 화면의 우클릭 메뉴
+555	구분 주석(토스트)
+557~562	ShowToast: 화면 아래쪽에 잠깐 뜨는 안내 글
+565	구분 주석(Win32)
+567~572	윈도우 메시지·창 스타일 상수
+574~584	SendMessage, GetWindowLongPtr, SetWindowLongPtr, SetWindowPos 불러오기
+585	MainForm 끝

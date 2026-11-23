@@ -294,13 +294,23 @@ public partial class MainForm
     {
         if (!mainEditor.IsHandleCreated) return;
         int m = Math.Clamp(settings.SideMargin, 0, 300);
+        int mr = -1;
         if (EffPaper is { } paper)
         {
-            // 용지 칸 폭만큼만 글이 놓이게, 남는 폭을 좌우 여백으로 나눈다. 칸이 용지보다 좁아도(칸을 나눠 연 경우 등) 글이 칸 가장자리에 붙지 않게 최소 여백을 둔다.
+            // 용지 칸 폭만큼만 글이 놓이게, 남는 폭을 좌우 여백으로 나눈다.
             int usable = MmToPx(paper.ContentWidth) * ViewZoom / 100;
-            m = Math.Clamp((mainEditor.ClientSize.Width - usable) / 2, LogicalToDeviceUnits(24), 2000);
+            int width = mainEditor.ClientSize.Width;
+            if (width >= usable) m = Math.Clamp((width - usable) / 2, 0, 2000);
+            else
+            {
+                // 칸이 용지보다 좁으면(칸을 나눠 연 경우 등) 한글처럼 용지의 실제 왼쪽 · 오른쪽 여백을 그대로 둔다(글은 남는 폭에서 줄이 바뀐다).
+                // 다만 여백이 칸의 3분의 1을 넘지 않게 한다.
+                int left = MmToPx(paper.Left + paper.Gutter) * ViewZoom / 100, right = MmToPx(paper.Right) * ViewZoom / 100;
+                int cap = width / 6;
+                m = Math.Clamp(left, LogicalToDeviceUnits(24), Math.Max(LogicalToDeviceUnits(24), cap * 2));
+                mr = Math.Clamp(right, LogicalToDeviceUnits(24), Math.Max(LogicalToDeviceUnits(24), cap));
+            }
         }
-        int mr = -1;
         if (EffPaper == null && WriterLayout) (m, mr) = WriterMargins(m); // 회차 글쓰기: 글을 창 가운데 일정한 폭의 칸에
         mainEditor.SetSideMargins(m, mr);
         SyncWriterTitle(m, mr);
