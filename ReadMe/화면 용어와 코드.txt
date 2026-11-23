@@ -43,26 +43,26 @@
 ─────────────────────────────────────────────
 사이드 바 옆, 문서영역 왼쪽에 뜨는 칸(treeFrame, NovelWorkspace.cs:169)이에요. 아이콘에 따라 안이 바뀌어요.
 · 파일 트리: EpisodePanel  (Scripts/Novel/EpisodePanel.cs:13)  — 작품 카드, 에피소드, 위키 문서. (NovelTreeView :753)
-· 메모 목록: StickyListPanel  (Scripts/Schedule/StickyNote.cs:1032)  — 사이드바 [메모]가 파일 트리 자리에 대신 떠요.
-· 위젯 모음: WidgetPanel  (Scripts/Novel/WidgetPanel.cs:10)  — 사이드바 [위젯]이 파일 트리 자리에 대신 떠요.
+· 메모 목록: StickyListPanel  (Scripts/Widget/StickyNote.cs:1032)  — 사이드바 [메모]가 파일 트리 자리에 대신 떠요.
+· 위젯 모음: WidgetPanel  (Scripts/Widget/WidgetPanel.cs:10)  — 사이드바 [위젯]이 파일 트리 자리에 대신 떠요.
 · 볼트 파일: VaultSidebar  (Scripts/Window/VaultSidebar.cs:12)  — 사이드바 [볼트 파일]. 메인 창의 왼쪽 옆 막대와 같은 부품이에요.
-· 사전: DictionaryWindow  (Scripts/Novel/DictionaryWindow.cs:15)  — 따로 떠 있는 작은 창이라 사이드 창과는 달라요(아래 "이름이 아직 없는 것" 참고).
+· 사전: DictionaryWindow  (Scripts/Widget/DictionaryWindow.cs:15)  — 따로 떠 있는 작은 창이라 사이드 창과는 달라요(아래 "이름이 아직 없는 것" 참고).
 
 ─────────────────────────────────────────────
 7. 위키 창 — 위키를 쓸 수 있는 창
 ─────────────────────────────────────────────
-· 화면: WikiPage  (Scripts/Novel/WikiPage.cs:17)  — 위키 문서 하나. 위에 경로(작품 › 대분류 › 문서 이름), 속성 칸, 본문. 저장은 Wiki.cs(WikiStore).
+· 화면: WikiPage  (Scripts/Wiki/WikiPage.cs:17)  — 위키 문서 하나. 위에 경로(작품 › 대분류 › 문서 이름), 속성 칸, 본문. 저장은 Wiki.cs(WikiStore).
 · 담는 칸: DocPane의 wiki 필드(NovelWorkspace.cs:1281쯤). 경로의 대분류를 누르면 DocPane.OpenGroup("category", 키)를 불러요(:1289).
-· 위키 문서를 만드는 창: WikiCreateDialog  (Scripts/Novel/WikiCreateDialog.cs:3).
+· 위키 문서를 만드는 창: WikiCreateDialog  (Scripts/Wiki/WikiCreateDialog.cs:3).
 · 비교: 소설 메인 창 안의 [위키] 탭(WikiSimpleView 간단히 보기, WikiMindMapView 마인드맵 보기)은 위키 문서 "목록 보기"라서 위키 창이 아니에요. 소설 메인 창의 한 탭일 뿐이고, 위키 창(WikiPage, 문서 하나를 쓰는 창)은 거기서 문서를 눌러야 열려요(확인함).
 
 ─────────────────────────────────────────────
 8. 대분류창, 분류창 — 위키 창에서 대분류 / 분류를 눌러 나오는 창
 ─────────────────────────────────────────────
-· 화면: WikiGroupPage  (Scripts/Novel/WikiGroupPage.cs:10)  — 대분류와 분류를 같은 클래스가 보여 줘요. kind가 "category"면 대분류창, "class"면 분류창.
+· 화면: WikiGroupPage  (Scripts/Wiki/WikiGroupPage.cs:10)  — 대분류와 분류를 같은 클래스가 보여 줘요. kind가 "category"면 대분류창, "class"면 분류창.
 · 담는 칸: DocPane의 group 필드(NovelWorkspace.cs:1100). 열기: DocPane.OpenGroup(kind, key)(:1199). [<]로 뒤로 가려고 거쳐 온 쪽을 groupBack에 모아 둬요.
 · 열리는 길: 위키 창의 경로에서 대분류 누르기, 마인드맵에서 점 두 번 누르기, 파일 트리의 분류 줄 [분류 문서 열기], 그리고 대분류창 · 분류창 안에서 다른 분류 누르기.
-· 분류를 만드는 창: WikiClassDialog  (Scripts/Novel/WikiClassDialog.cs:3).
+· 분류를 만드는 창: WikiClassDialog  (Scripts/Wiki/WikiClassDialog.cs:3).
 
 ─────────────────────────────────────────────
 이름이 아직 없는 것 (정하고 싶으시면 알려 주세요)
