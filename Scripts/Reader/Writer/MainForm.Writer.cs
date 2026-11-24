@@ -559,6 +559,9 @@ public partial class MainForm
 
         private void Fit()
         {
+            // 값을 고르는 창(모달)이 떠 있는 동안 이 머리가 사라졌다면, 놓아 버린 글꼴로 크기를 재다 "Parameter is not valid"가 난다.
+            // 값은 그 전에 이미 저장됐으니(Change가 PropsChanged를 먼저 부른다) 화면만 건너뛴다.
+            if (IsDisposed || Disposing) return;
             int h = LayoutAll();
             if (Height != h) Height = h;
         }

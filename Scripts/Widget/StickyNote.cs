@@ -531,7 +531,7 @@ internal sealed class StickyNoteWindow : Form
         header.Dock = DockStyle.Top; header.Height = S(36);
         tools.Dock = DockStyle.Bottom; tools.Height = S(40);
         title = new TextBox { BorderStyle = BorderStyle.None, Dock = DockStyle.Top, Font = new Font(NovelStore.UiFontFamily, 13f, FontStyle.Bold), PlaceholderText = "제목을 작성하세요." };
-        titleGap.Dock = DockStyle.Top; titleGap.Height = S(6);
+        titleGap.Dock = DockStyle.Top; titleGap.Height = S(12); // 제목과 본문 사이 틈
         body = new PageLockTextBox { BorderStyle = BorderStyle.None, Dock = DockStyle.Fill, Font = new Font(NovelStore.UiFontFamily, 11.5f), ScrollBars = ScrollBars.Vertical };
         host.Dock = DockStyle.Fill;
         host.Padding = new Padding(S(14), S(6), S(7), S(4));
