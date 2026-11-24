@@ -503,6 +503,17 @@ internal sealed class NovelWorkspace : Panel
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add("글자 수 세기 설정…", null, (_, _) => BeginInvoke(() => focused.OpenCountSettings()));
         }
+        if (key == "typewriter")
+        {
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("타입라이터 설정…", null, (_, _) => BeginInvoke(() =>
+            {
+                using var dlg = new TypewriterSettingsDialog(s.TypewriterDim);
+                if (dlg.ShowDialogOver(FindForm()) != DialogResult.OK) return;
+                s.TypewriterDim = dlg.Dim; s.Save();
+                left.ApplyWriterOptions(); right.ApplyWriterOptions(); // 열려 있는 글 칸들에 바로 반영
+            }));
+        }
         m.Closed += (_, _) => BeginInvoke(m.Dispose);
         m.Show(Cursor.Position);
     }
