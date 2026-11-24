@@ -38,7 +38,7 @@ internal sealed class PipForm : Form
             Size = new Size(w, h);
             Location = new Point(Math.Max(wa.Left, wa.Right - Width - 24), Math.Max(wa.Top, wa.Bottom - Height - 24));
         };
-        FormClosing += (_, _) => doc.Close(); // 읽던 자리를 저장하고 닫는다
+        FormClosing += (_, _) => doc.NotifyClosingInPip(); // 읽던 자리를 저장하고 정리한다(doc.Close()는 볼트 창을 숨겨 버려서 쓰지 않는다)
     }
 
     /// <summary>안쪽 문서의 제목("파일 이름 — Cafeum")에서 뒤의 앱 이름을 떼고 "— PIP"를 붙여 창 제목으로 삼는다.</summary>

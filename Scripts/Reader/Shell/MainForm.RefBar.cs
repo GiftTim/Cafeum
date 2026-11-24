@@ -49,6 +49,21 @@ public partial class MainForm
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     internal bool InPip { get; set; }
 
+    private bool pipCloseNotified;
+
+    /// <summary>
+    /// PIP 창이 닫힐 때 부른다: 읽던 자리 · 고친 글 저장과 타이머 · 임시 파일 정리처럼 닫기 알림(FormClosing · FormClosed)에 달린 일을 그대로 시키되,
+    /// 창 닫기 메시지(Close)는 보내지 않는다. 이 화면은 PIP 창 안에 끼워 넣은 것(TopLevel = false)이라 Close()를 부르면
+    /// 볼트 창이 보이지 않게 숨겨져 버려서, 창이 하나도 안 보이는데 프로그램이 끝나지 않았다. 화면 자체는 PIP 창이 사라질 때 함께 놓인다.
+    /// </summary>
+    internal void NotifyClosingInPip()
+    {
+        if (pipCloseNotified) return;
+        pipCloseNotified = true;
+        OnFormClosing(new FormClosingEventArgs(CloseReason.FormOwnerClosing, false));
+        OnFormClosed(new FormClosedEventArgs(CloseReason.FormOwnerClosing));
+    }
+
     private ToolStripMenuItem? refAdd, refPaper, refReadMode, refLock, refPip, refOrder;
     private Color orderIconColor;
     private Color pipIconColor;
