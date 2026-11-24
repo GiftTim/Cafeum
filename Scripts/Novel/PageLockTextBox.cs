@@ -318,19 +318,21 @@ internal sealed class PageLockTextBox : RichTextBox
     }
 
     /// <summary>한 줄이 차지하는 높이(줄 간격 포함). 줄 간격을 170% 같이 넓게 주면 한 줄 칸이 글자 크기보다 훨씬 커서, 이웃한 두 줄의 위치 차이로 잰다
-    /// (앞 줄 · 뒷 줄 중 작은 값 — 문단 사이 간격이 낀 쪽은 더 크게 나온다). 이웃이 없으면(글이 한 줄뿐) 글자 크기의 약 1.7배.</summary>
+    /// (앞 줄 · 뒷 줄 중 작은 값 — 문단 사이 간격이 낀 쪽은 더 크게 나온다). 앞 줄이 빈 줄이면 그 간격은 쓰지 않는다
+    /// (빈 줄은 글꼴이 달라 높이가 얇은 경우가 있어서, 그 간격을 이 줄의 높이로 삼으면 띠가 짧아진다). 이웃이 없으면(글이 한 줄뿐) 글자 크기의 약 1.7배.</summary>
     private int LinePitch(int sel, Point pt)
     {
         int best = int.MaxValue;
         try
         {
             int line = GetLineFromCharIndex(sel);
+            int cur = GetFirstCharIndexFromLine(line);
             int next = GetFirstCharIndexFromLine(line + 1);
             if (next > 0 && next <= TextLength) { int d = GetPositionFromCharIndex(next).Y - pt.Y; if (d > 0) best = Math.Min(best, d); }
             if (line > 0)
             {
                 int prev = GetFirstCharIndexFromLine(line - 1);
-                if (prev >= 0) { int d = pt.Y - GetPositionFromCharIndex(prev).Y; if (d > 0) best = Math.Min(best, d); }
+                if (prev >= 0 && cur - prev > 1) { int d = pt.Y - GetPositionFromCharIndex(prev).Y; if (d > 0) best = Math.Min(best, d); } // 앞 줄이 빈 줄(글자 없이 줄바꿈 하나)이면 건너뛴다
             }
         }
         catch { }
