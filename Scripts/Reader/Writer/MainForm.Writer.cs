@@ -61,6 +61,7 @@ public partial class MainForm
     /// <summary>사이드바 [타입라이터] · [빠른 따옴표]의 켜짐 상태를 글 상자에 반영한다.</summary>
     internal void ApplyWriterOptions()
     {
+        mainEditor.TypewriterDim = AppShared.Settings.TypewriterDim;
         mainEditor.TypewriterMode = AppShared.Settings.Typewriter;
         mainEditor.QuickQuotes = AppShared.Settings.QuickQuotes;
         tall?.Relayout();
@@ -395,6 +396,7 @@ public partial class MainForm
                 else if (e.KeyCode == Keys.Escape) { e.SuppressKeyPress = true; EndTagEdit(); }
             };
             tagEditor.LostFocus += (_, _) => { if (tagEditing) EndTagEdit(); };
+            tagEditor.TextChanged += (_, _) => { if (tagEditing) { Fit(); Invalidate(); } }; // 치는 글자에 맞춰 입력 칸 폭이 늘어난다
             Controls.Add(tagEditor);
             titleEditor = new TextBox { BorderStyle = BorderStyle.None, Visible = false, Font = titleFont };
             titleEditor.KeyDown += (_, e) =>
@@ -531,11 +533,15 @@ public partial class MainForm
                 }
                 cell.PlusText = key == "tags" ? "새 태그 추가" : "등장한 캐릭터 · 설정";
                 bool editingHere = key == "tags" && tagEditing;
-                int pw = editingHere ? S(130) : TextWidth(cell.PlusText, chipFont) + S(36);
+                // 입력 중인 칸은 칩과 같은 식(글자 폭 + 32)으로 폭을 정한다. 치는 대로 늘어나서, 엔터를 쳐서 만들어진 태그와 길이가 같다(비었을 땐 안내 글 폭).
+                int pw = editingHere
+                    ? Math.Min(TextWidth(tagEditor.Text.Length > 0 ? tagEditor.Text : tagEditor.PlaceholderText, chipFont) + S(32), Math.Max(S(60), right - x))
+                    : TextWidth(cell.PlusText, chipFont) + S(36);
                 cell.PlusRect = new Rectangle(x, cy, pw, chipH);
                 if (editingHere)
                 {
-                    tagEditor.SetBounds(cell.PlusRect.X + S(8), cell.PlusRect.Y + (chipH - tagEditor.Height) / 2, cell.PlusRect.Width - S(16), tagEditor.Height);
+                    // 칩의 글자 자리(왼쪽 8, 오른쪽 x 버튼 자리)와 같게 두되, 오른쪽을 조금 남겨 커서가 들어갈 틈을 준다
+                    tagEditor.SetBounds(cell.PlusRect.X + S(8), cell.PlusRect.Y + (chipH - tagEditor.Height) / 2, Math.Max(S(20), cell.PlusRect.Width - S(26)), tagEditor.Height);
                     tagEditor.Visible = true;
                 }
                 else hits.Add((cell.PlusRect, key + ":add"));

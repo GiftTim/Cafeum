@@ -237,6 +237,10 @@ internal sealed class PageLockTextBox : RichTextBox
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool TypewriterMode { get => typewriter; set { if (typewriter == value) return; typewriter = value; TypewriterChanged(); } }
     private bool typewriter;
+    private bool twDim = true;
+    /// <summary>타입라이터에서 쓰는 문단 밖을 흐리게 할지(끄면 커서 줄 띠만 보인다). 바뀌면 다음 20ms 틱에 다시 그린다.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool TypewriterDim { get => twDim; set { if (twDim == value) return; twDim = value; twLast = null; } }
 
     // ── 타입라이터 하이라이트(커서 줄 띠 · 쓰는 문단 밖 흐리게) ──
     // 글 상자 위에 직접 덧칠하면 상자가 글자를 다시 칠할 때마다(칠 때 · 스크롤 · 한글 조합) 덧칠이 지워져 끊기므로,
@@ -300,6 +304,7 @@ internal sealed class PageLockTextBox : RichTextBox
         if (twLast is { } last && last.Equals(cur) && twOverlay is { IsDisposed: false, Visible: true }) return;
         twLast = cur;
         if (twOverlay == null || twOverlay.IsDisposed) twOverlay = new TypewriterOverlay();
+        twOverlay.Dim = twDim;
         twOverlay.Render(top!, vp, b, p, BackColor, ForeColor);
     }
 

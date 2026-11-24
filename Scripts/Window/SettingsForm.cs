@@ -240,6 +240,12 @@ public sealed class SettingsForm : Form
         imageLayoutBox.SelectedIndexChanged += (_, _) => Apply(() => settings.ImageDoublePage = imageLayoutBox.SelectedIndex == 1, SettingKind.ImageLayout);
         AddRow("만화 보기 방식", imageLayoutBox);
         AddHint("파일을 열 때 처음 쓰는 읽기 방식입니다.\n'페이지'는 화살표로, '페이지 터치'는 화면 왼쪽 · 오른쪽을 눌러 넘깁니다. txt는 메모장처럼 바로 쓰는 화면이라 스크롤만 됩니다.\n읽는 중에는 보기 > 읽기 방식에서 바꿀 수 있어요.");
+
+        AddHeading("타입라이터");
+        var twDim = new CheckBox { Text = "쓰는 문단 밖 화면 흐리게 하기", AutoSize = true, Checked = settings.TypewriterDim };
+        twDim.CheckedChanged += (_, _) => Apply(() => settings.TypewriterDim = twDim.Checked, SettingKind.Writer);
+        AddRow("", twDim);
+        AddHint("타입라이터(왼쪽 아이콘 막대)를 켰을 때 적용됩니다. 끄면 쓰는 줄의 띠만 남고 나머지 글은 흐려지지 않습니다.");
     }
 
     private void BuildChapterPage()

@@ -31,6 +31,9 @@ internal sealed class TypewriterOverlay : Form
     /// <summary>커서 줄 띠의 진하기(0~255).</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public int BandAlpha { get; set; } = 34;
+    /// <summary>쓰는 문단 밖을 흐리게 할지(끄면 커서 줄 띠만 그린다).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool Dim { get; set; } = true;
 
     public TypewriterOverlay()
     {
@@ -67,11 +70,15 @@ internal sealed class TypewriterOverlay : Form
         using var bmp = new Bitmap(vp.Width, vp.Height, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
-            g.Clear(Color.FromArgb(DimAlpha, back));
-            // 쓰는 문단은 뚫어서 아래 글이 그대로 보이게
-            g.CompositingMode = CompositingMode.SourceCopy;
-            var hole = Rectangle.Intersect(para, new Rectangle(0, 0, vp.Width, vp.Height));
-            if (hole.Width > 0 && hole.Height > 0) using (var clear = new SolidBrush(Color.Transparent)) g.FillRectangle(clear, hole);
+            if (Dim)
+            {
+                g.Clear(Color.FromArgb(DimAlpha, back));
+                // 쓰는 문단은 뚫어서 아래 글이 그대로 보이게
+                g.CompositingMode = CompositingMode.SourceCopy;
+                var hole = Rectangle.Intersect(para, new Rectangle(0, 0, vp.Width, vp.Height));
+                if (hole.Width > 0 && hole.Height > 0) using (var clear = new SolidBrush(Color.Transparent)) g.FillRectangle(clear, hole);
+            }
+            else g.Clear(Color.Transparent); // 흐림 없이 커서 줄 띠만
             // 커서 줄 띠
             g.CompositingMode = CompositingMode.SourceOver;
             g.SmoothingMode = SmoothingMode.AntiAlias;

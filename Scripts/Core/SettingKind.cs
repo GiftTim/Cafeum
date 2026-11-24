@@ -24,4 +24,5 @@ public enum SettingKind
     Edge,          // 폴더의 처음 · 마지막 파일에서의 동작(받아서 다시 그릴 곳은 없고, 필요할 때 설정값을 직접 읽는다)
     LibTheme,      // 볼트 화면 색
     LibFont,       // 볼트 폴더 트리 글자 크기
+    Writer,        // 글쓰기 도우미(타입라이터 흐림 등)
 }

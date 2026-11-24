@@ -333,6 +333,9 @@ public partial class MainForm
             case SettingKind.Theme:
                 ApplyTheme();
                 break;
+            case SettingKind.Writer:
+                ApplyWriterOptions(); // 타입라이터 흐림 등
+                break;
             case SettingKind.Toolbar:
                 ApplyToolbarVisibility();
                 ApplyLookBarShown();

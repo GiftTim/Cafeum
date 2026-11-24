@@ -168,6 +168,8 @@ public sealed class AppSettings
     // ── 집필 도우미(왼쪽 아이콘 막대의 [타입라이터] · [빠른 따옴표]에서 켜고 끈다) ──
     /// <summary>타입라이터: 글을 쓰고 있는 줄이 늘 화면 가운데에 오도록 부드럽게 스크롤한다.</summary>
     public bool Typewriter { get; set; }
+    /// <summary>타입라이터를 켰을 때 쓰는 문단 밖 화면을 흐리게 할지(끄면 커서 줄 띠만 남는다).</summary>
+    public bool TypewriterDim { get; set; } = true;
     /// <summary>빠른 따옴표: 따옴표를 치면 한 쌍이 만들어지고, 따옴표 앞에서 Enter를 치면 따옴표를 넘어 다음 줄로 간다.</summary>
     public bool QuickQuotes { get; set; }
 
