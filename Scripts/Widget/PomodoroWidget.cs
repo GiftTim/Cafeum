@@ -233,7 +233,7 @@ internal sealed class PomodoroWidget : Control
     {
         using (var tp = new Pen(track, stroke)) g.DrawEllipse(tp, r);
         double frac = Pomodoro.TotalMs > 0 ? Math.Clamp(Pomodoro.RemainingMs / Pomodoro.TotalMs, 0, 1) : 1;
-        if (frac <= 0.0001) return;
+        if (frac * 360 < 0.5) return; // 끝나기 직전의 아주 짧은 호: GDI+가 0.1° 안팎보다 짧은 호를 둥근 끝으로 그리면 Out of memory를 던진다(보이지도 않는다)
         using var ap = new Pen(accent, stroke) { StartCap = LineCap.Round, EndCap = LineCap.Round };
         bool right = Pomodoro.S.OverlayDrainDirection != "left";
         if (frac >= 0.9999) g.DrawEllipse(ap, r);
