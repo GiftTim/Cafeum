@@ -237,7 +237,7 @@ internal sealed class EpisodePanel : Panel
             Title = "참고 자료 넣기",
             Multiselect = true,
             Filter = "참고 자료 (소설 · 만화 · PDF · 이미지)|" + string.Join(";", NovelStore.ReferenceExtensions.Select(e => "*" + e)) +
-                     "|소설 (*.txt;*.epub;*.hwp;*.hwpx)|*.txt;*.epub;*.hwp;*.hwpx|만화 (*.zip;*.cbz)|*.zip;*.cbz|PDF (*.pdf)|*.pdf|이미지|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp",
+                     "|소설 (*.txt;*.md;*.epub;*.hwp;*.hwpx)|*.txt;*.md;*.markdown;*.epub;*.hwp;*.hwpx|만화 (*.zip;*.cbz)|*.zip;*.cbz|PDF (*.pdf)|*.pdf|이미지|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp",
         };
         if (dlg.ShowDialogOver(FindForm()) == DialogResult.OK) AddReferenceFiles(dlg.FileNames);
     }

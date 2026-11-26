@@ -10,7 +10,7 @@ namespace Cafeum;
 /// </summary>
 public partial class MainForm
 {
-    private static readonly string[] EdgeExtensions = { ".zip", ".txt", ".epub", ".hwp", ".hwpx" };
+    private static readonly string[] EdgeExtensions = { ".zip", ".txt", ".md", ".markdown", ".epub", ".hwp", ".hwpx" };
 
     /// <summary>forward가 true면 마지막 페이지에서 더 넘기려 한 것, false면 첫 페이지에서 더 되돌리려 한 것.</summary>
     private void HandleBookEdge(bool forward)

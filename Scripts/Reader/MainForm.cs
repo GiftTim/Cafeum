@@ -449,7 +449,7 @@ public partial class MainForm : Form
         };
 
         if (string.IsNullOrEmpty(initialPath) || !File.Exists(initialPath))
-            statusLabel.Text = "파일 > 열기로 .txt / .epub / .pdf 파일을 선택하세요.";
+            statusLabel.Text = "파일 > 열기로 .txt / .md / .epub / .pdf 파일을 선택하세요.";
     }
 
     /// <summary>확장자를 보고 txt/epub/pdf/zip(만화)/이미지 중 어느 쪽으로 열지 정한다(더블클릭, 명령줄 인자, 파일 열기 대화상자 공용).</summary>

@@ -570,7 +570,7 @@ internal static class NovelStore
 
     public const string ReferenceFolder = "참고 자료";
     /// <summary>참고 자료로 넣을 수 있는 파일(소설 · 만화 zip · pdf · 한글 문서 · 이미지).</summary>
-    public static readonly string[] ReferenceExtensions = { ".txt", ".epub", ".pdf", ".zip", ".cbz", ".hwp", ".hwpx", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
+    public static readonly string[] ReferenceExtensions = { ".txt", ".md", ".markdown", ".epub", ".pdf", ".zip", ".cbz", ".hwp", ".hwpx", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
 
     /// <summary>이 파일이 작품의 "참고 자료" 폴더 안에 있는가.</summary>
     public static bool IsReferencePath(string? path) =>

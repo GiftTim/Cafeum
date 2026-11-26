@@ -46,7 +46,11 @@ public sealed class BookRecord
 public sealed class LibraryStore
 {
     /// <summary>열 수 있는 책 파일 확장자(볼트 왼쪽 패널의 파일 목록도 이걸 따른다).</summary>
-    public static readonly string[] BookExtensions = { ".txt", ".epub", ".pdf", ".zip", ".hwp", ".hwpx" };
+    public static readonly string[] BookExtensions = { ".txt", ".md", ".markdown", ".epub", ".pdf", ".zip", ".hwp", ".hwpx" };
+
+    /// <summary>마크다운 글(.md · .markdown)인가: txt처럼 열리고, 읽기 화면에서는 제목 · 인용 · 코드 줄의 모양을 입힌다.</summary>
+    public static bool IsMarkdown(string? path) =>
+        Path.GetExtension(path ?? "").ToLowerInvariant() is ".md" or ".markdown";
 
     private sealed class Data
     {

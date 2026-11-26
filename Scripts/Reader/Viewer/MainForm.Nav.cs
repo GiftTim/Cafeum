@@ -21,7 +21,7 @@ public partial class MainForm
 
     private const int NavTxtScale = 1000; // txt는 글 위치를 1000칸으로 나눠 막대에 싣는다
 
-    private static readonly string[] NavFileExtensions = { ".txt", ".epub", ".pdf", ".zip", ".hwp", ".hwpx" };
+    private static readonly string[] NavFileExtensions = { ".txt", ".md", ".markdown", ".epub", ".pdf", ".zip", ".hwp", ".hwpx" };
 
     private void InitNavBar(ToolStripMenuItem viewMenu, int menuIndex)
     {

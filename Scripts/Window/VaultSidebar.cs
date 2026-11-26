@@ -11,8 +11,8 @@ namespace Cafeum;
 /// </summary>
 internal sealed class VaultSidebar : Panel
 {
-    /// <summary>트리에 보일 파일 형식. 읽을 수 있는 형식에 마크다운(.md)을 더한 것(.md는 txt처럼 열린다).</summary>
-    private static readonly HashSet<string> TreeExtensions = new(LibraryStore.BookExtensions.Append(".md"), StringComparer.OrdinalIgnoreCase);
+    /// <summary>트리에 보일 파일 형식. 읽을 수 있는 형식(마크다운 .md도 txt처럼 열린다).</summary>
+    private static readonly HashSet<string> TreeExtensions = new(LibraryStore.BookExtensions, StringComparer.OrdinalIgnoreCase);
 
     private sealed record Entry(string Path, bool IsDir);
 

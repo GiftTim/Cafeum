@@ -60,6 +60,7 @@ public sealed class TxtWebBook
         }
         if (parts.Count == 0) parts.Add((title, 0, text.Length)); // 빈 파일도 문서 하나는 있어야 화면이 뜬다
 
+        bool md = LibraryStore.IsMarkdown(sourcePath);
         var epubChapters = new List<EpubChapter>();
         var ranges = new List<(int, int)>();
         try
@@ -68,7 +69,7 @@ public sealed class TxtWebBook
             {
                 var (name, start, end) = parts[i];
                 string file = Path.Combine(dir, $"{i + 1:D4}.html");
-                File.WriteAllText(file, BuildHtml(text, start, end, name, autoBreak), new UTF8Encoding(false));
+                File.WriteAllText(file, BuildHtml(text, start, end, name, autoBreak, md), new UTF8Encoding(false));
                 epubChapters.Add(new EpubChapter(name, file));
                 ranges.Add((start, end));
             }
@@ -124,15 +125,27 @@ public sealed class TxtWebBook
         if (list.Count == 0) list.Add((start, end));
         return list;
     }
-    private static string BuildHtml(string text, int start, int end, string name, bool autoBreak)
+    private static string BuildHtml(string text, int start, int end, string name, bool autoBreak, bool md)
     {
         var sb = new StringBuilder((end - start) * 6 / 5 + 4096);
         sb.Append("<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>")
           .Append(WebUtility.HtmlEncode(name))
           .Append("</title><style>")
           .Append("html,body{margin:0}")
-          .Append("body.clr-txt p{margin:0;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}")
+          .Append("body.clr-txt p{margin:0;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}");
+        if (md) sb.Append(MarkdownCss);
+        sb
           .Append("</style><script>").Append(HelperScript).Append("</script></head><body class=\"clr-txt\">\n");
+
+        if (md)
+        {
+            // 마크다운: 블록(제목 · 문단 · 표 · 목록 …)마다 원본 위치를 달아 꾸민 HTML로. 읽던 자리 · 찾기는 블록 단위로 맞춘다.
+            foreach (var (off, html) in MarkdownRenderer.Render(text, start, end))
+                sb.Append("<div class=\"md\" data-o=\"").Append(off).Append("\">").Append(html).Append("</div>\n");
+            if (start >= end) sb.Append("<div class=\"md\" data-o=\"").Append(start).Append("\"><p><br></p></div>\n");
+            sb.Append("</body></html>");
+            return sb.ToString();
+        }
 
         int pos = start;
         while (pos < end)
@@ -166,9 +179,22 @@ public sealed class TxtWebBook
     /// - __clrTxtSel(start, len): 찾은 글자를 표시하고 보이게
     /// 페이지 방식의 __clrGoTo · __clrPageWidth는 epub용 다단 스크립트(EpubPaginateScript)가 나중에 심는다.
     /// </summary>
+    /// <summary>마크다운 보기 모양(글 색은 읽기 화면의 테마를 따르고, 선 · 바탕은 반투명으로 어느 테마에서나 어울리게).</summary>
+    private const string MarkdownCss =
+        "body.clr-txt .md{margin:0 0 .5em}body.clr-txt .md p{white-space:normal;margin:0}" +
+        "body.clr-txt .md h1,body.clr-txt .md h2,body.clr-txt .md h3,body.clr-txt .md h4,body.clr-txt .md h5,body.clr-txt .md h6{margin:.7em 0 .3em;font-weight:700;line-height:1.35}" +
+        "body.clr-txt .md h1{font-size:1.75em}body.clr-txt .md h2{font-size:1.45em}body.clr-txt .md h3{font-size:1.25em}body.clr-txt .md h4,body.clr-txt .md h5,body.clr-txt .md h6{font-size:1.08em}" +
+        "body.clr-txt .md blockquote{margin:.3em 0;padding:.2em .9em;border-left:3px solid rgba(127,127,127,.6);opacity:.85}body.clr-txt .md blockquote p{margin:.2em 0}" +
+        "body.clr-txt .md pre{margin:.4em 0;padding:.7em .9em;border-radius:6px;background:rgba(127,127,127,.14);white-space:pre-wrap;overflow-wrap:anywhere}" +
+        "body.clr-txt .md code{font-family:Consolas,D2Coding,monospace;font-size:.92em;background:rgba(127,127,127,.16);padding:0 .25em;border-radius:4px}body.clr-txt .md pre code{background:none;padding:0}" +
+        "body.clr-txt .md table{border-collapse:collapse;margin:.5em 0;max-width:100%}body.clr-txt .md th,body.clr-txt .md td{border:1px solid rgba(127,127,127,.5);padding:.3em .7em;text-align:left}body.clr-txt .md th{background:rgba(127,127,127,.15)}" +
+        "body.clr-txt .md hr{border:0;border-top:1px solid rgba(127,127,127,.5);margin:1em 0}" +
+        "body.clr-txt .md ul,body.clr-txt .md ol{margin:.2em 0;padding-left:1.6em}body.clr-txt .md li{margin:.1em 0}body.clr-txt .md li p{display:inline}" +
+        "body.clr-txt .md a{color:inherit;text-decoration:underline}body.clr-txt .md img{max-width:100%}body.clr-txt .md del{opacity:.7}";
+
     private const string HelperScript = @"
 (function(){
-  function paras() { return document.querySelectorAll('p[data-o]'); }
+  function paras() { return document.querySelectorAll('[data-o]'); }
   function paraAt(off) {
     var ps = paras(), lo = 0, hi = ps.length - 1, ans = ps.length ? 0 : -1;
     while (lo <= hi) { var mid = (lo + hi) >> 1; if (+ps[mid].dataset.o <= off) { ans = mid; lo = mid + 1; } else hi = mid - 1; }

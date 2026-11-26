@@ -17,8 +17,8 @@ public partial class MainForm
     {
         using var dlg = new OpenFileDialog
         {
-            Filter = "지원 파일 (*.txt;*.epub;*.pdf;*.hwp;*.hwpx;*.zip;*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp)|*.txt;*.epub;*.pdf;*.hwp;*.hwpx;*.zip;*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp" +
-                "|텍스트 파일 (*.txt)|*.txt|EPUB (*.epub)|*.epub|PDF (*.pdf)|*.pdf|한글 문서 (*.hwp;*.hwpx)|*.hwp;*.hwpx|zip (소설·만화) (*.zip)|*.zip|이미지 파일|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp|모든 파일|*.*",
+            Filter = "지원 파일 (*.txt;*.md;*.epub;*.pdf;*.hwp;*.hwpx;*.zip;*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp)|*.txt;*.md;*.markdown;*.epub;*.pdf;*.hwp;*.hwpx;*.zip;*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp" +
+                "|텍스트 파일 (*.txt)|*.txt|마크다운 (*.md)|*.md;*.markdown|EPUB (*.epub)|*.epub|PDF (*.pdf)|*.pdf|한글 문서 (*.hwp;*.hwpx)|*.hwp;*.hwpx|zip (소설·만화) (*.zip)|*.zip|이미지 파일|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp|모든 파일|*.*",
         };
         if (dlg.ShowDialogOver(this) == DialogResult.OK)
             OpenPath(dlg.FileName);
@@ -29,7 +29,7 @@ public partial class MainForm
         // 글 파일이 아닌 것(압축 · 문서 · 실행 파일 등)을 글로 열면 깨진 글자가 보이고, 거기서 한 글자라도 고치면 자동 저장이 원본을 덮어써서 망가진다.
         if (!LooksLikeText(path))
         {
-            MessageBox.Show(this, "글 파일이 아닌 것 같아서 열지 않았어요.\n(txt · epub · pdf · hwp · zip · 그림 파일을 열 수 있어요.)", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "글 파일이 아닌 것 같아서 열지 않았어요.\n(txt · md · epub · pdf · hwp · zip · 그림 파일을 열 수 있어요.)", AppShared.AppDisplayName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
         string text;
